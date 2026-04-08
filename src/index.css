@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply text-white antialiased;
+  background: radial-gradient(
+      circle at top center,
+      #0d3b3f 0%,
+      #071c1f 40%,
+      #051416 100%
+    );
+}
