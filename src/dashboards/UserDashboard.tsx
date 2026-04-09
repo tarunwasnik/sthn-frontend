@@ -183,7 +183,7 @@ export default function UserDashboard() {
         {/* ================= BOOKINGS ================= */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
 
-          <h3 className="text-lg font-semibold mb-2">
+          <h3 className="text-lg font-semibold mb-3">
             No bookings yet
           </h3>
 
