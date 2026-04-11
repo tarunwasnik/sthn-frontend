@@ -101,7 +101,7 @@ export default function Home() {
 
             <button
               onClick={() => navigate("/register")}
-              className="bg-teal-400 text-black px-4 py-2 rounded-full font-semibold"
+              className="bg-teal-400 text-black px-4 py-3 rounded-full font-semibold"
             >
               Join Now
             </button>
