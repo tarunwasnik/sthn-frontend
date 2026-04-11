@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
-const CLOUD_NAME = "dg8hixi8e";
 const UPLOAD_PRESET = "unsigned_preset";
 
 const uploadToCloudinary = async (file: File) => {
