@@ -16,16 +16,14 @@ export default function CreatorApplication() {
     currency: "",
     services: "",
     publicBio: "",
+    languages: "",
   });
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const isVerified = profileStatus === "verified";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [profileStatus, setProfileStatus] = useState<string | null>(null);
-
-  const isVerified = profileStatus === "verified";
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -46,6 +44,19 @@ export default function CreatorApplication() {
     fetchProfile();
   }, []);
 
+  const getLockMessage = () => {
+    if (!profileStatus)
+      return "Profile not found. Please complete your profile.";
+
+    if (profileStatus === "pending_verification")
+      return "Your profile is under verification.";
+
+    if (profileStatus === "rejected")
+      return "Your profile was rejected. Please update and resubmit.";
+
+    return "";
+  };
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -57,74 +68,28 @@ export default function CreatorApplication() {
     }));
   };
 
-  const getLockMessage = () => {
-    if (!profileStatus) {
-      return "Profile not found. Please complete your profile.";
-    }
-
-    if (profileStatus === "pending_verification") {
-      return "Your profile is under verification.";
-    }
-
-    if (profileStatus === "rejected") {
-      return "Your profile was rejected. Please update and resubmit.";
-    }
-
-    return "";
-  };
-
-  // FILE HANDLING
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-
-    const newPreviews = selectedFiles.map((file) =>
-      URL.createObjectURL(file)
-    );
-
-    setFiles((prev) => [...prev, ...selectedFiles]);
-    setPreviews((prev) => [...prev, ...newPreviews]);
-  };
-
-  const handleRemove = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-    setPreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isVerified || loading) return;
 
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      const formData = new FormData();
-
-      formData.append("displayName", form.displayName.trim());
-      formData.append("primaryCategory", form.primaryCategory.trim());
-      formData.append("country", form.country.trim());
-      formData.append("city", form.city.trim());
-      formData.append("currency", form.currency);
-      formData.append("publicBio", form.publicBio.trim());
-
-      form.services
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .forEach((service) => {
-          formData.append("services[]", service);
-        });
-
-      files.forEach((file) => {
-        formData.append("verificationMedia", file);
+      await api.post("/v1/creator-applications", {
+        ...form,
+        services: form.services
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        languages: form.languages
+          .split(",")
+          .map((l) => l.trim())
+          .filter(Boolean),
       });
 
-      await api.post("/v1/creator-applications", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      navigate("/creator-pending");
+      navigate("/dashboard/user");
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
@@ -138,18 +103,18 @@ export default function CreatorApplication() {
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
 
-      {/* Background Glow */}
+      {/* Background */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-teal-500/10 blur-[140px] rounded-full" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[900px] h-[400px] md:h-[600px] bg-teal-500/10 blur-[120px] md:blur-[150px] rounded-full" />
       </div>
 
-      <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl p-6">
+      <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8">
 
-        <h2 className="text-2xl font-bold mb-1">
+        <h2 className="text-2xl font-bold mb-2">
           Become a Creator
         </h2>
 
-        <p className="text-gray-400 text-sm mb-5">
+        <p className="text-gray-400 text-sm mb-6">
           Submit your creator profile for review
         </p>
 
@@ -165,28 +130,15 @@ export default function CreatorApplication() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
 
-          {/* INPUT STYLE */}
-          {[
-            { name: "displayName", placeholder: "Display Name" },
-            { name: "primaryCategory", placeholder: "Primary Category" },
-            { name: "country", placeholder: "Country" },
-            { name: "city", placeholder: "City" },
-          ].map((field) => (
-            <input
-              key={field.name}
-              name={field.name}
-              placeholder={field.placeholder}
-              value={(form as any)[field.name]}
-              onChange={handleChange}
-              disabled={!isVerified}
-              required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
-            />
-          ))}
+          {/* INPUTS */}
+          <input name="displayName" placeholder="Display Name" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
+          <input name="primaryCategory" placeholder="Primary Category" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
+          <input name="country" placeholder="Country" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
+          <input name="city" placeholder="City" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
 
-          {/* SELECT */}
+          {/* CURRENCY */}
           <div className="relative">
             <select
               name="currency"
@@ -194,7 +146,7 @@ export default function CreatorApplication() {
               onChange={handleChange}
               disabled={!isVerified}
               required
-              className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 appearance-none"
+              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white appearance-none"
             >
               <option value="" className="bg-[#020617] text-gray-400">
                 Select Currency
@@ -204,7 +156,7 @@ export default function CreatorApplication() {
                 <option
                   key={c.code}
                   value={c.code}
-                  className="bg-[#020617] text-white"
+                  className="bg-white text-black"
                 >
                   {c.code} — {c.label}
                 </option>
@@ -216,64 +168,16 @@ export default function CreatorApplication() {
             </div>
           </div>
 
-          <input
-            name="services"
-            placeholder="Services (comma separated)"
-            value={form.services}
-            onChange={handleChange}
-            disabled={!isVerified}
-            className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
-          />
+          <input name="services" placeholder="Services (comma separated)" onChange={handleChange} disabled={!isVerified} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
 
-          <textarea
-            name="publicBio"
-            placeholder="Public Bio"
-            value={form.publicBio}
-            onChange={handleChange}
-            disabled={!isVerified}
-            required
-            className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 min-h-[120px]"
-          />
+          {/* ✅ NEW FIELD */}
+          <input name="languages" placeholder="Languages (comma separated)" onChange={handleChange} disabled={!isVerified} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
 
-          {/* MEDIA */}
-          <div>
-            <label className="text-sm text-gray-300 mb-2 block">
-              Verification Media
-            </label>
-
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              disabled={!isVerified}
-              className="text-sm text-gray-300"
-            />
-
-            {previews.length > 0 && (
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                {previews.map((src, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={src}
-                      className="w-full h-24 object-cover rounded-lg"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(index)}
-                      className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <textarea name="publicBio" placeholder="Public Bio" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
 
           <button
             disabled={loading || !isVerified}
-            className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl hover:bg-teal-300 transition disabled:opacity-50"
+            className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Submit Application"}
           </button>

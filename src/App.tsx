@@ -13,7 +13,7 @@ import AdminRoute from "./components/AdminRoute";
 import ProfileVerificationQueue from "./pages/admin/ProfileVerificationQueue";
 import EntryLoader from "./pages/EntryLoader";
 import Onboarding from "./pages/Onboarding";
-import CreatorPending from "./pages/CreatorPending";
+
 import CreatorApplication from "./pages/CreatorApplication";
 import CreatorApplicationsQueue from "./pages/admin/CreatorApplicationsQueue";
 
@@ -186,8 +186,7 @@ export default function App() {
         element={<ChatPage />}
       />
 
-      <Route path="/creator-pending" element={<CreatorPending />} />
-
+      
       {/* ADMIN DASHBOARD */}
       <Route path="/dashboard/admin" element={<AdminDashboard />} />
 

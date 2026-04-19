@@ -14,13 +14,39 @@ import {
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 export default function CreatorDashboard() {
-  const { data, loading, errorCode, errorMessage } =
+    const { data, loading, errorCode, errorMessage } =
     useCreatorDashboard();
 
   const navigate = useNavigate();
+
+  /* ================= ACCESS CONTROL (CRITICAL) ================= */
+  useEffect(() => {
+    if (!loading) {
+      // ❌ If no data or unauthorized → redirect
+      if (!data || errorCode) {
+        navigate("/dashboard/user");
+      }
+    }
+  }, [loading, data, errorCode, navigate]);
+
+  /* ================= PREVENT UI FLASH ================= */
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 text-gray-400">
+          Loading your dashboard...
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!data) {
+    return null; // prevents flicker before redirect
+  }
 
   return (
     <DashboardLayout>

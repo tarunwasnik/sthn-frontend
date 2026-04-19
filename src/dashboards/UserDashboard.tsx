@@ -37,7 +37,6 @@ export default function UserDashboard() {
 
         setUser(userData);
 
-        /* ✅ CORRECT FIELD */
         setProfile({
           profileStatus: profileRes.data.profile?.profileStatus,
         });
@@ -55,7 +54,7 @@ export default function UserDashboard() {
   if (loading) {
     return (
       <UserDashboardLayout>
-        <div className="text-gray-400">Loading...</div>
+        <div className="text-gray-400 px-4">Loading...</div>
       </UserDashboardLayout>
     );
   }
@@ -63,7 +62,7 @@ export default function UserDashboard() {
   if (!user || !profile) {
     return (
       <UserDashboardLayout>
-        <div className="text-red-400">Failed to load dashboard</div>
+        <div className="text-red-400 px-4">Failed to load dashboard</div>
       </UserDashboardLayout>
     );
   }
@@ -75,18 +74,12 @@ export default function UserDashboard() {
   /* ================= LOGIC ================= */
   const isVerified = profileStatus === "verified";
 
-  const showBecomeCreator =
-    role === "USER" &&
-    isVerified &&
-    (creatorStatus === "none" || creatorStatus === "rejected");
-
-  const showCreatorPending =
-    role === "USER" &&
-    creatorStatus === "pending";
+  const showCreatorCard =
+    role === "USER" && isVerified;
 
   return (
     <UserDashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 px-4">
 
         {/* HEADER */}
         <div>
@@ -128,11 +121,6 @@ export default function UserDashboard() {
             </div>
           )}
 
-          {showCreatorPending && (
-            <div className="px-4 py-3 bg-yellow-500/10 text-yellow-400 rounded-lg mt-3">
-              Creator application under review.
-            </div>
-          )}
         </div>
 
         {/* ================= GRID SECTION ================= */}
@@ -157,9 +145,10 @@ export default function UserDashboard() {
             </button>
           </div>
 
-          {/* CREATOR CARD */}
-          {showBecomeCreator && (
+          {/* ================= CREATOR CARD (DYNAMIC) ================= */}
+          {showCreatorCard && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[160px]">
+
               <div>
                 <h3 className="font-semibold text-lg mb-1">
                   Become a Creator
@@ -169,12 +158,48 @@ export default function UserDashboard() {
                 </p>
               </div>
 
-              <button
-                onClick={() => navigate("/creator-application")}
-                className="mt-6 bg-teal-400 text-black font-semibold py-2 rounded-lg hover:bg-teal-300 transition"
-              >
-                Apply Now
-              </button>
+              {/* NOT APPLIED */}
+              {creatorStatus === "none" && (
+                <button
+                  onClick={() => navigate("/creator-application")}
+                  className="mt-6 bg-teal-400 text-black font-semibold py-2 rounded-lg hover:bg-teal-300 transition"
+                >
+                  Apply Now
+                </button>
+              )}
+
+              {/* PENDING */}
+              {creatorStatus === "pending" && (
+                <div className="mt-6 px-4 py-3 bg-yellow-500/10 text-yellow-400 rounded-lg">
+                  Your creator application is under review
+                </div>
+              )}
+
+              {/* APPROVED */}
+              {creatorStatus === "approved" && (
+                <button
+                  onClick={() => navigate("/creator-dashboard")}
+                  className="mt-6 bg-black text-white font-semibold py-2 rounded-lg hover:bg-gray-900 transition"
+                >
+                  Go to Creator Dashboard
+                </button>
+              )}
+
+              {/* REJECTED */}
+              {creatorStatus === "rejected" && (
+                <div className="mt-6">
+                  <p className="text-red-400 text-sm mb-2">
+                    Your application was rejected
+                  </p>
+                  <button
+                    onClick={() => navigate("/creator-application")}
+                    className="w-full border border-white/20 py-2 rounded-lg hover:bg-white/5 transition"
+                  >
+                    Apply Again
+                  </button>
+                </div>
+              )}
+
             </div>
           )}
 

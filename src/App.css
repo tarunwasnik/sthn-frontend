@@ -59,3 +59,17 @@
   border-color: #2dd4bf;
   box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
 }
+
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
