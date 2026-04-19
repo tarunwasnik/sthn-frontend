@@ -51,15 +51,61 @@ export default function DashboardLayout({ children }: Props) {
           </div>
 
           <nav className="p-4 space-y-2">
-            <SidebarItem to="/dashboard/creator" icon={<LayoutDashboard size={18} />} label="Dashboard" />
-            <SidebarItem to="/dashboard/creator/bookings" icon={<Calendar size={18} />} label="My Bookings" />
-            <SidebarItem to="/dashboard/creator/services" icon={<Briefcase size={18} />} label="Services" />
-            <SidebarItem to="/dashboard/creator/availability" icon={<Calendar size={18} />} label="Availability" />
-            <SidebarItem to="/dashboard/creator/requests" icon={<Clock size={18} />} label="Booking Requests" />
-            <SidebarItem to="/dashboard/creator/messages" icon={<MessageCircle size={18} />} label="Messages" />
-            <SidebarItem to="/dashboard/creator/browse" icon={<Search size={18} />} label="Browse Creators" />
-            <SidebarItem to="/dashboard/creator/earnings" icon={<DollarSign size={18} />} label="Earnings" />
-            <SidebarItem to="/dashboard/creator/settings" icon={<Settings size={18} />} label="Settings" />
+            {/* ✅ FIXED: end added */}
+            <SidebarItem
+              to="/dashboard/creator"
+              icon={<LayoutDashboard size={18} />}
+              label="Dashboard"
+              end
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/bookings"
+              icon={<Calendar size={18} />}
+              label="My Bookings"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/services"
+              icon={<Briefcase size={18} />}
+              label="Services"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/availability"
+              icon={<Calendar size={18} />}
+              label="Availability"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/requests"
+              icon={<Clock size={18} />}
+              label="Booking Requests"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/messages"
+              icon={<MessageCircle size={18} />}
+              label="Messages"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/browse"
+              icon={<Search size={18} />}
+              label="Browse Creators"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/earnings"
+              icon={<DollarSign size={18} />}
+              label="Earnings"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/settings"
+              icon={<Settings size={18} />}
+              label="Settings"
+            />
           </nav>
         </div>
       </aside>
@@ -95,10 +141,12 @@ export default function DashboardLayout({ children }: Props) {
         {/* ================= MOBILE NAV ================= */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#0F172A]/95 backdrop-blur border-t border-gray-800 flex justify-around py-3">
 
+          {/* ✅ FIXED: end added */}
           <BottomNavItem
             to="/dashboard/creator"
             icon={<LayoutDashboard size={20} />}
             label="Dashboard"
+            end
           />
 
           <BottomNavItem
@@ -131,54 +179,22 @@ export default function DashboardLayout({ children }: Props) {
         {/* ================= BOTTOM SHEET ================= */}
         {showMore && (
           <>
-            {/* Overlay */}
             <div
               onClick={() => setShowMore(false)}
               className="fixed inset-0 bg-black/50 z-40"
             />
 
-            {/* Sheet */}
             <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0F172A]/95 backdrop-blur-xl border-t border-gray-800 rounded-t-2xl p-5 pt-6 pb-10 max-h-[40%] overflow-y-auto animate-slide-up">
 
-              {/* Drag handle */}
               <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
 
               <div className="grid grid-cols-2 gap-3">
 
-                <SheetItem
-                  to="/dashboard/creator/availability"
-                  icon={<Calendar size={18} />}
-                  label="Availability"
-                  close={() => setShowMore(false)}
-                />
-
-                <SheetItem
-                  to="/dashboard/creator/requests"
-                  icon={<Clock size={18} />}
-                  label="Requests"
-                  close={() => setShowMore(false)}
-                />
-
-                <SheetItem
-                  to="/dashboard/creator/browse"
-                  icon={<Search size={18} />}
-                  label="Browse"
-                  close={() => setShowMore(false)}
-                />
-
-                <SheetItem
-                  to="/dashboard/creator/earnings"
-                  icon={<DollarSign size={18} />}
-                  label="Earnings"
-                  close={() => setShowMore(false)}
-                />
-
-                <SheetItem
-                  to="/dashboard/creator/settings"
-                  icon={<Settings size={18} />}
-                  label="Settings"
-                  close={() => setShowMore(false)}
-                />
+                <SheetItem to="/dashboard/creator/availability" icon={<Calendar size={18} />} label="Availability" close={() => setShowMore(false)} />
+                <SheetItem to="/dashboard/creator/requests" icon={<Clock size={18} />} label="Requests" close={() => setShowMore(false)} />
+                <SheetItem to="/dashboard/creator/browse" icon={<Search size={18} />} label="Browse" close={() => setShowMore(false)} />
+                <SheetItem to="/dashboard/creator/earnings" icon={<DollarSign size={18} />} label="Earnings" close={() => setShowMore(false)} />
+                <SheetItem to="/dashboard/creator/settings" icon={<Settings size={18} />} label="Settings" close={() => setShowMore(false)} />
 
               </div>
             </div>
@@ -192,13 +208,16 @@ export default function DashboardLayout({ children }: Props) {
 
 /* ================= COMPONENTS ================= */
 
-function SidebarItem({ to, icon, label }: any) {
+function SidebarItem({ to, icon, label, end = false }: any) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         `flex items-center space-x-3 px-3 py-2 rounded-lg ${
-          isActive ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-800"
+          isActive
+            ? "bg-blue-600 text-white"
+            : "text-gray-400 hover:bg-gray-800"
         }`
       }
     >
@@ -208,10 +227,11 @@ function SidebarItem({ to, icon, label }: any) {
   );
 }
 
-function BottomNavItem({ to, icon, label }: any) {
+function BottomNavItem({ to, icon, label, end = false }: any) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         `flex flex-col items-center justify-center text-xs ${
           isActive ? "text-teal-400" : "text-gray-400"
