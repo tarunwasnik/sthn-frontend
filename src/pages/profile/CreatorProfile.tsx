@@ -1,380 +1,292 @@
 // frontend/src/pages/profile/CreatorProfile.tsx
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+
+/* ================= TYPES ================= */
 
 interface CreatorProfile {
   displayName: string;
-  avatarUrl: string;
-  bio: string;
-  languages: string[];
-  categories: string[];
-  city: string;
-  country: string;
+  bio?: string;
+  languages?: string[];
+  categories?: string[];
+  city?: string;
+  country?: string;
   currency: string;
   slug: string;
-  media?: string[]; // ✅ ADDED
 }
 
-export default function CreatorProfile() {
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [formData, setFormData] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+interface UserProfile {
+  avatar: string;
+  cover: string;
+  profilePhotos: string[];
+  bio: string;
+}
 
-  const [newMediaUrl, setNewMediaUrl] = useState(""); // ✅ NEW INPUT
+/* ================= COMPONENT ================= */
+
+export default function CreatorProfilePage() {
+  const navigate = useNavigate();
+
+  const [creator, setCreator] = useState<CreatorProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+
+  const [formData, setFormData] = useState({
+    bio: "",
+    languages: "",
+    categories: "",
+    city: "",
+    country: "",
+  });
+
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProfile();
+    fetchData();
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const res = await api.get("/v1/creator/profile");
-      const data = res.data;
+  /* ================= FETCH ================= */
 
-      setProfile(data);
+  const fetchData = async () => {
+    try {
+      const [creatorRes, userRes] = await Promise.all([
+        api.get("/v1/creator/profile"),
+        api.get("/v1/profile/me"),
+      ]);
+
+      const creatorData = creatorRes.data;
+      const userData = userRes.data;
+
+      setCreator(creatorData);
+      setUser(userData);
 
       setFormData({
-        displayName: data?.displayName || "",
-        avatarUrl: data?.avatarUrl || "",
-        bio: data?.bio || "",
-        languages: Array.isArray(data?.languages)
-          ? data.languages.join(", ")
-          : "",
-        categories: Array.isArray(data?.categories)
-          ? data.categories.join(", ")
-          : "",
-        city: data?.city || "",
-        country: data?.country || "",
-        media: Array.isArray(data?.media) ? data.media : [], // ✅ INIT
+        bio: creatorData?.bio || userData?.bio || "",
+        languages: creatorData?.languages?.join(", ") || "",
+        categories: creatorData?.categories?.join(", ") || "",
+        city: creatorData?.city || "",
+        country: creatorData?.country || "",
       });
+
     } catch (err) {
-      console.error("Failed to load creator profile", err);
+      console.error("Fetch failed", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddMedia = () => {
-    if (!newMediaUrl.trim()) return;
-
-    setFormData({
-      ...formData,
-      media: [...(formData.media || []), newMediaUrl.trim()],
-    });
-
-    setNewMediaUrl("");
-  };
-
-  const handleRemoveMedia = (index: number) => {
-    const updated = [...formData.media];
-    updated.splice(index, 1);
-
-    setFormData({
-      ...formData,
-      media: updated,
-    });
-  };
+  /* ================= SAVE ================= */
 
   const handleSave = async () => {
-    if (!formData.displayName) {
-      alert("Display name is required");
-      return;
-    }
-
     try {
       await api.patch("/v1/creator/profile", {
-        displayName: formData.displayName,
-        avatarUrl: formData.avatarUrl,
         bio: formData.bio,
         languages: formData.languages
           .split(",")
-          .map((l: string) => l.trim())
+          .map((l) => l.trim())
           .filter(Boolean),
         categories: formData.categories
           .split(",")
-          .map((c: string) => c.trim())
+          .map((c) => c.trim())
           .filter(Boolean),
         city: formData.city,
         country: formData.country,
-        media: formData.media || [], // ✅ SEND MEDIA
       });
 
-      alert("Profile updated successfully");
-
       setEditing(false);
-
-      await fetchProfile();
+      fetchData();
     } catch (err) {
-      console.error("Failed to update creator profile", err);
+      console.error(err);
+      alert("Update failed");
     }
   };
 
-  if (loading) {
-    return <div className="p-8 text-white">Loading...</div>;
-  }
+  /* ================= UI ================= */
 
-  if (!profile) {
-    return <div className="p-8 text-white">Profile not found</div>;
-  }
+  if (loading) return <div className="p-10 text-white">Loading...</div>;
+  if (!creator || !user) return <div className="p-10 text-white">Profile error</div>;
+
+  const avatar = user.avatar;
+  const cover = user.cover;
+  const media = user.profilePhotos || [];
 
   return (
-    <div className="min-h-screen bg-[#0B1220] text-white p-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617] text-white">
+
+      <div className="max-w-4xl mx-auto px-4 pt-10 pb-20">
 
         {/* HEADER */}
-        <div className="bg-[#0F172A] p-6 rounded-xl border border-gray-800 flex justify-between items-center">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => navigate(-1)} className="text-sm text-gray-300">
+            ← Back
+          </button>
 
-          <div className="flex items-center gap-4">
+          <button
+            onClick={() => setEditing(!editing)}
+            className="px-4 py-2 bg-teal-500 rounded-lg"
+          >
+            {editing ? "Cancel" : "Edit Profile"}
+          </button>
+        </div>
 
-            {/* AVATAR */}
-            <div className="w-16 h-16 rounded-full bg-gray-700 overflow-hidden flex items-center justify-center">
-              {profile.avatarUrl ? (
+        {/* HERO */}
+        <div className="relative mb-14">
+
+          {/* COVER */}
+          <div className="h-[220px] rounded-2xl overflow-hidden">
+            {cover ? (
+              <img
+                src={cover}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setSelectedImage(cover)}
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-800" />
+            )}
+            <div className="absolute inset-0 bg-black/40" />
+          </div>
+
+          {/* AVATAR */}
+          <div className="absolute left-6 -bottom-12 flex items-center gap-4">
+            <div className="w-20 h-20 rounded-full border-4 border-[#041c1c] overflow-hidden">
+              {avatar && (
                 <img
-                  src={profile.avatarUrl}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                  className="w-full h-full object-cover"
+                  src={avatar}
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => setSelectedImage(avatar)}
                 />
-              ) : (
-                <span className="text-lg font-bold">
-                  {profile.displayName?.charAt(0).toUpperCase()}
-                </span>
               )}
             </div>
 
             <div>
-              <h2 className="text-xl font-bold">
-                {profile.displayName}
-              </h2>
-              <p className="text-sm text-gray-400">
-                Creator Profile
+              <h1 className="text-xl font-bold">{creator.displayName}</h1>
+              <span className="text-xs bg-purple-500 px-2 py-1 rounded">
+                Creator
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8 pt-12">
+
+          {/* CREATOR DETAILS */}
+          <div className="bg-[#071c1c] rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Creator Details</h3>
+
+            {/* LANGUAGES */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-2">Language</p>
+              <div className="flex flex-wrap gap-2">
+                {creator.languages?.length ? (
+                  creator.languages.map((l, i) => (
+                    <span key={i} className="px-3 py-1 bg-white/10 rounded-full text-sm">
+                      {l}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-500 text-sm">Not specified</span>
+                )}
+              </div>
+            </div>
+
+            {/* CATEGORY */}
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-2">Category</p>
+              <div className="flex flex-wrap gap-2">
+                {creator.categories?.length ? (
+                  creator.categories.map((c, i) => (
+                    <span key={i} className="px-3 py-1 bg-purple-500/20 rounded-full text-sm">
+                      {c}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-gray-500 text-sm">Not specified</span>
+                )}
+              </div>
+            </div>
+
+            {/* LOCATION */}
+            <div>
+              <p className="text-sm text-gray-400 mb-2">Location</p>
+              <p className="text-gray-300">
+                {creator.city && creator.country
+                  ? `${creator.city}, ${creator.country}`
+                  : "Not specified"}
               </p>
             </div>
           </div>
 
-          <div className="flex gap-3">
+          {/* MEDIA */}
+          <div className="bg-[#071c1c] rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4">Media</h3>
 
-            <button
-              onClick={() =>
-                window.open(`/creators/${profile.slug}`, "_blank")
-              }
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
-            >
-              View Public
-            </button>
+            <p className="text-xs text-gray-400 mb-3">
+              Media is managed from User Profile
+            </p>
 
-            <button
-              onClick={() => setEditing(!editing)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-            >
-              {editing ? "Cancel" : "Edit"}
-            </button>
-
-          </div>
-        </div>
-
-        {/* FORM */}
-        <div className="bg-[#0F172A] p-6 rounded-xl border border-gray-800 space-y-4">
-
-          {/* DISPLAY NAME */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Display Name
-            </label>
-            <input
-              value={formData.displayName}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  displayName: e.target.value,
-                })
-              }
-              className="w-full bg-[#020617] p-2 rounded"
-            />
-          </div>
-
-          {/* AVATAR */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Avatar URL
-            </label>
-            <input
-              value={formData.avatarUrl}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  avatarUrl: e.target.value,
-                })
-              }
-              className="w-full bg-[#020617] p-2 rounded"
-            />
-          </div>
-
-          {/* 🔥 MEDIA GALLERY */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Media Gallery
-            </label>
-
-            {/* ADD MEDIA */}
-            {editing && (
-              <div className="flex gap-2 mt-2">
-                <input
-                  placeholder="Enter image URL"
-                  value={newMediaUrl}
-                  onChange={(e) => setNewMediaUrl(e.target.value)}
-                  className="flex-1 bg-[#020617] p-2 rounded"
-                />
-                <button
-                  onClick={handleAddMedia}
-                  className="px-4 bg-blue-600 rounded"
-                >
-                  Add
-                </button>
-              </div>
-            )}
-
-            {/* PREVIEW GRID */}
-            {formData.media?.length > 0 && (
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                {formData.media.map((url: string, index: number) => (
-                  <div
-                    key={index}
-                    className="relative group rounded-lg overflow-hidden border border-gray-700"
-                  >
+            {media.length === 0 ? (
+              <p className="text-gray-500">No media uploaded</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {media.map((img, i) => (
+                  <div key={i} className="h-32 rounded overflow-hidden">
                     <img
-                      src={url}
-                      className="w-full h-28 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
+                      src={img}
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setSelectedImage(img)}
                     />
-
-                    {editing && (
-                      <button
-                        onClick={() => handleRemoveMedia(index)}
-                        className="absolute top-1 right-1 bg-red-600 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100"
-                      >
-                        ✕
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* BIO */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Bio
-            </label>
-            <textarea
-              value={formData.bio}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  bio: e.target.value,
-                })
-              }
-              className="w-full bg-[#020617] p-2 rounded"
-            />
-          </div>
+          {/* ABOUT */}
+          <div className="bg-[#071c1c] rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-3">About</h3>
 
-          {/* LANGUAGES */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Languages
-            </label>
-            <input
-              value={formData.languages}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  languages: e.target.value,
-                })
-              }
-              className="w-full bg-[#020617] p-2 rounded"
-            />
-          </div>
-
-          {/* CATEGORIES */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Categories
-            </label>
-            <input
-              value={formData.categories}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  categories: e.target.value,
-                })
-              }
-              className="w-full bg-[#020617] p-2 rounded"
-            />
-          </div>
-
-          {/* LOCATION */}
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              placeholder="City"
-              value={formData.city}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  city: e.target.value,
-                })
-              }
-              className="bg-[#020617] p-2 rounded"
-            />
-
-            <input
-              placeholder="Country"
-              value={formData.country}
-              disabled={!editing}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  country: e.target.value,
-                })
-              }
-              className="bg-[#020617] p-2 rounded"
-            />
-          </div>
-
-          {/* CURRENCY */}
-          <div>
-            <label className="text-sm text-gray-400">
-              Currency
-            </label>
-            <input
-              value={profile.currency}
-              disabled
-              className="w-full bg-gray-800 p-2 rounded text-gray-400"
-            />
+            {editing ? (
+              <textarea
+                value={formData.bio}
+                onChange={(e) =>
+                  setFormData({ ...formData, bio: e.target.value })
+                }
+                className="w-full bg-[#020617] p-3 rounded"
+              />
+            ) : (
+              <p className="text-gray-300">
+                {formData.bio || "No description added yet"}
+              </p>
+            )}
           </div>
 
           {/* SAVE */}
           {editing && (
             <button
               onClick={handleSave}
-              className="w-full bg-green-600 py-3 rounded-lg hover:bg-green-700"
+              className="w-full bg-teal-500 py-3 rounded-lg"
             >
               Save Changes
             </button>
           )}
         </div>
       </div>
+
+      {/* FULLSCREEN IMAGE */}
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50"
+        >
+          <img
+            src={selectedImage}
+            className="max-w-[90%] max-h-[90%] rounded-lg"
+          />
+        </div>
+      )}
     </div>
   );
 }
