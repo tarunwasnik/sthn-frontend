@@ -244,9 +244,10 @@ export default function UserProfilePage() {
           {/* ABOUT */}
           <div className="bg-[#071c1c] rounded-xl p-6">
             <h3 className="text-lg font-semibold mb-3">About</h3>
-
+          
             {editing ? (
               <>
+              
                 <textarea
                   value={formData.bio}
                   onChange={(e) =>

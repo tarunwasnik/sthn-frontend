@@ -5,6 +5,25 @@ import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { currencies } from "../constants/currencies";
 
+/* ================= CLOUDINARY ================= */
+
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "unsigned_preset");
+
+  const res = await fetch(
+    "https://api.cloudinary.com/v1_1/dg8hixi8e/image/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const data = await res.json();
+  return data.secure_url;
+};
+
 export default function CreatorApplication() {
   const navigate = useNavigate();
 
@@ -19,23 +38,26 @@ export default function CreatorApplication() {
     languages: "",
   });
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [media, setMedia] = useState<string[]>([]);
+
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState("");
+
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const isVerified = profileStatus === "verified";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  /* ================= FETCH PROFILE ================= */
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const res = await api.get("/v1/profile/me");
-
-        const profile =
-          res.data?.profile ||
-          res.data?.data?.profile ||
-          res.data;
-
-        setProfileStatus(profile?.profileStatus || null);
+        setProfileStatus(res.data?.profileStatus || null);
       } catch {
         setProfileStatus(null);
       }
@@ -44,146 +66,241 @@ export default function CreatorApplication() {
     fetchProfile();
   }, []);
 
-  const getLockMessage = () => {
-    if (!profileStatus)
-      return "Profile not found. Please complete your profile.";
+  /* ================= CLOSE DROPDOWN ================= */
 
-    if (profileStatus === "pending_verification")
-      return "Your profile is under verification.";
+  useEffect(() => {
+    const close = () => setCurrencyOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
 
-    if (profileStatus === "rejected")
-      return "Your profile was rejected. Please update and resubmit.";
+  /* ================= FILTER ================= */
 
-    return "";
+  const filteredCurrencies = currencies.filter((c) =>
+    `${c.code} ${c.label}`.toLowerCase().includes(currencySearch.toLowerCase())
+  );
+
+  /* ================= HANDLERS ================= */
+
+  const handleChange = (e: any) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+  const handleAvatarUpload = async (file: File) => {
+    const preview = URL.createObjectURL(file);
+    setAvatarUrl(preview);
+
+    const url = await uploadToCloudinary(file);
+    setAvatarUrl(url);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCoverUpload = async (file: File) => {
+    const preview = URL.createObjectURL(file);
+    setCoverUrl(preview);
+
+    const url = await uploadToCloudinary(file);
+    setCoverUrl(url);
+  };
+
+  const handleMediaUpload = async (files: FileList) => {
+    const arr = Array.from(files);
+
+    for (const file of arr) {
+      const preview = URL.createObjectURL(file);
+      setMedia((prev) => [...prev, preview]);
+
+      const url = await uploadToCloudinary(file);
+
+      setMedia((prev) => {
+        const updated = [...prev];
+        const index = updated.indexOf(preview);
+        if (index !== -1) updated[index] = url;
+        return updated;
+      });
+    }
+  };
+
+  const removeMedia = (i: number) => {
+    setMedia((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  /* ================= SUBMIT ================= */
+
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    if (!isVerified || loading) return;
+    if (!isVerified) return;
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
       await api.post("/v1/creator-applications", {
         ...form,
-        services: form.services
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        languages: form.languages
-          .split(",")
-          .map((l) => l.trim())
-          .filter(Boolean),
+        avatarUrl,
+        coverUrl,
+        media,
+        services: form.services.split(",").map((s) => s.trim()),
+        languages: form.languages.split(",").map((l) => l.trim()),
       });
 
       navigate("/dashboard/user");
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          "Failed to submit application"
-      );
+      setError(err?.response?.data?.message || "Failed");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ================= UI ================= */
+
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 text-white bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617]">
 
-      {/* Background */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[900px] h-[400px] md:h-[600px] bg-teal-500/10 blur-[120px] md:blur-[150px] rounded-full" />
-      </div>
+      <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl p-6">
 
-      <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8">
+        <h2 className="text-2xl font-bold mb-2">Become a Creator</h2>
+        <p className="text-gray-400 text-sm mb-6">Submit for review</p>
 
-        <h2 className="text-2xl font-bold mb-2">
-          Become a Creator
-        </h2>
+        {error && <p className="text-red-400 mb-4">{error}</p>}
 
-        <p className="text-gray-400 text-sm mb-6">
-          Submit your creator profile for review
-        </p>
-
-        {!isVerified && (
-          <div className="mb-4 rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 text-sm text-yellow-400">
-            {getLockMessage()}
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4 rounded-md bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
 
           {/* INPUTS */}
-          <input name="displayName" placeholder="Display Name" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-          <input name="primaryCategory" placeholder="Primary Category" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-          <input name="country" placeholder="Country" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-          <input name="city" placeholder="City" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
+          <input name="displayName" placeholder="Display Name" onChange={handleChange} className="input" />
+          <input name="primaryCategory" placeholder="Primary Category" onChange={handleChange} className="input" />
+          <input name="country" placeholder="Country" onChange={handleChange} className="input" />
+          <input name="city" placeholder="City" onChange={handleChange} className="input" />
 
-          {/* CURRENCY */}
+          {/* SEARCHABLE CURRENCY */}
           <div className="relative">
-            <select
-              name="currency"
-              value={form.currency}
-              onChange={handleChange}
-              disabled={!isVerified}
-              required
-              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white appearance-none"
-            >
-              <option value="" className="bg-[#020617] text-gray-400">
-                Select Currency
-              </option>
+            <input
+              value={currencySearch || form.currency}
+              onChange={(e) => {
+                setCurrencySearch(e.target.value);
+                setCurrencyOpen(true);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrencyOpen(true);
+              }}
+              placeholder="Select Currency"
+              className="input"
+            />
 
-              {currencies.map((c) => (
-                <option
-                  key={c.code}
-                  value={c.code}
-                  className="bg-white text-black"
+            {currencyOpen && (
+              <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-lg bg-white border border-white/10 shadow-xl">
+
+                {filteredCurrencies.length > 0 ? (
+                  filteredCurrencies.map((c) => (
+                    <div
+                      key={c.code}
+                      onClick={() => {
+                        setForm({ ...form, currency: c.code });
+                        setCurrencySearch(`${c.code} — ${c.label}`);
+                        setCurrencyOpen(false);
+                      }}
+                      className="px-3 py-2 hover:bg-white/10 cursor-pointer text-sm text-black"
+                    >
+                      {c.code} — {c.label}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-400 text-sm">
+                    No results found
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
+
+          <input name="services" placeholder="Services" onChange={handleChange} className="input" />
+          <input name="languages" placeholder="Languages" onChange={handleChange} className="input" />
+
+          <textarea name="publicBio" placeholder="Public Bio" onChange={handleChange} className="input" />
+
+          {/* AVATAR */}
+          <div>
+            <p className="text-sm mb-1">Avatar</p>
+            <input type="file" onChange={(e) => e.target.files && handleAvatarUpload(e.target.files[0])} />
+
+            {avatarUrl && (
+              <div className="relative w-20 h-20 mt-2">
+                <img src={avatarUrl} className="w-20 h-20 object-cover rounded-full" />
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrl(null)}
+                  className="absolute top-0 right-0 bg-black/60 text-xs px-1 rounded"
                 >
-                  {c.code} — {c.label}
-                </option>
-              ))}
-            </select>
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
 
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-              ▼
+          {/* COVER */}
+          <div>
+            <p className="text-sm mb-1">Cover</p>
+            <input type="file" onChange={(e) => e.target.files && handleCoverUpload(e.target.files[0])} />
+
+            {coverUrl && (
+              <div className="relative mt-2">
+                <img src={coverUrl} className="w-full h-24 object-cover rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => setCoverUrl(null)}
+                  className="absolute top-1 right-1 bg-black/60 text-xs px-2 py-1 rounded"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* MEDIA */}
+          <div>
+            <p className="text-sm mb-1">Media</p>
+            <input type="file" multiple onChange={(e) => e.target.files && handleMediaUpload(e.target.files)} />
+
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              {media.map((img, i) => (
+                <div key={i} className="relative">
+                  <img src={img} className="h-20 w-full object-cover rounded" />
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(i)}
+                    className="absolute top-1 right-1 bg-black/60 text-xs px-1 rounded"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
-          <input name="services" placeholder="Services (comma separated)" onChange={handleChange} disabled={!isVerified} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-
-          {/* ✅ NEW FIELD */}
-          <input name="languages" placeholder="Languages (comma separated)" onChange={handleChange} disabled={!isVerified} className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-
-          <textarea name="publicBio" placeholder="Public Bio" onChange={handleChange} disabled={!isVerified} required className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10" />
-
-          <button
-            disabled={loading || !isVerified}
-            className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl disabled:opacity-50"
-          >
+          {/* SUBMIT */}
+          <button className="w-full bg-teal-400 text-black py-3 rounded-xl">
             {loading ? "Submitting..." : "Submit Application"}
           </button>
 
         </form>
       </div>
+
+      {/* INPUT STYLE */}
+      <style>
+        {`
+          .input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            outline: none;
+            color: white;
+          }
+        `}
+      </style>
     </div>
   );
 }
