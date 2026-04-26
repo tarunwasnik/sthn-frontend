@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
-import { Pencil } from "lucide-react";
 
 /* ================= TYPES ================= */
 
@@ -149,21 +148,16 @@ export default function CreatorProfilePage() {
         coverUrl: formData.coverUrl,
         media: formData.media,
         bio: formData.bio,
-        languages: formData.languages
-          .split(",")
-          .map((l) => l.trim())
-          .filter(Boolean),
-        categories: formData.categories
-          .split(",")
-          .map((c) => c.trim())
-          .filter(Boolean),
+        languages: formData.languages.split(",").map(l => l.trim()).filter(Boolean),
+        categories: formData.categories.split(",").map(c => c.trim()).filter(Boolean),
         city: formData.city,
         country: formData.country,
       });
 
       setEditing(false);
       fetchProfile();
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert("Update failed");
     }
   };
@@ -176,7 +170,7 @@ export default function CreatorProfilePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617] text-white">
 
-      <div className="max-w-4xl mx-auto px-4 pt-10 pb-24">
+      <div className="max-w-4xl mx-auto px-4 pt-10 pb-20">
 
         {/* HEADER */}
         <div className="flex justify-between mb-6">
@@ -191,27 +185,27 @@ export default function CreatorProfilePage() {
         </div>
 
         {/* HERO */}
-        <div className="relative mb-16">
+        <div className="relative mb-14">
 
           {/* COVER */}
           <div className="relative h-[220px] rounded-2xl overflow-hidden">
-
             <img
               src={formData.coverUrl}
               className="w-full h-full object-cover cursor-pointer"
               onClick={() => setSelectedImage(formData.coverUrl)}
             />
+            <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-2xl" />
 
             {editing && (
               <>
                 <button
-                  onClick={() =>
-                    document.getElementById("coverUpload")?.click()
-                  }
-                  className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full 
-                  bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    document.getElementById("coverUpload")?.click();
+                  }}
+                  className="absolute top-3 right-3 z-20 px-3 py-1 text-xs bg-black/60 rounded"
                 >
-                  <Pencil size={16} />
+                  Change
                 </button>
 
                 <input
@@ -219,8 +213,7 @@ export default function CreatorProfilePage() {
                   type="file"
                   className="hidden"
                   onChange={(e) =>
-                    e.target.files &&
-                    handleCoverUpload(e.target.files[0])
+                    e.target.files && handleCoverUpload(e.target.files[0])
                   }
                 />
               </>
@@ -240,13 +233,13 @@ export default function CreatorProfilePage() {
               {editing && (
                 <>
                   <button
-                    onClick={() =>
-                      document.getElementById("avatarUpload")?.click()
-                    }
-                    className="absolute bottom-0 right-0 w-7 h-7 flex items-center justify-center rounded-full 
-                    bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      document.getElementById("avatarUpload")?.click();
+                    }}
+                    className="absolute bottom-0 right-0 z-20 px-2 py-1 text-xs bg-black/70 rounded-full"
                   >
-                    <Pencil size={12} />
+                    ✎
                   </button>
 
                   <input
@@ -254,8 +247,7 @@ export default function CreatorProfilePage() {
                     type="file"
                     className="hidden"
                     onChange={(e) =>
-                      e.target.files &&
-                      handleAvatarUpload(e.target.files[0])
+                      e.target.files && handleAvatarUpload(e.target.files[0])
                     }
                   />
                 </>
@@ -263,9 +255,7 @@ export default function CreatorProfilePage() {
             </div>
 
             <div>
-              <h1 className="text-xl font-bold">
-                {formData.displayName}
-              </h1>
+              <h1 className="text-xl font-bold">{formData.displayName}</h1>
               <span className="text-xs bg-purple-500 px-2 py-1 rounded">
                 Creator
               </span>
@@ -273,75 +263,76 @@ export default function CreatorProfilePage() {
           </div>
         </div>
 
+        {/* CONTENT */}
         <div className="space-y-8 pt-12">
 
-          {/* DETAILS */}
-          <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-            <h3 className="mb-4 font-semibold">Creator Details</h3>
+          {/* CREATOR DETAILS */}
+          <div className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-xl p-6">
 
-            <p className="text-sm text-gray-400">Language</p>
-            {editing ? (
-              <input
-                value={formData.languages}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    languages: e.target.value,
-                  })
-                }
-                className="w-full bg-white/5 border border-white/10 p-2 rounded-lg mb-3"
-              />
-            ) : (
-              <p className="mb-3">{formData.languages}</p>
-            )}
+            <h3 className="text-lg font-semibold mb-4">Creator Details</h3>
 
-            <p className="text-sm text-gray-400">Category</p>
-            {editing ? (
-              <input
-                value={formData.categories}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    categories: e.target.value,
-                  })
-                }
-                className="w-full bg-white/5 border border-white/10 p-2 rounded-lg mb-3"
-              />
-            ) : (
-              <p className="mb-3">{formData.categories}</p>
-            )}
-
-            <p className="text-sm text-gray-400">Location</p>
-            {editing ? (
-              <div className="grid grid-cols-2 gap-2">
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-1">Language</p>
+              {editing ? (
                 <input
-                  value={formData.city}
+                  value={formData.languages}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      city: e.target.value,
-                    })
+                    setFormData({ ...formData, languages: e.target.value })
                   }
-                  className="bg-white/5 border border-white/10 p-2 rounded-lg"
+                  className="w-full bg-white/5 border border-white/10 p-3 rounded-lg"
                 />
+              ) : (
+                <p>{formData.languages || "Not specified"}</p>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-1">Category</p>
+              {editing ? (
                 <input
-                  value={formData.country}
+                  value={formData.categories}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      country: e.target.value,
-                    })
+                    setFormData({ ...formData, categories: e.target.value })
                   }
-                  className="bg-white/5 border border-white/10 p-2 rounded-lg"
+                  className="w-full bg-white/5 border border-white/10 p-3 rounded-lg"
                 />
-              </div>
-            ) : (
-              <p>{formData.city}, {formData.country}</p>
-            )}
+              ) : (
+                <p>{formData.categories || "Not specified"}</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-400 mb-1">Location</p>
+              {editing ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    value={formData.city}
+                    onChange={(e) =>
+                      setFormData({ ...formData, city: e.target.value })
+                    }
+                    className="bg-white/5 border border-white/10 p-3 rounded-lg"
+                  />
+                  <input
+                    value={formData.country}
+                    onChange={(e) =>
+                      setFormData({ ...formData, country: e.target.value })
+                    }
+                    className="bg-white/5 border border-white/10 p-3 rounded-lg"
+                  />
+                </div>
+              ) : (
+                <p>
+                  {formData.city && formData.country
+                    ? `${formData.city}, ${formData.country}`
+                    : "Not specified"}
+                </p>
+              )}
+            </div>
+
           </div>
 
           {/* MEDIA */}
-          <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
+          <div className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-xl p-6">
             <h3 className="mb-3">Media</h3>
 
             {editing && (
@@ -349,10 +340,9 @@ export default function CreatorProfilePage() {
                 type="file"
                 multiple
                 onChange={(e) =>
-                  e.target.files &&
-                  handleMediaUpload(e.target.files)
+                  e.target.files && handleMediaUpload(e.target.files)
                 }
-                className="mb-3"
+                className="mb-4"
               />
             )}
 
@@ -379,9 +369,7 @@ export default function CreatorProfilePage() {
           </div>
 
           {/* ABOUT */}
-          <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-6">
-            <h3 className="mb-2">About</h3>
-
+          <div className="bg-white/5 border border-white/10 backdrop-blur-lg rounded-xl p-6">
             {editing ? (
               <textarea
                 value={formData.bio}
@@ -395,6 +383,7 @@ export default function CreatorProfilePage() {
             )}
           </div>
 
+          {/* SAVE */}
           {editing && (
             <button
               onClick={handleSave}
@@ -414,7 +403,7 @@ export default function CreatorProfilePage() {
         >
           <img
             src={selectedImage}
-            className="max-w-[90%] max-h-[90%]"
+            className="max-w-[90%] max-h-[90%] rounded-lg"
           />
         </div>
       )}
