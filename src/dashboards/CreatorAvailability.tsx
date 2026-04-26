@@ -55,9 +55,7 @@ export default function CreatorAvailability() {
     try {
       const res = await api.get("/v1/creator/services");
       setServices(res.data.services || []);
-    } catch {
-      console.error("Failed to fetch services");
-    }
+    } catch {}
   };
 
   const fetchAvailabilities = async () => {
@@ -67,12 +65,8 @@ export default function CreatorAvailability() {
           includeCancelled: showCancelled ? "true" : undefined
         }
       });
-
       setAvailabilities(res.data.availabilities || []);
-
-    } catch {
-      console.error("Failed to fetch availabilities");
-    }
+    } catch {}
   };
 
   const fetchSlots = async (availabilityId: string) => {
@@ -80,37 +74,23 @@ export default function CreatorAvailability() {
       const res = await api.get(`/v1/creator/availability/${availabilityId}/slots`);
       setSlots(res.data.slots || []);
       setActiveAvailability(availabilityId);
-    } catch {
-      console.error("Failed to fetch slots");
-    }
+    } catch {}
   };
 
   const toggleSlots = (availabilityId: string) => {
-
     if (activeAvailability === availabilityId) {
       setActiveAvailability(null);
       setSlots([]);
       return;
     }
-
     fetchSlots(availabilityId);
   };
 
   const handleCreate = async () => {
-
-    if (!form.serviceId || !form.date || !form.startTime || !form.endTime) {
-      return;
-    }
+    if (!form.serviceId || !form.date || !form.startTime || !form.endTime) return;
 
     try {
-
-      await api.post("/v1/creator/availability", {
-        serviceId: form.serviceId,
-        date: form.date,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        slotDurationMinutes: form.slotDurationMinutes
-      });
+      await api.post("/v1/creator/availability", form);
 
       setForm({
         serviceId: "",
@@ -121,14 +101,10 @@ export default function CreatorAvailability() {
       });
 
       fetchAvailabilities();
-
-    } catch {
-      console.error("Failed to create availability");
-    }
+    } catch {}
   };
 
   const cancelAvailability = async (availabilityId: string) => {
-
     try {
       await api.delete(`/v1/creator/availability/${availabilityId}`);
 
@@ -138,37 +114,22 @@ export default function CreatorAvailability() {
       }
 
       fetchAvailabilities();
-
-    } catch {
-      console.error("Failed to cancel availability");
-    }
+    } catch {}
   };
 
   const disableSlot = async (slotId: string) => {
-    try {
-      await api.patch(`/v1/creator/slots/${slotId}/disable`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to disable slot");
-    }
+    await api.patch(`/v1/creator/slots/${slotId}/disable`);
+    if (activeAvailability) fetchSlots(activeAvailability);
   };
 
   const enableSlot = async (slotId: string) => {
-    try {
-      await api.patch(`/v1/creator/slots/${slotId}/enable`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to enable slot");
-    }
+    await api.patch(`/v1/creator/slots/${slotId}/enable`);
+    if (activeAvailability) fetchSlots(activeAvailability);
   };
 
   const deleteSlot = async (slotId: string) => {
-    try {
-      await api.delete(`/v1/creator/slots/${slotId}`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to delete slot");
-    }
+    await api.delete(`/v1/creator/slots/${slotId}`);
+    if (activeAvailability) fetchSlots(activeAvailability);
   };
 
   useEffect(() => {
@@ -177,53 +138,54 @@ export default function CreatorAvailability() {
   }, [showCancelled]);
 
   return (
-
     <DashboardLayout>
 
-      <div className="space-y-10">
+      <div className="space-y-6 pb-20">
 
-        <h1 className="text-2xl font-bold">
+        <h1 className="text-xl md:text-2xl font-semibold">
           Availability Management
         </h1>
 
-        <div className="flex items-center gap-3">
-
+        <div className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={showCancelled}
             onChange={() => setShowCancelled(!showCancelled)}
           />
-
           <span className="text-sm text-gray-400">
             Show Cancelled History
           </span>
-
         </div>
 
-        <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 space-y-4">
+        {/* CREATE FORM */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 space-y-4 backdrop-blur">
 
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-base md:text-lg font-semibold">
             Create Availability
           </h2>
 
-          <div className="grid grid-cols-5 gap-4">
+          {/* ✅ FIXED GRID */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
             <select
               value={form.serviceId}
               onChange={(e) =>
                 setForm({ ...form, serviceId: e.target.value })
               }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
+              className="w-full min-w-0 bg-[#111827] text-white border border-white/10 p-3 rounded-lg appearance-none"
             >
-
-              <option value="">Select Service</option>
-
+              <option value="" className="bg-[#111827] text-white">
+  Select Service
+</option>
               {services.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.title}
-                </option>
+                <option
+    key={s._id}
+    value={s._id}
+    className="bg-[#111827] text-white"
+  >
+    {s.title}
+  </option>
               ))}
-
             </select>
 
             <input
@@ -232,18 +194,22 @@ export default function CreatorAvailability() {
               onChange={(e) =>
                 setForm({ ...form, date: e.target.value })
               }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
+              className="w-full min-w-0 bg-white/5 border border-white/10 p-3 rounded-lg"
             />
 
-            <TimeSelect
-              value={form.startTime}
-              onChange={(t) => setForm({ ...form, startTime: t })}
-            />
+            <div className="w-full min-w-0">
+              <TimeSelect
+                value={form.startTime}
+                onChange={(t) => setForm({ ...form, startTime: t })}
+              />
+            </div>
 
-            <TimeSelect
-              value={form.endTime}
-              onChange={(t) => setForm({ ...form, endTime: t })}
-            />
+            <div className="w-full min-w-0">
+              <TimeSelect
+                value={form.endTime}
+                onChange={(t) => setForm({ ...form, endTime: t })}
+              />
+            </div>
 
             <select
               value={form.slotDurationMinutes}
@@ -253,40 +219,38 @@ export default function CreatorAvailability() {
                   slotDurationMinutes: Number(e.target.value),
                 })
               }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
+              className="w-full min-w-0 bg-white/5 border border-white/10 p-3 rounded-lg"
             >
-
               {slotDurations.map((d) => (
                 <option key={d} value={d}>
                   {d} min slots
                 </option>
               ))}
-
             </select>
 
           </div>
 
           <button
             onClick={handleCreate}
-            className="bg-blue-600 px-6 py-2 rounded-lg"
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg"
           >
             Create Availability
           </button>
 
         </div>
 
+        {/* AVAILABILITIES */}
         {availabilities.map((a) => (
 
           <div
             key={a._id}
-            className="bg-[#111827] border border-gray-800 rounded-xl p-6 space-y-6"
+            className="bg-white/5 border border-white/10 rounded-xl p-4 md:p-6 space-y-4 backdrop-blur"
           >
 
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
 
               <div>
-
-                <div className="font-semibold text-lg">
+                <div className="font-semibold text-base md:text-lg">
                   {new Date(a.date).toDateString()}
                 </div>
 
@@ -297,60 +261,47 @@ export default function CreatorAvailability() {
                 <div className="text-xs text-gray-500">
                   Status: {a.status}
                 </div>
-
               </div>
 
               {a.status === "ACTIVE" && (
                 <button
                   onClick={() => cancelAvailability(a._id)}
-                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+                  className="w-full md:w-auto bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
                 >
                   Cancel
                 </button>
               )}
-
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               <Stat label="Total" value={a.totalSlots} />
               <Stat label="Available" value={a.availableSlots} />
               <Stat label="Locked" value={a.lockedSlots} />
               <Stat label="Booked" value={a.bookedSlots} />
               <Stat label="Cancelled" value={a.cancelledSlots} />
-
             </div>
 
             {a.status === "ACTIVE" && (
-
               <div className="flex justify-end">
-
                 <button
                   onClick={() => toggleSlots(a._id)}
-                  className="flex items-center gap-2 bg-blue-600 px-3 py-2 rounded-lg"
+                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 px-4 py-2 rounded-lg"
                 >
-
                   View Slots
-
                   {activeAvailability === a._id
                     ? <ChevronUp size={18} />
                     : <ChevronDown size={18} />}
-
                 </button>
-
               </div>
-
             )}
 
             {activeAvailability === a._id && (
-
               <SlotTimeline
                 slots={slots}
                 disableSlot={disableSlot}
                 enableSlot={enableSlot}
                 deleteSlot={deleteSlot}
               />
-
             )}
 
           </div>
@@ -360,26 +311,14 @@ export default function CreatorAvailability() {
       </div>
 
     </DashboardLayout>
-
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
-
   return (
-
-    <div className="bg-[#0F172A] border border-gray-800 rounded-lg p-3 text-center">
-
-      <p className="text-gray-400 text-xs">
-        {label}
-      </p>
-
-      <p className="font-semibold text-white">
-        {value}
-      </p>
-
+    <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-center">
+      <p className="text-gray-400 text-xs">{label}</p>
+      <p className="font-semibold text-white">{value}</p>
     </div>
-
   );
-
 }
