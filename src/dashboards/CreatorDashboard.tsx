@@ -15,137 +15,154 @@ import {
 
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import type { ReactNode } from "react";
+
+/* COMPONENTS */
+import StatCard from "../components/common/StatCard";
+import SectionCard from "../components/common/SectionCard";
+import ActionButton from "../components/common/ActionButton";
+import EmptyState from "../components/common/EmptyState";
+import SkeletonCard from "../components/common/SkeletonCard";
 
 export default function CreatorDashboard() {
-    const { data, loading, errorCode, errorMessage } =
+  const { data, loading, errorCode, errorMessage } =
     useCreatorDashboard();
 
   const navigate = useNavigate();
 
-  /* ================= ACCESS CONTROL (CRITICAL) ================= */
+  /* ACCESS CONTROL */
   useEffect(() => {
     if (!loading) {
-      // ❌ If no data or unauthorized → redirect
       if (!data || errorCode) {
         navigate("/dashboard/user");
       }
     }
   }, [loading, data, errorCode, navigate]);
 
-  /* ================= PREVENT UI FLASH ================= */
+  /* LOADING */
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="p-6 text-gray-400">
-          Loading your dashboard...
+        <div className="px-4 sm:px-6 lg:px-8 py-6 pb-20 space-y-4">
+          <SkeletonCard className="h-24" />
+          <SkeletonCard className="h-40" />
         </div>
       </DashboardLayout>
     );
   }
 
-  if (!data) {
-    return null; // prevents flicker before redirect
-  }
+  if (!data) return null;
 
   return (
     <DashboardLayout>
-      {loading && (
-        <div className="p-6">
-          <p className="text-gray-400">Loading your dashboard...</p>
-        </div>
-      )}
+      <div className="px-4 sm:px-6 lg:px-8 py-6 pb-20 max-w-7xl mx-auto">
 
-      {!loading && errorCode && (
-        <div className="p-6">
-          <h3 className="text-xl font-semibold mb-2">Error</h3>
-          <p className="text-red-400">{errorMessage}</p>
-        </div>
-      )}
-
-      {!loading && data && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* LEFT COLUMN */}
-          <div className="lg:col-span-2 space-y-10">
-
-            {/* HEADER */}
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">
-                  Welcome, {data.creatorProfile.displayName}
-                </h1>
-                <p className="text-gray-400">
-                  Here's what's happening with your experiences today.
-                </p>
-              </div>
-
-              {/* ✅ PROFILE BUTTON */}
-              <button
-                onClick={() => navigate("/creator/profile")}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-              >
-                <User size={16} />
-                Profile
-              </button>
+        {/* HEADER */}
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="max-w-xl">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-white">
+                Welcome, {data.creatorProfile.displayName}
+              </h1>
+              <p className="text-gray-400 text-sm mt-1">
+                Here's what's happening with your experiences today.
+              </p>
             </div>
 
-            {/* METRICS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <MetricCard
-                title="Total Bookings"
-                value={data.stats.totalBookings}
-                icon={<CalendarCheck size={20} />}
-              />
-              <MetricCard
-                title="Pending Bookings"
-                value={data.stats.pendingBookings}
-                icon={<TrendingUp size={20} />}
-              />
-              <MetricCard
-                title="Average Rating"
-                value={`${data.creatorProfile.rating} ⭐`}
-                icon={<Star size={20} />}
-              />
-            </div>
+            <button
+              onClick={() => navigate("/creator/profile")}
+              className="px-4 py-2 rounded-xl bg-white/10 border border-white/10 backdrop-blur-md hover:bg-white/20 active:scale-[0.97] transition text-sm text-white flex items-center gap-2"
+            >
+              <User size={16} />
+              Profile
+            </button>
+          </div>
+        </div>
+
+        {/* ERROR */}
+        {errorCode && (
+          <div className="mb-6">
+            <SectionCard title="Error">
+              <p className="text-red-400 text-sm">{errorMessage}</p>
+            </SectionCard>
+          </div>
+        )}
+
+        {/* STATS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          <StatCard
+            label="Total Bookings"
+            value={data.stats.totalBookings}
+            icon={<CalendarCheck size={18} />}
+          />
+
+          <StatCard
+            label="Pending"
+            value={data.stats.pendingBookings}
+            icon={<TrendingUp size={18} />}
+          />
+
+          <StatCard
+            label="Rating"
+            value={`${data.creatorProfile.rating} ⭐`}
+            icon={<Star size={18} />}
+          />
+        </div>
+
+        {/* MAIN GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* LEFT */}
+          <div className="lg:col-span-2 space-y-6">
 
             {/* ACTIVITY */}
-            <div className="bg-[#111827] border border-gray-800 rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-6">
-                Latest Activity
-              </h2>
+            <SectionCard title="Latest Activity">
+              <div className="min-h-[140px]">
+                {data.recentActivity.length === 0 ? (
+                  <div className="py-4">
+                    <p className="text-sm text-gray-400">
+                      No recent bookings yet
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {data.recentActivity.map((activity) => (
+                      <div
+                        key={activity.id}
+                        className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm text-white">
+                              {activity.status}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(
+                                activity.createdAt
+                              ).toLocaleString()}
+                            </p>
+                          </div>
 
-              {data.recentActivity.length === 0 ? (
-                <p className="text-gray-500 text-sm">
-                  No recent bookings yet.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {data.recentActivity.map((activity) => (
-                    <ActivityItem
-                      key={activity.id}
-                      status={activity.status}
-                      earning={activity.earning}
-                      createdAt={activity.createdAt}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+                          {activity.earning > 0 && (
+                            <span className="text-green-400 text-sm font-medium">
+                              +₹{activity.earning}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </SectionCard>
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div className="space-y-8">
+          {/* RIGHT */}
+          <div className="space-y-6">
 
             {/* QUICK ACTIONS */}
-            <div className="bg-[#111827] border border-gray-800 rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-6">
-                Quick Actions
-              </h2>
-
-              <div className="grid grid-cols-2 gap-4">
-
-                <QuickAction
+            <SectionCard title="Quick Actions">
+              <div className="grid grid-cols-2 gap-3">
+                <ActionButton
                   icon={<Search size={18} />}
                   label="Browse Creators"
                   onClick={() =>
@@ -153,7 +170,7 @@ export default function CreatorDashboard() {
                   }
                 />
 
-                <QuickAction
+                <ActionButton
                   icon={<Calendar size={18} />}
                   label="Availability"
                   onClick={() =>
@@ -161,7 +178,7 @@ export default function CreatorDashboard() {
                   }
                 />
 
-                <QuickAction
+                <ActionButton
                   icon={<Clock size={18} />}
                   label="Requests"
                   onClick={() =>
@@ -169,7 +186,7 @@ export default function CreatorDashboard() {
                   }
                 />
 
-                <QuickAction
+                <ActionButton
                   icon={<Megaphone size={18} />}
                   label="Services"
                   onClick={() =>
@@ -177,93 +194,15 @@ export default function CreatorDashboard() {
                   }
                 />
               </div>
-            </div>
+            </SectionCard>
 
             {/* NEXT 24 HOURS */}
-            <div className="bg-[#111827] border border-gray-800 rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-6">
-                Next 24 Hours
-              </h2>
-              <p className="text-gray-500 text-sm">
-                No upcoming sessions.
-              </p>
-            </div>
+            <SectionCard title="Next 24 Hours">
+              <EmptyState text="No upcoming sessions" />
+            </SectionCard>
           </div>
         </div>
-      )}
+      </div>
     </DashboardLayout>
-  );
-}
-
-/* ------------------------------------ */
-
-function MetricCard({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: string | number;
-  icon: ReactNode;
-}) {
-  return (
-    <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 hover:border-blue-500 transition">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm text-gray-400">{title}</h3>
-        <div className="text-blue-400">{icon}</div>
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
-  );
-}
-
-/* ------------------------------------ */
-
-function ActivityItem({
-  status,
-  earning,
-  createdAt,
-}: {
-  status: string;
-  earning: number;
-  createdAt: string;
-}) {
-  return (
-    <div className="flex justify-between items-center bg-[#0F172A] p-4 rounded-lg border border-gray-800">
-      <div>
-        <p className="text-sm font-medium">{status}</p>
-        <p className="text-xs text-gray-400">
-          {new Date(createdAt).toLocaleString()}
-        </p>
-      </div>
-
-      {earning > 0 && (
-        <div className="text-green-400 font-semibold">
-          +${earning}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ------------------------------------ */
-
-function QuickAction({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className="bg-[#0F172A] border border-gray-800 rounded-lg p-4 flex flex-col items-center justify-center hover:border-blue-500 transition cursor-pointer"
-    >
-      <div className="text-blue-400 mb-2">{icon}</div>
-      <span className="text-sm">{label}</span>
-    </div>
   );
 }
