@@ -93,12 +93,12 @@ export default function DashboardLayout({ children }: Props) {
         </header>
 
         {/* ================= CONTENT ================= */}
-        <main className="flex-1 overflow-y-auto w-full max-w-full px-3 sm:px-4 md:px-6 py-4 md:py-6 pb-28 md:pb-6 relative z-10">
+        <main className="flex-1 overflow-y-auto w-full max-w-full px-3 sm:px-4 md:px-6 py-4 md:py-6 pb-32 md:pb-6 relative z-10">
           {children}
         </main>
 
-        {/* ================= MOBILE NAV ================= */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/5 backdrop-blur-xl border-t border-white/10 flex justify-around py-3">
+        {/* ================= MOBILE NAV (FIXED LAYERING) ================= */}
+        <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl flex justify-around items-center py-3 text-xs md:hidden shadow-lg z-[9999]">
 
           <BottomNavItem to="/dashboard/creator" icon={<LayoutDashboard size={20} />} label="Dashboard" end />
           <BottomNavItem to="/dashboard/creator/bookings" icon={<Calendar size={20} />} label="Bookings" />
@@ -107,7 +107,7 @@ export default function DashboardLayout({ children }: Props) {
 
           <button
             onClick={() => setShowMore(true)}
-            className="flex flex-col items-center text-xs text-gray-400"
+            className="flex flex-col items-center justify-center text-gray-400"
           >
             <span className="text-lg">⋯</span>
             <span>More</span>
@@ -119,10 +119,10 @@ export default function DashboardLayout({ children }: Props) {
           <>
             <div
               onClick={() => setShowMore(false)}
-              className="fixed inset-0 bg-black/50 z-40"
+              className="fixed inset-0 bg-black/50 z-[9998]"
             />
 
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/5 backdrop-blur-xl border-t border-white/10 rounded-t-2xl p-5 pt-6 pb-10 max-h-[40%] overflow-y-auto">
+            <div className="fixed bottom-0 left-0 right-0 z-[10000] bg-white/5 backdrop-blur-xl border-t border-white/10 rounded-t-2xl p-5 pt-6 pb-10 max-h-[40%] overflow-y-auto">
 
               <div className="w-10 h-1 bg-gray-500 rounded-full mx-auto mb-4" />
 
@@ -169,12 +169,12 @@ function BottomNavItem({ to, icon, label, end = false }: any) {
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex flex-col items-center justify-center text-xs ${
+        `flex flex-col items-center justify-center ${
           isActive ? "text-white" : "text-gray-400"
         }`
       }
     >
-      <div>{icon}</div>
+      <div className="mb-0.5">{icon}</div>
       <span>{label}</span>
     </NavLink>
   );
