@@ -11,6 +11,7 @@ import {
   Clock,
   DollarSign,
   Settings,
+  ChevronDown,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/axios";
@@ -38,6 +39,19 @@ export default function DashboardLayout({ children }: Props) {
 
     fetchProfile();
   }, []);
+
+  /* ================= LOCK BODY SCROLL ================= */
+  useEffect(() => {
+    if (showMore) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showMore]);
 
   return (
     <div className="min-h-screen flex text-white bg-gradient-to-br from-[#0B1220] via-[#0A0F1C] to-[#050A14] overflow-x-hidden">
@@ -67,7 +81,7 @@ export default function DashboardLayout({ children }: Props) {
       {/* ================= MAIN ================= */}
       <div className="flex-1 flex flex-col relative min-w-0">
 
-        {/* ================= BACKGROUND GLOW ================= */}
+        {/* Background Glow */}
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[90%] max-w-[600px] h-[300px] bg-blue-500/5 blur-3xl" />
         </div>
@@ -97,8 +111,8 @@ export default function DashboardLayout({ children }: Props) {
           {children}
         </main>
 
-        {/* ================= MOBILE NAV (FIXED LAYERING) ================= */}
-        <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl flex justify-around items-center py-3 text-xs md:hidden shadow-lg z-[9999]">
+        {/* ================= MOBILE NAV ================= */}
+        <nav className="fixed bottom-3 left-1/2 -translate-x-1/2 w-[95%] max-w-md bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl flex justify-around items-center py-3 text-xs md:hidden shadow-lg z-[900]">
 
           <BottomNavItem to="/dashboard/creator" icon={<LayoutDashboard size={20} />} label="Dashboard" end />
           <BottomNavItem to="/dashboard/creator/bookings" icon={<Calendar size={20} />} label="Bookings" />
@@ -117,21 +131,39 @@ export default function DashboardLayout({ children }: Props) {
         {/* ================= BOTTOM SHEET ================= */}
         {showMore && (
           <>
+            {/* Overlay */}
             <div
               onClick={() => setShowMore(false)}
-              className="fixed inset-0 bg-black/50 z-[9998]"
+              className="fixed inset-0 bg-black/60 z-[1000]"
             />
 
-            <div className="fixed bottom-0 left-0 right-0 z-[10000] bg-white/5 backdrop-blur-xl border-t border-white/10 rounded-t-2xl p-5 pt-6 pb-10 max-h-[40%] overflow-y-auto">
+            {/* Sheet Container */}
+            <div className="fixed inset-x-0 bottom-0 z-[1001]">
 
-              <div className="w-10 h-1 bg-gray-500 rounded-full mx-auto mb-4" />
+              <div className="bg-white/5 backdrop-blur-xl border-t border-white/10 rounded-t-2xl px-5 pt-5 pb-10 max-h-[75vh] overflow-y-auto relative">
 
-              <div className="grid grid-cols-2 gap-3">
-                <SheetItem to="/dashboard/creator/availability" icon={<Calendar size={18} />} label="Availability" close={() => setShowMore(false)} />
-                <SheetItem to="/dashboard/creator/requests" icon={<Clock size={18} />} label="Requests" close={() => setShowMore(false)} />
-                <SheetItem to="/dashboard/creator/browse" icon={<Search size={18} />} label="Browse" close={() => setShowMore(false)} />
-                <SheetItem to="/dashboard/creator/earnings" icon={<DollarSign size={18} />} label="Earnings" close={() => setShowMore(false)} />
-                <SheetItem to="/dashboard/creator/settings" icon={<Settings size={18} />} label="Settings" close={() => setShowMore(false)} />
+                {/* Handle */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-10 h-1 bg-gray-500 rounded-full" />
+                </div>
+
+                {/* Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <SheetItem to="/dashboard/creator/availability" icon={<Calendar size={18} />} label="Availability" close={() => setShowMore(false)} />
+                  <SheetItem to="/dashboard/creator/requests" icon={<Clock size={18} />} label="Requests" close={() => setShowMore(false)} />
+                  <SheetItem to="/dashboard/creator/browse" icon={<Search size={18} />} label="Browse" close={() => setShowMore(false)} />
+                  <SheetItem to="/dashboard/creator/earnings" icon={<DollarSign size={18} />} label="Earnings" close={() => setShowMore(false)} />
+                  <SheetItem to="/dashboard/creator/settings" icon={<Settings size={18} />} label="Settings" close={() => setShowMore(false)} />
+                </div>
+
+                {/* Floating Arrow */}
+                <button
+                  onClick={() => setShowMore(false)}
+                  className="absolute bottom-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 border border-white/10 text-gray-300 hover:bg-white/20 transition"
+                >
+                  <ChevronDown size={18} />
+                </button>
+
               </div>
             </div>
           </>
