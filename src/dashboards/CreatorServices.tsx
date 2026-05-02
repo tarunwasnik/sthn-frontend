@@ -1,6 +1,6 @@
 // frontend/src/dashboards/CreatorServices.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // ✅ added useRef
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
 
@@ -51,6 +51,8 @@ export default function CreatorServices() {
     media: [] as string[],
   });
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null); // ✅ added
+
   /* ================= FETCH ================= */
 
   const fetchServices = async () => {
@@ -74,12 +76,23 @@ export default function CreatorServices() {
     if (!form.title || !form.description || !form.price) return;
 
     try {
+      const cleanMedia = form.media.filter((url) =>
+        url.startsWith("http")
+      );
+
       await api.post("/v1/creator/services", {
         title: form.title,
         description: form.description,
         durationMinutes: form.durationMinutes,
         price: Number(form.price),
-        media: form.media,
+        media: cleanMedia,
+      });
+
+      // ✅ cleanup blob urls
+      form.media.forEach((url) => {
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
       });
 
       setForm({
@@ -89,6 +102,11 @@ export default function CreatorServices() {
         price: "",
         media: [],
       });
+
+      // ✅ reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
 
       fetchServices();
     } catch {
@@ -113,10 +131,16 @@ export default function CreatorServices() {
 
   const saveEdit = async () => {
     try {
+      const cleanMedia = editForm.media.filter((url: string) =>
+        url.startsWith("http")
+      );
+
       await api.patch(`/v1/creator/services/${editingId}`, {
         ...editForm,
+        media: cleanMedia,
         price: Number(editForm.price),
       });
+
       setEditingId(null);
       fetchServices();
     } catch {
@@ -166,15 +190,31 @@ export default function CreatorServices() {
 
   const removeMedia = (index: number, isEdit = false) => {
     if (isEdit) {
-      setEditForm((p: any) => ({
-        ...p,
-        media: p.media.filter((_: any, i: number) => i !== index),
-      }));
+      setEditForm((p: any) => {
+        const removed = p.media[index];
+
+        if (removed?.startsWith("blob:")) {
+          URL.revokeObjectURL(removed);
+        }
+
+        return {
+          ...p,
+          media: p.media.filter((_: any, i: number) => i !== index),
+        };
+      });
     } else {
-      setForm((p) => ({
-        ...p,
-        media: p.media.filter((_, i) => i !== index),
-      }));
+      setForm((p) => {
+        const removed = p.media[index];
+
+        if (removed?.startsWith("blob:")) {
+          URL.revokeObjectURL(removed);
+        }
+
+        return {
+          ...p,
+          media: p.media.filter((_, i) => i !== index),
+        };
+      });
     }
   };
 
@@ -245,7 +285,6 @@ export default function CreatorServices() {
                 ))}
               </select>
 
-              {/* ✅ ARROW ADDED */}
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
                 ▼
               </div>
@@ -271,6 +310,7 @@ export default function CreatorServices() {
             />
 
             <input
+              ref={fileInputRef} // ✅ added
               type="file"
               multiple
               onChange={(e) =>
@@ -278,6 +318,26 @@ export default function CreatorServices() {
               }
               className="text-xs text-gray-400"
             />
+
+            {/* ✅ PREVIEW */}
+            {form.media.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {form.media.map((img, i) => (
+                  <div key={i} className="relative h-20 w-20">
+                    <img
+                      src={img}
+                      className="w-full h-full object-cover rounded-md"
+                    />
+                    <button
+                      onClick={() => removeMedia(i)}
+                      className="absolute top-1 right-1 bg-black/70 text-xs px-1 rounded"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <button
               onClick={handleCreate}
@@ -396,7 +456,6 @@ export default function CreatorServices() {
                             ))}
                           </select>
 
-                          {/* ✅ ARROW ADDED */}
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
                             ▼
                           </div>
