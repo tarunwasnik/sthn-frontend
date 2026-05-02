@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
 
+/* ================= TYPES ================= */
+
 interface Service {
   _id: string;
   title: string;
@@ -11,18 +13,45 @@ interface Service {
   durationMinutes: number;
   price: number;
   isActive: boolean;
+  media?: string[];
 }
+
+/* ================= CLOUDINARY ================= */
+
+const uploadToCloudinary = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", "unsigned_preset");
+  formData.append("folder", "creator_services");
+
+  const res = await fetch(
+    "https://api.cloudinary.com/v1_1/dg8hixi8e/image/upload",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const data = await res.json();
+  return data.secure_url;
+};
 
 export default function CreatorServices() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<any>(null);
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     durationMinutes: 60,
     price: "",
+    media: [] as string[],
   });
+
+  /* ================= FETCH ================= */
 
   const fetchServices = async () => {
     try {
@@ -35,6 +64,12 @@ export default function CreatorServices() {
     }
   };
 
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  /* ================= CREATE ================= */
+
   const handleCreate = async () => {
     if (!form.title || !form.description || !form.price) return;
 
@@ -44,6 +79,7 @@ export default function CreatorServices() {
         description: form.description,
         durationMinutes: form.durationMinutes,
         price: Number(form.price),
+        media: form.media,
       });
 
       setForm({
@@ -51,6 +87,7 @@ export default function CreatorServices() {
         description: "",
         durationMinutes: 60,
         price: "",
+        media: [],
       });
 
       fetchServices();
@@ -59,48 +96,126 @@ export default function CreatorServices() {
     }
   };
 
-  const handleToggle = async (service: Service) => {
+  /* ================= EDIT ================= */
+
+  const startEdit = (service: Service) => {
+    setEditingId(service._id);
+    setEditForm({
+      ...service,
+      media: service.media || [],
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm(null);
+  };
+
+  const saveEdit = async () => {
     try {
-      await api.patch(`/v1/creator/services/${service._id}`, {
-        isActive: !service.isActive,
+      await api.patch(`/v1/creator/services/${editingId}`, {
+        ...editForm,
+        price: Number(editForm.price),
       });
-
+      setEditingId(null);
       fetchServices();
     } catch {
-      console.error("Failed to update service");
+      console.error("Update failed");
     }
   };
 
-  const handleDelete = async (serviceId: string) => {
-    try {
-      await api.delete(`/v1/creator/services/${serviceId}`);
-      fetchServices();
-    } catch {
-      console.error("Failed to delete service");
+  /* ================= MEDIA ================= */
+
+  const handleMediaUpload = async (files: FileList, isEdit = false) => {
+    const arr = Array.from(files);
+
+    for (const file of arr) {
+      const preview = URL.createObjectURL(file);
+
+      if (isEdit) {
+        setEditForm((p: any) => ({
+          ...p,
+          media: [...p.media, preview],
+        }));
+      } else {
+        setForm((p) => ({
+          ...p,
+          media: [...p.media, preview],
+        }));
+      }
+
+      const url = await uploadToCloudinary(file);
+
+      if (isEdit) {
+        setEditForm((p: any) => {
+          const updated = [...p.media];
+          const index = updated.indexOf(preview);
+          if (index !== -1) updated[index] = url;
+          return { ...p, media: updated };
+        });
+      } else {
+        setForm((p) => {
+          const updated = [...p.media];
+          const index = updated.indexOf(preview);
+          if (index !== -1) updated[index] = url;
+          return { ...p, media: updated };
+        });
+      }
     }
   };
 
-  useEffect(() => {
+  const removeMedia = (index: number, isEdit = false) => {
+    if (isEdit) {
+      setEditForm((p: any) => ({
+        ...p,
+        media: p.media.filter((_: any, i: number) => i !== index),
+      }));
+    } else {
+      setForm((p) => ({
+        ...p,
+        media: p.media.filter((_, i) => i !== index),
+      }));
+    }
+  };
+
+  /* ================= ACTIONS ================= */
+
+  const handleToggle = async (service: Service) => {
+    await api.patch(`/v1/creator/services/${service._id}`, {
+      isActive: !service.isActive,
+    });
     fetchServices();
-  }, []);
+  };
+
+  const handleDelete = async (id: string) => {
+    await api.delete(`/v1/creator/services/${id}`);
+    fetchServices();
+  };
+
+  /* ================= UI ================= */
 
   return (
     <DashboardLayout>
-      <div className="space-y-10">
+      <div className="px-4 py-6 pb-28 space-y-6">
 
-        <h1 className="text-2xl font-bold">
-          Service Management
-        </h1>
+        {/* HEADER */}
+        <div>
+          <h1 className="text-2xl font-semibold text-white">
+            Your Services
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Manage your offerings and pricing
+          </p>
+        </div>
 
-        {/* CREATE SERVICE */}
+        {/* ADD SERVICE */}
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4 overflow-hidden">
 
-        <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 space-y-6">
-
-          <h2 className="text-lg font-semibold">
-            Create Service
+          <h2 className="text-base font-semibold text-white">
+            Add New Service
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4">
 
             <input
               type="text"
@@ -109,25 +224,32 @@ export default function CreatorServices() {
               onChange={(e) =>
                 setForm({ ...form, title: e.target.value })
               }
-              className="bg-[#0F172A] border border-gray-700 rounded-lg p-3 text-white"
+              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
             />
 
-            <select
-              value={form.durationMinutes}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  durationMinutes: Number(e.target.value),
-                })
-              }
-              className="bg-[#0F172A] border border-gray-700 rounded-lg p-3 text-white"
-            >
-              {[30, 45, 60, 90, 120].map((d) => (
-                <option key={d} value={d}>
-                  {d} minutes
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={form.durationMinutes}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    durationMinutes: Number(e.target.value),
+                  })
+                }
+                className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-sm text-white"
+              >
+                {[30, 45, 60, 90, 120].map((d) => (
+                  <option key={d} value={d} className="bg-[#0b0f1a]">
+                    {d} minutes
+                  </option>
+                ))}
+              </select>
+
+              {/* ✅ ARROW ADDED */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+                ▼
+              </div>
+            </div>
 
             <textarea
               placeholder="Service Description"
@@ -135,7 +257,7 @@ export default function CreatorServices() {
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
               }
-              className="bg-[#0F172A] border border-gray-700 rounded-lg p-3 text-white md:col-span-2"
+              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
             />
 
             <input
@@ -145,83 +267,214 @@ export default function CreatorServices() {
               onChange={(e) =>
                 setForm({ ...form, price: e.target.value })
               }
-              className="bg-[#0F172A] border border-gray-700 rounded-lg p-3 text-white md:col-span-2"
+              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
             />
 
+            <input
+              type="file"
+              multiple
+              onChange={(e) =>
+                e.target.files && handleMediaUpload(e.target.files)
+              }
+              className="text-xs text-gray-400"
+            />
+
+            <button
+              onClick={handleCreate}
+              className="w-full bg-white/10 hover:bg-white/20 transition rounded-xl py-3 text-sm font-medium"
+            >
+              + Add Service
+            </button>
+
           </div>
-
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 hover:bg-blue-700 transition px-6 py-2 rounded-lg"
-          >
-            Create Service
-          </button>
-
         </div>
 
         {/* SERVICES LIST */}
-
-        <div className="space-y-6">
-
-          {loading && (
-            <p className="text-gray-400">
-              Loading services...
-            </p>
-          )}
+        <div className="space-y-4">
 
           {!loading &&
-            services.map((service) => (
-              <div
-                key={service._id}
-                className="bg-[#111827] border border-gray-800 rounded-xl p-6"
-              >
+            services.map((service) => {
+              const isEditing = editingId === service._id;
 
-                <div className="flex justify-between items-start">
+              return (
+                <div
+                  key={service._id}
+                  className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-3"
+                >
 
-                  <div className="space-y-1">
-                    <p className="text-lg font-semibold">
-                      {service.title}
-                    </p>
+                  {!isEditing ? (
+                    <>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-white font-semibold">
+                            {service.title}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {service.description}
+                          </p>
+                        </div>
 
-                    <p className="text-sm text-gray-400">
-                      {service.description}
-                    </p>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-md ${
+                            service.isActive
+                              ? "bg-green-500/10 text-green-300"
+                              : "bg-red-500/10 text-red-300"
+                          }`}
+                        >
+                          {service.isActive ? "Active" : "Disabled"}
+                        </span>
+                      </div>
 
-                    <p className="text-sm text-gray-500">
-                      Duration: {service.durationMinutes} min
-                    </p>
+                      {Array.isArray(service.media) &&
+                        service.media.length > 0 && (
+                          <div className="flex gap-2 overflow-x-auto">
+                            {service.media.map((img, i) => (
+                              <img
+                                key={i}
+                                src={img}
+                                className="h-16 w-16 object-cover rounded-md"
+                              />
+                            ))}
+                          </div>
+                        )}
 
-                    <p className="text-sm text-gray-500">
-                      Price: {service.price}
-                    </p>
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={() => startEdit(service)}
+                          className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-xs"
+                        >
+                          Edit
+                        </button>
 
-                    <p className="text-xs text-gray-400">
-                      Status: {service.isActive ? "Active" : "Disabled"}
-                    </p>
-                  </div>
+                        <button
+                          onClick={() => handleToggle(service)}
+                          className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-xs"
+                        >
+                          {service.isActive ? "Disable" : "Enable"}
+                        </button>
 
-                  <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDelete(service._id)}
+                          className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 py-2 rounded-lg text-xs"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-sm text-gray-300">Edit Service</h3>
 
-                    <button
-                      onClick={() => handleToggle(service)}
-                      className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-lg text-sm"
-                    >
-                      {service.isActive ? "Disable" : "Enable"}
-                    </button>
+                      <div className="flex flex-col gap-4">
 
-                    <button
-                      onClick={() => handleDelete(service._id)}
-                      className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
-                    >
-                      Delete
-                    </button>
+                        <input
+                          value={editForm.title}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              title: e.target.value,
+                            })
+                          }
+                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                        />
 
-                  </div>
+                        <div className="relative">
+                          <select
+                            value={editForm.durationMinutes}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                durationMinutes: Number(e.target.value),
+                              })
+                            }
+                            className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-sm text-white"
+                          >
+                            {[30, 45, 60, 90, 120].map((d) => (
+                              <option key={d} value={d} className="bg-[#0b0f1a]">
+                                {d} minutes
+                              </option>
+                            ))}
+                          </select>
+
+                          {/* ✅ ARROW ADDED */}
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+                            ▼
+                          </div>
+                        </div>
+
+                        <textarea
+                          value={editForm.description}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              description: e.target.value,
+                            })
+                          }
+                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                        />
+
+                        <input
+                          type="number"
+                          value={editForm.price}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              price: e.target.value,
+                            })
+                          }
+                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                        />
+
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(e) =>
+                            e.target.files &&
+                            handleMediaUpload(e.target.files, true)
+                          }
+                          className="text-xs text-gray-400"
+                        />
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {editForm.media.map((img: string, i: number) => (
+                            <div key={i} className="relative h-20">
+                              <img
+                                src={img}
+                                className="w-full h-full object-cover rounded-md"
+                              />
+                              <button
+                                onClick={() => removeMedia(i, true)}
+                                className="absolute top-1 right-1 bg-black/70 text-xs px-1 rounded"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={saveEdit}
+                            className="flex-1 bg-white/10 py-3 rounded-xl"
+                          >
+                            Save Changes
+                          </button>
+
+                          <button
+                            onClick={cancelEdit}
+                            className="flex-1 bg-white/10 py-3 rounded-xl"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+
+                      </div>
+                    </>
+                  )}
 
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
 
         </div>
 
