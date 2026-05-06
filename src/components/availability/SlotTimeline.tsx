@@ -29,14 +29,14 @@ export default function SlotTimeline({
 
   if (!slots.length) {
     return (
-      <div className="text-gray-400 text-sm">
+      <div className="text-white/40 text-sm">
         No slots generated
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
 
       {slots.map((slot) => {
 
@@ -48,26 +48,40 @@ export default function SlotTimeline({
         return (
           <div
             key={slot._id}
-            className={`flex justify-between items-center p-4 rounded-lg border 
-            ${
-              isCancelled
-                ? "bg-red-900/30 border-red-700"
-                : isLockedOrBooked
-                ? "bg-gray-800 border-gray-600"
-                : "bg-[#0F172A] border-gray-700"
-            }`}
+            className="
+              group
+              flex justify-between items-center
+              px-4 py-3
+              rounded-lg
+              border border-white/10
+              bg-white/[0.02]
+              hover:bg-white/[0.05]
+              transition
+            "
           >
 
-            <div className="font-medium">
+            {/* TIME */}
+            <div className="font-medium text-white/90 text-sm">
               {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
             </div>
 
-            <div className="flex gap-2">
+            {/* ACTIONS */}
+            <div className="flex items-center gap-3 ">
 
               {isAvailable && (
                 <button
                   onClick={() => disableSlot(slot._id)}
-                  className="text-xs bg-yellow-600 px-3 py-1 rounded"
+                  className="
+                    text-[12px] font-semibold
+                    text-yellow-400
+                    hover:text-yellow-300
+                    relative
+                    after:absolute after:left-0 after:-bottom-0.5
+                    after:h-[1px] after:w-0
+                    after:bg-yellow-400
+                    hover:after:w-full
+                    after:transition-all
+                  "
                 >
                   Disable
                 </button>
@@ -76,7 +90,17 @@ export default function SlotTimeline({
               {isCancelled && (
                 <button
                   onClick={() => enableSlot(slot._id)}
-                  className="text-xs bg-green-600 px-3 py-1 rounded"
+                  className="
+                    text-[12px] font-semibold
+                    text-green-400
+                    hover:text-green-300
+                    relative
+                    after:absolute after:left-0 after:-bottom-0.5
+                    after:h-[1px] after:w-0
+                    after:bg-green-400
+                    hover:after:w-full
+                    after:transition-all
+                  "
                 >
                   Enable
                 </button>
@@ -85,14 +109,24 @@ export default function SlotTimeline({
               {isAvailable && (
                 <button
                   onClick={() => deleteSlot(slot._id)}
-                  className="text-xs bg-red-600 px-3 py-1 rounded"
+                  className="
+                    text-[12px] font-semibold
+                    text-red-400
+                    hover:text-red-300
+                    relative
+                    after:absolute after:left-0 after:-bottom-0.5
+                    after:h-[1px] after:w-0
+                    after:bg-red-400
+                    hover:after:w-full
+                    after:transition-all
+                  "
                 >
                   Delete
                 </button>
               )}
 
               {isLockedOrBooked && (
-                <span className="text-xs text-gray-400">
+                <span className="text-[11px] text-white/40">
                   {slot.status}
                 </span>
               )}
@@ -102,6 +136,7 @@ export default function SlotTimeline({
           </div>
         );
       })}
+
     </div>
   );
 }

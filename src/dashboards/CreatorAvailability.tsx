@@ -24,6 +24,7 @@ interface Availability {
 interface Service {
   _id: string;
   title: string;
+  isActive: boolean;
 }
 
 interface Slot {
@@ -44,21 +45,26 @@ export default function CreatorAvailability() {
   const [form, setForm] = useState({
     serviceId: "",
     date: "",
-    startTime: "",
-    endTime: "",
+    startTime: "10:00",
+    endTime: "18:00",
     slotDurationMinutes: 60,
   });
 
   const slotDurations = [30,45,60,90,120,180,240,360,480];
 
+  useEffect(() => {
+    fetchServices();
+    fetchAvailabilities();
+  }, [showCancelled]);
+
   const fetchServices = async () => {
-    try {
-      const res = await api.get("/v1/creator/services");
-      setServices(res.data.services || []);
-    } catch {
-      console.error("Failed to fetch services");
-    }
-  };
+  try {
+    const res = await api.get("/v1/creator/services");
+    setServices(
+      (res.data.services || []).filter((s: Service) => s.isActive)
+    );
+  } catch {}
+};
 
   const fetchAvailabilities = async () => {
     try {
@@ -67,12 +73,8 @@ export default function CreatorAvailability() {
           includeCancelled: showCancelled ? "true" : undefined
         }
       });
-
       setAvailabilities(res.data.availabilities || []);
-
-    } catch {
-      console.error("Failed to fetch availabilities");
-    }
+    } catch {}
   };
 
   const fetchSlots = async (availabilityId: string) => {
@@ -80,55 +82,37 @@ export default function CreatorAvailability() {
       const res = await api.get(`/v1/creator/availability/${availabilityId}/slots`);
       setSlots(res.data.slots || []);
       setActiveAvailability(availabilityId);
-    } catch {
-      console.error("Failed to fetch slots");
-    }
+    } catch {}
   };
 
   const toggleSlots = (availabilityId: string) => {
-
     if (activeAvailability === availabilityId) {
       setActiveAvailability(null);
       setSlots([]);
       return;
     }
-
     fetchSlots(availabilityId);
   };
 
   const handleCreate = async () => {
-
-    if (!form.serviceId || !form.date || !form.startTime || !form.endTime) {
-      return;
-    }
+    if (!isValid) return;
 
     try {
-
-      await api.post("/v1/creator/availability", {
-        serviceId: form.serviceId,
-        date: form.date,
-        startTime: form.startTime,
-        endTime: form.endTime,
-        slotDurationMinutes: form.slotDurationMinutes
-      });
+      await api.post("/v1/creator/availability", form);
 
       setForm({
         serviceId: "",
         date: "",
-        startTime: "",
-        endTime: "",
+        startTime: "10:00",
+        endTime: "18:00",
         slotDurationMinutes: 60,
       });
 
       fetchAvailabilities();
-
-    } catch {
-      console.error("Failed to create availability");
-    }
+    } catch {}
   };
 
   const cancelAvailability = async (availabilityId: string) => {
-
     try {
       await api.delete(`/v1/creator/availability/${availabilityId}`);
 
@@ -138,248 +122,281 @@ export default function CreatorAvailability() {
       }
 
       fetchAvailabilities();
-
-    } catch {
-      console.error("Failed to cancel availability");
-    }
+    } catch {}
   };
 
   const disableSlot = async (slotId: string) => {
-    try {
-      await api.patch(`/v1/creator/slots/${slotId}/disable`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to disable slot");
-    }
-  };
+  try {
+    await api.patch(`/v1/creator/slots/${slotId}/disable`);
 
-  const enableSlot = async (slotId: string) => {
-    try {
-      await api.patch(`/v1/creator/slots/${slotId}/enable`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to enable slot");
+    if (activeAvailability) {
+      await fetchSlots(activeAvailability);
     }
-  };
 
-  const deleteSlot = async (slotId: string) => {
-    try {
-      await api.delete(`/v1/creator/slots/${slotId}`);
-      if (activeAvailability) fetchSlots(activeAvailability);
-    } catch {
-      console.error("Failed to delete slot");
+    await fetchAvailabilities();
+
+  } catch {}
+};
+
+const enableSlot = async (slotId: string) => {
+  try {
+    await api.patch(`/v1/creator/slots/${slotId}/enable`);
+
+    if (activeAvailability) {
+      await fetchSlots(activeAvailability);
     }
-  };
 
-  useEffect(() => {
-    fetchServices();
-    fetchAvailabilities();
-  }, [showCancelled]);
+    await fetchAvailabilities();
+
+  } catch {}
+};
+
+const deleteSlot = async (slotId: string) => {
+  try {
+    await api.delete(`/v1/creator/slots/${slotId}`);
+
+    if (activeAvailability) {
+      await fetchSlots(activeAvailability);
+    }
+
+    await fetchAvailabilities();
+
+  } catch {}
+};
+
+  const isValid =
+    form.serviceId &&
+    form.date &&
+    form.startTime &&
+    form.endTime &&
+    form.startTime < form.endTime;
 
   return (
-
     <DashboardLayout>
 
-      <div className="space-y-10">
+      <div className="max-w-7xl mx-auto px-4 space-y-6 text-white">
 
-        <h1 className="text-2xl font-bold">
-          Availability Management
-        </h1>
+        {/* HEADER */}
+        <div>
+          <h1 className="text-xl font-semibold">Your Availability</h1>
+          <p className="text-sm text-white/60">
+            Set when you're available for bookings
+          </p>
+        </div>
 
+        {/* TOGGLE */}
         <div className="flex items-center gap-3">
-
           <input
             type="checkbox"
             checked={showCancelled}
             onChange={() => setShowCancelled(!showCancelled)}
           />
-
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-white/60">
             Show Cancelled History
           </span>
-
         </div>
 
-        <div className="bg-[#111827] border border-gray-800 rounded-xl p-6 space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          <h2 className="text-lg font-semibold">
-            Create Availability
-          </h2>
+          {/* LEFT PANEL */}
+          <div className="lg:col-span-1">
 
-          <div className="grid grid-cols-5 gap-4">
-
-            <select
-              value={form.serviceId}
-              onChange={(e) =>
-                setForm({ ...form, serviceId: e.target.value })
-              }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
-            >
-
-              <option value="">Select Service</option>
-
-              {services.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.title}
-                </option>
-              ))}
-
-            </select>
-
-            <input
-              type="date"
-              value={form.date}
-              onChange={(e) =>
-                setForm({ ...form, date: e.target.value })
-              }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
-            />
-
-            <TimeSelect
-              value={form.startTime}
-              onChange={(t) => setForm({ ...form, startTime: t })}
-            />
-
-            <TimeSelect
-              value={form.endTime}
-              onChange={(t) => setForm({ ...form, endTime: t })}
-            />
-
-            <select
-              value={form.slotDurationMinutes}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  slotDurationMinutes: Number(e.target.value),
-                })
-              }
-              className="bg-[#0F172A] border border-gray-700 p-3 rounded-lg"
-            >
-
-              {slotDurations.map((d) => (
-                <option key={d} value={d}>
-                  {d} min slots
-                </option>
-              ))}
-
-            </select>
-
-          </div>
-
-          <button
-            onClick={handleCreate}
-            className="bg-blue-600 px-6 py-2 rounded-lg"
-          >
-            Create Availability
-          </button>
-
-        </div>
-
-        {availabilities.map((a) => (
-
-          <div
-            key={a._id}
-            className="bg-[#111827] border border-gray-800 rounded-xl p-6 space-y-6"
-          >
-
-            <div className="flex justify-between items-center">
+            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4 sticky top-6">
 
               <div>
+                <h2 className="text-sm font-semibold">
+                  Create Time Slots
+                </h2>
+                <p className="text-xs text-white/50">
+                  Choose a date and time range. Slots will be generated automatically.
+                </p>
+              </div>
 
-                <div className="font-semibold text-lg">
-                  {new Date(a.date).toDateString()}
+              <div className="space-y-4">
+
+                <div className="space-y-1">
+                  <p className="text-xs text-white/40">Service</p>
+                  <select
+                    value={form.serviceId}
+                    onChange={(e) =>
+                      setForm({ ...form, serviceId: e.target.value })
+                    }
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                  >
+                    <option value="" className="bg-[#0b0f1a] text-white">
+  Select Service
+</option>
+
+{services.map((s) => (
+  <option
+    key={s._id}
+    value={s._id}
+    className="bg-[#0b0f1a] text-white"
+  >
+    {s.title}
+  </option>
+))}
+                  </select>
                 </div>
 
-                <div className="text-gray-400 text-sm">
-                  {a.startTime} - {a.endTime}
+                <div className="space-y-1">
+                  <p className="text-xs text-white/40">Date</p>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) =>
+                      setForm({ ...form, date: e.target.value })
+                    }
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                  />
                 </div>
 
-                <div className="text-xs text-gray-500">
-                  Status: {a.status}
+                <div className="space-y-1">
+                  <p className="text-xs text-white/40">Time Range</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <TimeSelect value={form.startTime} onChange={(t) => setForm({ ...form, startTime: t })} />
+                    <TimeSelect value={form.endTime} onChange={(t) => setForm({ ...form, endTime: t })} />
+                  </div>
                 </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-white/40">Slot Duration</p>
+                  <select
+                    value={form.slotDurationMinutes}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        slotDurationMinutes: Number(e.target.value),
+                      })
+                    }
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                  >
+                    {slotDurations.map((d) => (
+                      <option
+  key={d}
+  value={d}
+  className="bg-[#0b0f1a] text-white"
+>
+  {d} min slots
+</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleCreate}
+                  disabled={!isValid}
+                  className={`w-full rounded-xl py-3 ${
+                    isValid
+                      ? "bg-white/10 hover:bg-white/20"
+                      : "bg-white/5 text-white/30"
+                  }`}
+                >
+                  Create Availability
+                </button>
 
               </div>
 
-              {a.status === "ACTIVE" && (
-                <button
-                  onClick={() => cancelAvailability(a._id)}
-                  className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
-                >
-                  Cancel
-                </button>
-              )}
-
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+          </div>
 
-              <Stat label="Total" value={a.totalSlots} />
-              <Stat label="Available" value={a.availableSlots} />
-              <Stat label="Locked" value={a.lockedSlots} />
-              <Stat label="Booked" value={a.bookedSlots} />
-              <Stat label="Cancelled" value={a.cancelledSlots} />
+          {/* RIGHT PANEL */}
+          <div className="lg:col-span-2 space-y-4">
 
-            </div>
+            {availabilities.length === 0 ? (
 
-            {a.status === "ACTIVE" && (
-
-              <div className="flex justify-end">
-
-                <button
-                  onClick={() => toggleSlots(a._id)}
-                  className="flex items-center gap-2 bg-blue-600 px-3 py-2 rounded-lg"
-                >
-
-                  View Slots
-
-                  {activeAvailability === a._id
-                    ? <ChevronUp size={18} />
-                    : <ChevronDown size={18} />}
-
-                </button>
-
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center text-white/40">
+                No availability created yet
+                <p className="text-xs mt-2">
+                  Create your first time slots to start accepting bookings
+                </p>
               </div>
 
-            )}
+            ) : (
 
-            {activeAvailability === a._id && (
+              availabilities.map((a) => (
 
-              <SlotTimeline
-                slots={slots}
-                disableSlot={disableSlot}
-                enableSlot={enableSlot}
-                deleteSlot={deleteSlot}
-              />
+                <div
+                  key={a._id}
+                 className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 space-y-4"
+                >
+
+                  <div className="flex justify-between items-start">
+
+                    <div>
+                      <div className="font-semibold">
+                        {new Date(a.date).toDateString()}
+                      </div>
+                      <div className="text-white/60 text-sm">
+                        {a.startTime} - {a.endTime}
+                      </div>
+                      <div className="text-xs text-white/40">
+                        Status: {a.status}
+                      </div>
+                    </div>
+
+                    {a.status === "ACTIVE" && (
+                      <button
+                        onClick={() => cancelAvailability(a._id)}
+                        className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-2 rounded-lg text-xs"
+                      >
+                        Cancel
+                      </button>
+                    )}
+
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                    <Stat label="Total" value={a.totalSlots} />
+                    <Stat label="Available" value={a.availableSlots} />
+                    <Stat label="Locked" value={a.lockedSlots} />
+                    <Stat label="Booked" value={a.bookedSlots} />
+                    <Stat label="Disabled" value={a.cancelledSlots} />
+                  </div>
+
+                  {a.status === "ACTIVE" && (
+                    <button
+                      onClick={() => toggleSlots(a._id)}
+                      className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl py-2"
+                    >
+                      View Slots
+                      {activeAvailability === a._id
+                        ? <ChevronUp size={16} />
+                        : <ChevronDown size={16} />}
+                    </button>
+                  )}
+
+                  {activeAvailability === a._id && (
+                    <SlotTimeline
+                      slots={slots}
+                      disableSlot={disableSlot}
+                      enableSlot={enableSlot}
+                      deleteSlot={deleteSlot}
+                    />
+                  )}
+
+                </div>
+
+              ))
 
             )}
 
           </div>
 
-        ))}
+        </div>
 
       </div>
 
     </DashboardLayout>
-
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
-
   return (
-
-    <div className="bg-[#0F172A] border border-gray-800 rounded-lg p-3 text-center">
-
-      <p className="text-gray-400 text-xs">
-        {label}
-      </p>
-
-      <p className="font-semibold text-white">
-        {value}
-      </p>
-
+    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+      <p className="text-white/50 text-[10px]">{label}</p>
+      <p className="font-semibold text-sm">{value}</p>
     </div>
-
   );
-
 }

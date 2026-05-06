@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
+import { UPLOAD_PRESET } from "../config/cloudinary";
 
-const UPLOAD_PRESET = "unsigned_preset";
+
 
 const uploadToCloudinary = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", UPLOAD_PRESET);
+  formData.append("folder", "user_profiles"); // ✅ ADDED
 
   const res = await fetch(
     `https://api.cloudinary.com/v1_1/dg8hixi8e/image/upload`,
