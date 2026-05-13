@@ -328,9 +328,10 @@ export default function UserBookingDetail() {
                 </button>
 
                 <CompleteButton
-                  bookingId={booking._id}
-                  onCompleted={handleCompleted}
-                />
+  bookingId={booking._id}
+  role="user"
+  onCompleted={handleCompleted}
+/>
 
                 <button
                   onClick={() => setShowModal(true)}

@@ -1,9 +1,28 @@
+html,
+body,
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #050816 !important;
+  color: #F8FAFC;
 }
+
+body {
+  overflow-x: hidden;
+  background: #050816 !important;
+}
+
+#root {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  background: #050816 !important;
+}
+
+/* ================= LOGO ================= */
 
 .logo {
   height: 6em;
@@ -11,65 +30,105 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(
+    0 0 1.5em rgba(255,255,255,0.08)
+  );
 }
+
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(
+    0 0 1.5em rgba(255,255,255,0.08)
+  );
 }
+
+/* ================= ANIMATIONS ================= */
 
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
+@media (
+  prefers-reduced-motion: no-preference
+) {
   a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+    animation:
+      logo-spin infinite 20s linear;
   }
 }
+
+/* ================= CARD ================= */
 
 .card {
   padding: 2em;
 }
 
+/* ================= TEXT ================= */
+
 .read-the-docs {
-  color: #888;
+  color: rgba(255,255,255,0.45);
 }
+
+/* ================= INPUT FIELD ================= */
 
 .field {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+
+  background:
+    rgba(255,255,255,0.04);
+
+  border:
+    1px solid
+    rgba(255,255,255,0.08);
+
+  color: #F8FAFC;
+
   outline: none;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .field::placeholder {
-  color: #9ca3af;
+  color:
+    rgba(255,255,255,0.38);
 }
 
 .field:focus {
-  border-color: #2dd4bf;
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.3);
+  border-color:
+    rgba(255,255,255,0.18);
+
+  box-shadow:
+    0 0 0 2px
+    rgba(255,255,255,0.05);
+
+  background:
+    rgba(255,255,255,0.05);
 }
 
+/* ================= SLIDE UP ================= */
 
 @keyframes slide-up {
   from {
     transform: translateY(100%);
   }
+
   to {
     transform: translateY(0);
   }
 }
 
 .animate-slide-up {
-  animation: slide-up 0.25s ease-out;
+  animation:
+    slide-up 0.25s ease-out;
 }

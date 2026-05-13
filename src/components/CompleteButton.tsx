@@ -7,12 +7,16 @@ interface Props {
   bookingId: string;
   onCompleted: (updatedBooking: any) => void;
   disabled?: boolean;
+
+  // ✅ NEW
+  role?: "creator" | "user";
 }
 
 export default function CompleteButton({
   bookingId,
   onCompleted,
   disabled,
+  role = "creator",
 }: Props) {
   const [loading, setLoading] = useState(false);
 
@@ -22,13 +26,18 @@ export default function CompleteButton({
     try {
       setLoading(true);
 
-      const res = await api.post(
-        `/api/v1/bookings/complete/${bookingId}`
-      );
+      // ✅ MATCH BACKEND ROUTES
+      const endpoint =
+        role === "creator"
+          ? `/v1/bookings/${bookingId}/complete/creator`
+          : `/v1/bookings/${bookingId}/complete/user`;
+
+      const res = await api.post(endpoint);
 
       onCompleted(res.data.booking);
     } catch (err: any) {
       console.error("COMPLETE ERROR:", err);
+
       alert(
         err?.response?.data?.message ||
           "Failed to complete booking"
@@ -42,7 +51,7 @@ export default function CompleteButton({
     <button
       onClick={handleComplete}
       disabled={loading || disabled}
-      className="px-4 py-2 bg-green-600 rounded-lg disabled:opacity-50"
+      className="px-4 py-2 bg-green-600 rounded-lg disabled:opacity-50 hover:bg-green-700 transition"
     >
       {loading ? "Completing..." : "End Session"}
     </button>
