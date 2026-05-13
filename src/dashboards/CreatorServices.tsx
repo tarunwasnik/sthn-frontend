@@ -13,6 +13,7 @@ interface Service {
   description: string;
   durationMinutes: number;
   price: number;
+  currency: string;
   isActive: boolean;
   media?: string[];
 }
@@ -40,6 +41,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 export default function CreatorServices() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
@@ -151,43 +153,88 @@ export default function CreatorServices() {
 
   /* ================= MEDIA ================= */
 
-  const handleMediaUpload = async (files: FileList, isEdit = false) => {
+const handleMediaUpload = async (
+  files: FileList,
+  isEdit = false
+) => {
+
+  setIsUploading(true);
+
+  try {
+
     const arr = Array.from(files);
 
     for (const file of arr) {
-      const preview = URL.createObjectURL(file);
+
+      const preview =
+        URL.createObjectURL(file);
 
       if (isEdit) {
+
         setEditForm((p: any) => ({
           ...p,
           media: [...p.media, preview],
         }));
+
       } else {
+
         setForm((p) => ({
           ...p,
           media: [...p.media, preview],
         }));
+
       }
 
-      const url = await uploadToCloudinary(file);
+      const url =
+        await uploadToCloudinary(file);
 
       if (isEdit) {
+
         setEditForm((p: any) => {
+
           const updated = [...p.media];
-          const index = updated.indexOf(preview);
-          if (index !== -1) updated[index] = url;
-          return { ...p, media: updated };
+
+          const index =
+            updated.indexOf(preview);
+
+          if (index !== -1) {
+            updated[index] = url;
+          }
+
+          return {
+            ...p,
+            media: updated,
+          };
         });
+
       } else {
+
         setForm((p) => {
+
           const updated = [...p.media];
-          const index = updated.indexOf(preview);
-          if (index !== -1) updated[index] = url;
-          return { ...p, media: updated };
+
+          const index =
+            updated.indexOf(preview);
+
+          if (index !== -1) {
+            updated[index] = url;
+          }
+
+          return {
+            ...p,
+            media: updated,
+          };
         });
+
       }
     }
-  };
+
+  } finally {
+
+    setIsUploading(false);
+
+  }
+};
 
   const removeMedia = (index: number, isEdit = false) => {
     if (isEdit) {
@@ -284,13 +331,30 @@ export default function CreatorServices() {
                     durationMinutes: Number(e.target.value),
                   })
                 }
-                className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-sm text-white"
+                className="
+                  w-full
+                  appearance-none
+                  bg-white/5
+                  border border-white/10
+                  rounded-xl
+                  p-3
+                  pr-10
+                  text-sm
+                  text-white
+                  outline-none
+                  focus:outline-none
+                  focus:ring-0
+                  transition
+                "
               >
                 {[30, 45, 60, 90, 120].map((d) => (
                   <option
                     key={d}
                     value={d}
-                    className="bg-[#0b0f1a]"
+                    className="
+                      bg-[#0f0f0f]
+                      text-white
+                    "
                   >
                     {d} minutes
                   </option>
@@ -364,9 +428,31 @@ export default function CreatorServices() {
 
             <button
               onClick={handleCreate}
-              className="w-full bg-white/10 hover:bg-white/20 transition rounded-xl py-3 text-sm font-medium"
+              disabled={isUploading}
+              className={`
+                w-full
+                rounded-xl
+                py-3
+                text-sm
+                font-medium
+                transition
+                ${
+                  isUploading
+                    ? `
+                      bg-white/5
+                      text-white/40
+                      cursor-not-allowed
+                    `
+                    : `
+                      bg-white/10
+                      hover:bg-white/20
+                    `
+                }
+              `}
             >
-              + Add Service
+              {isUploading
+                ? "Uploading Media..."
+                : "+ Add Service"}
             </button>
 
           </div>
@@ -405,123 +491,195 @@ export default function CreatorServices() {
                   {/* glow layer */}
                   <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none rounded-2xl" />
 
-                  {!isEditing ? (
-                    <>
-                      {/* HEADER */}
-                      <div className="flex justify-between items-start relative z-10">
+                  {
+                  !isEditing ? (
+  <>
+    <div className="relative z-10 flex gap-8 items-center">
 
-                        <div className="space-y-1">
-                          <p className="font-semibold text-white tracking-wide text-lg">
-                            {service.title}
-                          </p>
+      {/* LEFT */}
+      <div className="flex-1 min-w-0">
 
-                          <p className="text-[11px] text-white/45 line-clamp-2">
-                            {service.description}
-                          </p>
-                        </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-start gap-4">
 
-                        <span
-                          className={`
-                            text-[10px]
-                            px-2 py-1
-                            rounded-md
-                            backdrop-blur
-                            ${
-                              service.isActive
-                                ? "bg-green-500/10 text-green-300 border border-green-500/20"
-                                : "bg-red-500/10 text-red-300 border border-red-500/20"
-                            }
-                          `}
-                        >
-                          {service.isActive
-                            ? "Active"
-                            : "Disabled"}
-                        </span>
+          <div className="space-y-2">
 
-                      </div>
+            <p className="
+              text-[22px]
+              font-bold
+              text-white
+              tracking-tight
+              leading-none
+            ">
+              {service.title}
+            </p>
 
-                      {/* META */}
-                      <div className="flex items-center gap-4 text-[11px] text-white/35 relative z-10">
+            <p className="
+              text-[14px]
+              text-white/50
+              line-clamp-2
+              max-w-[420px]
+            ">
+              {service.description}
+            </p>
 
-                        <span>
-                          {service.durationMinutes} mins
-                        </span>
+          </div>
 
-                        <span className="w-[3px] h-[3px] bg-white/30 rounded-full" />
+          <span
+            className={`
+              text-[11px]
+              px-3 py-1.5
+              rounded-lg
+              whitespace-nowrap
+              backdrop-blur
+              ${
+                service.isActive
+                  ? "bg-green-500/10 text-green-300 border border-green-500/20"
+                  : "bg-red-500/10 text-red-300 border border-red-500/20"
+              }
+            `}
+          >
+            {service.isActive
+              ? "Active"
+              : "Disabled"}
+          </span>
 
-                        <span>
-                          ₹ {service.price}
-                        </span>
+        </div>
 
-                      </div>
+        {/* META */}
+        <div className="
+          flex
+          items-center
+          gap-4
+          text-[14px]
+          text-white/45
+          mt-5
+        ">
 
-                      {/* MEDIA */}
-<div className="relative z-10">
-  {Array.isArray(service.media) && service.media.length > 0 ? (
-    <div className="flex gap-2 overflow-x-auto pb-1">
-      {service.media.map((img, i) => (
-        <img
-          key={i}
-          src={img}
-          className="h-16 w-16 object-cover rounded-lg border border-white/10 shrink-0"
-        />
-      ))}
+          <span>
+            {service.durationMinutes} mins
+          </span>
+
+          <span className="w-[4px] h-[4px] bg-white/30 rounded-full" />
+
+          <span>
+            {service.currency} {service.price}
+          </span>
+
+        </div>
+
+        {/* ACTIONS */}
+        <div
+          className="
+            flex
+            items-center
+            gap-4
+            mt-8
+            opacity-0
+            translate-y-1
+            group-hover:opacity-100
+            group-hover:translate-y-0
+            transition-all duration-200
+          "
+        >
+
+          <button
+            onClick={() =>
+              startEdit(service)
+            }
+            className="
+              text-[13px]
+              text-white/70
+              hover:text-white
+              transition
+            "
+          >
+            Edit
+          </button>
+
+          <button
+            onClick={() =>
+              handleToggle(service)
+            }
+            className={`text-[13px] transition ${
+              service.isActive
+                ? "text-yellow-300 hover:text-yellow-200"
+                : "text-green-300 hover:text-green-200"
+            }`}
+          >
+            {service.isActive
+              ? "Disable"
+              : "Enable"}
+          </button>
+
+          <button
+            onClick={() =>
+              handleDelete(service._id)
+            }
+            className="
+              text-[13px]
+              text-red-400
+              hover:text-red-300
+              transition
+            "
+          >
+            Delete
+          </button>
+
+        </div>
+
+      </div>
+
+      {/* RIGHT MEDIA */}
+      <div className="flex justify-center items-center min-w-[220px]">
+
+        {Array.isArray(service.media) &&
+        service.media.length > 0 ? (
+
+          <div className="flex justify-center gap-3 flex-wrap">
+
+            {service.media.map((img, i) => (
+
+              <img
+                key={i}
+                src={img}
+                className="
+                  h-50
+                  w-40
+                  object-cover
+                  rounded-2xl
+                  border border-white/10
+                "
+              />
+
+            ))}
+
+          </div>
+
+        ) : (
+
+          <div className="
+            h-40
+            w-40
+            rounded-2xl
+            border border-white/10
+            bg-white/[0.03]
+            flex
+            items-center
+            justify-center
+            text-[13px]
+            text-white/25
+          ">
+            No media
+          </div>
+
+        )}
+
+      </div>
+
     </div>
-  ) : (
-    <div className="text-[10px] text-white/20">
-      No media
-    </div>
-  )}
-</div>
-
-{/* ACTIONS */}
-<div
-  className="
-    relative z-10
-    flex items-center justify-end gap-4
-    pt-1
-    opacity-0 translate-y-1
-    group-hover:opacity-100 group-hover:translate-y-0
-    transition-all duration-200
-  "
->
-
-                        <button
-                          onClick={() =>
-                            startEdit(service)
-                          }
-                          className="text-[12px] text-white/70 hover:text-white transition"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleToggle(service)
-                          }
-                          className={`text-[12px] transition ${
-                            service.isActive
-                              ? "text-yellow-300 hover:text-yellow-200"
-                              : "text-green-300 hover:text-green-200"
-                          }`}
-                        >
-                          {service.isActive
-                            ? "Disable"
-                            : "Enable"}
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleDelete(service._id)
-                          }
-                          className="text-[12px] text-red-400 hover:text-red-300 transition"
-                        >
-                          Delete
-                        </button>
-
-                      </div>
-                    </>
-                  ) : (
+  </>
+) : (
                     <>
                       {/* EDIT MODE */}
                       <h3 className="text-sm text-gray-300">
@@ -541,39 +699,55 @@ export default function CreatorServices() {
                           className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
                         />
 
-                        <div className="relative">
-                          <select
-                            value={
-                              editForm.durationMinutes
-                            }
-                            onChange={(e) =>
-                              setEditForm({
-                                ...editForm,
-                                durationMinutes: Number(
-                                  e.target.value
-                                ),
-                              })
-                            }
-                            className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl p-3 pr-10 text-sm text-white"
-                          >
-                            {[30, 45, 60, 90, 120].map(
-                              (d) => (
-                                <option
-                                  key={d}
-                                  value={d}
-                                  className="bg-[#0b0f1a]"
-                                >
-                                  {d} minutes
-                                </option>
-                              )
-                            )}
-                          </select>
+                       <div className="relative">
+  <select
+    value={
+      editForm.durationMinutes
+    }
+    onChange={(e) =>
+      setEditForm({
+        ...editForm,
+        durationMinutes: Number(
+          e.target.value
+        ),
+      })
+    }
+    className="
+      w-full
+      appearance-none
+      bg-white/5
+      border border-white/10
+      rounded-xl
+      p-3
+      pr-10
+      text-sm
+      text-white
+      outline-none
+      focus:outline-none
+      focus:ring-0
+      transition
+    "
+  >
+    {[30, 45, 60, 90, 120].map(
+      (d) => (
+        <option
+          key={d}
+          value={d}
+          className="
+            bg-[#0f0f0f]
+            text-white
+          "
+        >
+          {d} minutes
+        </option>
+      )
+    )}
+  </select>
 
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
-                            ▼
-                          </div>
-                        </div>
-
+  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+    ▼
+  </div>
+</div>
                         <textarea
                           value={editForm.description}
                           onChange={(e) =>

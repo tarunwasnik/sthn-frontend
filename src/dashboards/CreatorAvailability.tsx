@@ -221,7 +221,19 @@ const deleteSlot = async (slotId: string) => {
                     onChange={(e) =>
                       setForm({ ...form, serviceId: e.target.value })
                     }
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                    className="
+  w-full
+  bg-white/5
+  border border-white/10
+  rounded-xl
+  p-3
+  text-white
+  outline-none
+  focus:outline-none
+  focus:ring-0
+  focus:border-white/10
+  transition
+"
                   >
                     <option value="" className="bg-[#0b0f1a] text-white">
   Select Service
@@ -231,7 +243,7 @@ const deleteSlot = async (slotId: string) => {
   <option
     key={s._id}
     value={s._id}
-    className="bg-[#0b0f1a] text-white"
+   className="bg-[#0f0f0f] text-white"
   >
     {s.title}
   </option>
@@ -269,13 +281,26 @@ const deleteSlot = async (slotId: string) => {
                         slotDurationMinutes: Number(e.target.value),
                       })
                     }
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                    className="
+  w-full
+  bg-white/5
+  border border-white/10
+  rounded-xl
+  px-4
+  py-3
+  text-white
+  outline-none
+  focus:outline-none
+  focus:ring-0
+  focus:border-white/10
+  transition
+"
                   >
                     {slotDurations.map((d) => (
                       <option
   key={d}
   value={d}
-  className="bg-[#0b0f1a] text-white"
+  className="bg-[#0f0f0f] text-white"
 >
   {d} min slots
 </option>
