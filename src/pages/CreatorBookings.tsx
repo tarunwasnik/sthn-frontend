@@ -103,17 +103,7 @@ export default function CreatorBookings() {
       minute: "2-digit",
     });
 
-  const formatDate = (
-    date: string
-  ) =>
-    new Date(
-      date
-    ).toLocaleDateString([], {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-
+ 
   const getStatusStyle = (
     status: string
   ) => {
