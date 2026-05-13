@@ -551,7 +551,7 @@ export default function CreatorBookings() {
 
       <p className="
         text-[#4ADE80]
-        text-[24px]
+        text-[25px]
         font-bold
         leading-none
       ">
