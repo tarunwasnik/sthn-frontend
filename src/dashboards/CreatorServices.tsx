@@ -492,9 +492,210 @@ const handleMediaUpload = async (
                   <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none rounded-2xl" />
 
                   {
-                  !isEditing ? (
+!isEditing ? (
   <>
-    <div className="relative z-10 flex gap-8 items-center">
+    
+    {/* MOBILE UI */}
+<div className="md:hidden relative z-10 space-y-4">
+
+  {/* TOP */}
+  <div className="flex items-start justify-between gap-3">
+
+    {/* LEFT */}
+    <div className="flex-1 min-w-0">
+
+      <h2 className="
+        text-[24px]
+        leading-[0.95]
+        font-bold
+        text-white
+        break-words
+      ">
+        {service.title}
+      </h2>
+
+      <p className="
+        mt-2
+        text-[13px]
+        text-white/55
+        leading-relaxed
+      ">
+        {service.description}
+      </p>
+
+    </div>
+
+    {/* STATUS */}
+    <span
+      className={`
+        shrink-0
+        text-[10px]
+        px-2.5 py-1
+        rounded-lg
+        whitespace-nowrap
+        backdrop-blur
+        ${
+          service.isActive
+            ? "bg-green-500/10 text-green-300 border border-green-500/20"
+            : "bg-red-500/10 text-red-300 border border-red-500/20"
+        }
+      `}
+    >
+      {service.isActive
+        ? "Active"
+        : "Disabled"}
+    </span>
+
+  </div>
+
+  {/* MEDIA */}
+ <div className="w-full">
+
+    {Array.isArray(service.media) &&
+    service.media.length > 0 ? (
+
+      <img
+        src={service.media[0]}
+        alt={service.title}
+        className="
+          w-full
+          h-[150px]
+          object-cover
+          rounded-xl
+          border border-white/10
+        "
+      />
+
+    ) : (
+
+      <div
+        className="
+          w-full
+          h-[140px]
+          rounded-xl
+          border border-white/10
+          bg-white/[0.03]
+          flex
+          items-center
+          justify-center
+          text-white/25
+          text-xs
+        "
+      >
+        No media
+      </div>
+
+    )}
+
+  </div>
+
+  {/* META */}
+  <div className="flex items-end justify-between">
+
+    <div className="flex gap-6">
+
+      <div>
+        <p className="text-[10px] text-white/35">
+          Duration
+        </p>
+
+        <p className="
+          text-[18px]
+          font-semibold
+          text-white
+          mt-1
+          leading-none
+        ">
+          {service.durationMinutes}
+        </p>
+
+        <p className="text-[11px] text-white/40 mt-1">
+          mins
+        </p>
+      </div>
+
+      <div>
+        <p className="text-[10px] text-white/35">
+          Price
+        </p>
+
+        <p className="
+          text-[16px]
+          font-semibold
+          text-white
+          mt-1
+          leading-none
+        ">
+          {service.currency}
+        </p>
+
+        <p className="text-[13px] text-white/65 mt-1">
+          {service.price}
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+  {/* ACTIONS */}
+  <div className="
+    flex
+    items-center
+    justify-end
+    gap-4
+    pt-1
+  ">
+
+    <button
+      onClick={() =>
+        startEdit(service)
+      }
+      className="
+        text-[12px]
+        text-white/70
+        hover:text-white
+        transition
+      "
+    >
+      Edit
+    </button>
+
+    <button
+      onClick={() =>
+        handleToggle(service)
+      }
+      className={`text-[12px] transition ${
+        service.isActive
+          ? "text-yellow-300 hover:text-yellow-200"
+          : "text-green-300 hover:text-green-200"
+      }`}
+    >
+      {service.isActive
+        ? "Disable"
+        : "Enable"}
+    </button>
+
+    <button
+      onClick={() =>
+        handleDelete(service._id)
+      }
+      className="
+        text-[12px]
+        text-red-400
+        hover:text-red-300
+        transition
+      "
+    >
+      Delete
+    </button>
+
+  </div>
+
+</div>
+
+    {/* DESKTOP UI */}
+    <div className="hidden md:flex relative z-10 gap-8 items-center">
 
       {/* LEFT */}
       <div className="flex-1 min-w-0">
@@ -631,12 +832,23 @@ const handleMediaUpload = async (
       </div>
 
       {/* RIGHT MEDIA */}
-      <div className="flex justify-center items-center min-w-[220px]">
+      <div className="
+        flex
+        justify-center
+        items-center
+        w-[220px]
+        shrink-0
+      ">
 
         {Array.isArray(service.media) &&
         service.media.length > 0 ? (
 
-          <div className="flex justify-center gap-3 flex-wrap">
+          <div className="
+            flex
+            justify-center
+            gap-3
+            flex-wrap
+          ">
 
             {service.media.map((img, i) => (
 
@@ -678,6 +890,7 @@ const handleMediaUpload = async (
       </div>
 
     </div>
+
   </>
 ) : (
                     <>
