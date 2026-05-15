@@ -89,12 +89,7 @@ interface Booking {
     avatarUrl?: string;
   };
 
-  service: {
-    title: string;
-    thumbnailUrl?: string;
-    coverImage?: string;
-    image?: string;
-  };
+  service: { _id?: string; title: string; data?: { media?: string[]; }; };
 
   slots: Slot[];
 }
@@ -348,9 +343,7 @@ export default function CreatorBookingDetails() {
   }, [booking]);
 
   const serviceImage =
-    booking?.service?.thumbnailUrl ||
-    booking?.service?.coverImage ||
-    booking?.service?.image;
+  booking?.service?.data?.media?.[0] || "";
 
   /* ================= LOADING ================= */
 
@@ -502,7 +495,7 @@ return (
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-[#050816] via-transparent to-transparent" />
+                
               </div>
 
               {/* ================= SERVICE INFO ================= */}
