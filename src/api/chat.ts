@@ -9,11 +9,7 @@ export interface Conversation {
   bookingId: string;
   lastMessage: string;
   lastMessageAt: string;
-  otherUser: {
-    id: string;
-    displayName: string;
-    avatarUrl: string | null;
-  };
+  otherUser: { _id: string; profile: any; };
   unreadCount: number;
 }
 
