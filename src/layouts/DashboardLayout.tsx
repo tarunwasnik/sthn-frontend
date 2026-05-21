@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: Props) {
   return (
     <div
       className="
-        min-h-screen
+        h-screen
         flex
         text-[#F8FAFC]
         overflow-x-hidden
@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: Props) {
     >
 
       {/* ================= SIDEBAR ================= */}
-      <aside className="hidden md:flex w-64 flex-col bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.08)]">
+      <aside className="hidden md:flex w-64 h-screen shrink-0 flex-col bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.08)]">
 
         <div>
 
@@ -148,7 +148,7 @@ export default function DashboardLayout({ children }: Props) {
       </aside>
 
       {/* ================= MAIN ================= */}
-      <div className="flex-1 flex flex-col relative min-w-0 isolate">
+      <div className="flex-1 h-screen flex flex-col relative min-w-0 isolate overflow-hidden">
 
         {/* ================= HEADER ================= */}
         <header className="

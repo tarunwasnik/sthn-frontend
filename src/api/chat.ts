@@ -7,6 +7,11 @@ import api from "./axios";
 
 export interface Conversation {
   bookingId: string;
+  service?: { 
+    _id: string; 
+    title: string; 
+  };
+
   lastMessage: string;
   lastMessageAt: string;
   otherUser: { _id: string; profile: any; };
