@@ -271,7 +271,7 @@ export default function MessagesPage() {
                 <h1
                   className="
                     text-[22px]
-                    md:text-[26px]
+                    md:text-[22px]
                     font-bold
                     tracking-tight
                     text-[#F8FAFC]
