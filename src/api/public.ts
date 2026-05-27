@@ -10,32 +10,49 @@ export type HomeDTO = {
     totalBookings: number;
     totalUsers: number;
   };
+
   featuredCategories: {
     id: string;
     name: string;
     iconUrl: string;
   }[];
+
   featuredCreators: CreatorPublicCardDTO[];
 };
 
 export type CreatorPublicCardDTO = {
   id: string;
+
   slug: string;
+
   displayName: string;
+
   avatarUrl: string | null;
+
+  // ADD
+  coverUrl?: string | null;
+
+  // ADD
+  media?: string[];
+
   age: number | null;
 
   primaryCategory: string;
 
+  categories: string[];
+
   rating: number | null;
+
   reviewCount: number;
 
   city?: string | null;
+
   country?: string | null;
 
   languages?: string[];
 
   startingPrice: number;
+
   currency: string;
 
   isAvailable: boolean;
@@ -45,6 +62,7 @@ export type CreatorPublicCardDTO = {
 
 export type CreatorListingResponseDTO = {
   data: CreatorPublicCardDTO[];
+
   pagination: {
     total: number;
     page: number;
@@ -57,32 +75,51 @@ export type CreatorListingResponseDTO = {
 
 export type CreatorServiceDTO = {
   id: string;
+
   title: string;
+
   description: string;
+
   durationMinutes: number;
+
   price: number;
+
+  media?: string[];
+
+  thumbnailUrl?: string | null;
 };
 
 export type CreatorPublicProfileDTO = {
   id: string;
+
   slug: string;
 
   displayName: string;
+
   avatarUrl: string | null;
+
+  // REPLACE OLD coverImageUrl
+  coverUrl?: string | null;
+
+  // ADD
+  media?: string[];
 
   age: number | null;
 
   bio: string;
 
   categories: string[];
+
   primaryCategory: string;
 
   rating: number | null;
+
   reviewCount: number;
 
   languages: string[];
 
   city: string;
+
   country: string;
 
   currency: string;
@@ -92,24 +129,33 @@ export type CreatorPublicProfileDTO = {
 
 /* ========= API ========= */
 
-export const fetchHome = async (): Promise<HomeDTO> => {
-  const { data } = await api.get("/public/home");
-  return data;
-};
+export const fetchHome =
+  async (): Promise<HomeDTO> => {
+    const { data } = await api.get(
+      "/public/home"
+    );
 
-export const fetchCreators = async (params?: {
-  page?: number;
-  limit?: number;
-  sort?: string;
-  category?: string;
-  country?: string;
-  city?: string;
-  language?: string;
-}): Promise<CreatorListingResponseDTO> => {
+    return data;
+  };
 
-  const { data } = await api.get("/public/creators", {
-    params,
-  });
+export const fetchCreators = async (
+  params?: {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    category?: string;
+    country?: string;
+    city?: string;
+    language?: string;
+  }
+): Promise<CreatorListingResponseDTO> => {
+
+  const { data } = await api.get(
+    "/public/creators",
+    {
+      params,
+    }
+  );
 
   return data;
 };
@@ -118,6 +164,9 @@ export const fetchCreatorProfile = async (
   slug: string
 ): Promise<CreatorPublicProfileDTO> => {
 
-  const { data } = await api.get(`/public/creators/${slug}`);
+  const { data } = await api.get(
+    `/public/creators/${slug}`
+  );
+
   return data;
 };

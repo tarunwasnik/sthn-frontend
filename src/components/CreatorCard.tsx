@@ -50,6 +50,15 @@ export default function CreatorCard({
         creator.country ||
         null;
 
+  const categoryList =
+  creator.categories &&
+  creator.categories.length > 0
+    ? creator.categories
+    : creator.primaryCategory
+        ?.split(",")
+        .map((c) => c.trim())
+        .filter(Boolean) || [];
+
   return (
     <div
       role="button"
@@ -253,26 +262,51 @@ export default function CreatorCard({
               </div>
             </div>
 
-            {/* Category */}
-            {creator.primaryCategory && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span
-                  className="
-                    rounded-full
-                    border border-white/10
-                    bg-white/[0.06]
-                    px-2.5
-                    py-1
-                    text-[10px]
-                    font-medium
-                    uppercase tracking-wide
-                    text-white/65
-                  "
-                >
-                  {creator.primaryCategory}
-                </span>
-              </div>
-            )}
+           {/* Categories */}
+<div className="mt-3 flex flex-wrap gap-2">
+  {categoryList.length > 0 ? (
+    categoryList
+      .slice(0, 3)
+      .map((category, index) => (
+        <span
+          key={index}
+          className="
+            inline-flex
+            items-center
+            rounded-full
+            border border-white/10
+            bg-white/[0.06]
+            px-2.5
+            py-1
+            text-[10px]
+            font-medium
+            text-white/65
+            max-w-[110px]
+            truncate
+          "
+        >
+          {category}
+        </span>
+      ))
+  ) : (
+    <span
+      className="
+        inline-flex
+        items-center
+        rounded-full
+        border border-white/10
+        bg-white/[0.04]
+        px-2.5
+        py-1
+        text-[10px]
+        font-medium
+        text-white/35
+      "
+    >
+      No category
+    </span>
+  )}
+</div>
           </div>
 
           {/* Bottom Meta */}
