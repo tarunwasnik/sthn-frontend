@@ -23,6 +23,8 @@ interface Service {
   description: string;
   durationMinutes: number;
   price: number;
+  media?: string[];
+  thumbnailUrl?: string | null;
 }
 
 interface Review {
@@ -977,7 +979,7 @@ font-bold
               group
               cursor-pointer
               overflow-hidden
-              rounded-[30px]
+              rounded-[34px]
               border
               transition-all
               duration-300
@@ -986,90 +988,231 @@ font-bold
                 selected
                   ? `
                     border-white/20
-                    bg-white/[0.06]
-                    shadow-[0_10px_40px_rgba(0,0,0,0.45)]
+                    bg-gradient-to-r
+                    from-white/[0.06]
+                    to-white/[0.03]
+                    ring-1 ring-white/10
                   `
                   : `
                     border-white/10
-                    bg-white/[0.03]
-                    hover:bg-white/[0.05]
+                    bg-gradient-to-r
+                    from-white/[0.045]
+                    to-white/[0.02]
+                    hover:from-white/[0.06]
+                    hover:to-white/[0.03]
                     hover:border-white/15
                   `
               }
             `}
           >
 
-            {/* SERVICE IMAGE */}
+            <div
+              className="
+                flex
+                items-start
+                gap-8
+                p-5
+              "
+            >
 
-            {service.media?.[0] && (
+              {/* ================= IMAGE ================= */}
+
+{service.media?.[0] && (
+
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      const imageUrl =
+        service.media?.[0];
+
+      if (!imageUrl) return;
+
+      const imageIndex =
+        galleryImages.findIndex(
+          (img) => img === imageUrl
+        );
+
+      if (imageIndex !== -1) {
+        openPreview(imageIndex);
+      }
+    }}
+    className="
+      group/image
+      relative
+      overflow-hidden
+      w-[260px]
+      h-[170px]
+      shrink-0
+      rounded-[26px]
+      border border-white/10
+      bg-white/[0.03]
+      hover:border-white/20
+      transition-all
+      duration-300
+    "
+  >
+
+    <img
+      src={service.media[0]}
+      alt={service.title}
+      className="
+        w-full
+        h-full
+        object-cover
+        transition-transform
+        duration-700
+        group-hover/image:scale-[1.05]
+      "
+    />
+
+    {/* ================= OVERLAY ================= */}
+
+    <div
+      className="
+        absolute
+        inset-0
+        bg-gradient-to-t
+        from-black/35
+        via-black/5
+        to-transparent
+      "
+    />
+
+    {/* ================= PREVIEW BADGE ================= */}
+
+    <div
+      className="
+        absolute
+        bottom-3
+        right-3
+        px-3
+        py-1.5
+        rounded-full
+        bg-black/55
+        backdrop-blur-md
+        border border-white/10
+        text-[11px]
+        text-white/80
+        opacity-0
+        group-hover/image:opacity-100
+        transition-all
+        duration-300
+      "
+    >
+      Preview
+    </div>
+
+  </button>
+
+)}
+              {/* ================= CONTENT ================= */}
 
               <div
                 className="
-                  relative
-                  overflow-hidden
-                  h-[240px]
-                  border-b border-white/10
-                  bg-white/[0.03]
+                  flex-1
+                  flex
+                  items-start
+                  justify-between
+                  gap-10
+                  min-h-[170px]
+                  pr-2
+                  py-3
                 "
               >
 
-                <img
-                  src={service.media[0]}
-                  alt={service.title}
-                  className="
-                    w-full
-                    h-full
-                    object-cover
-                    transition-transform
-                    duration-700
-                    group-hover:scale-[1.03]
-                  "
-                />
+                {/* ================= LEFT ================= */}
 
                 <div
                   className="
-                    absolute inset-0
-                    bg-gradient-to-t
-                    from-black/30
-                    via-transparent
-                    to-transparent
+                    flex-1
+                    min-w-0
+                    h-full
+                    flex
+                    flex-col
+                    justify-start
                   "
-                />
+                >
 
-              </div>
+                  <div className="space-y-3">
 
-            )}
+                    <h3
+                      className="
+                        text-[22px]
+                        md:text-[28px]
+                        font-semibold
+                        text-white
+                        tracking-tight
+                        leading-tight
+                        break-words
+                      "
+                    >
+                      {service.title}
+                    </h3>
 
-            {/* CONTENT */}
+                    <p
+                      className="
+                        text-[15px]
+                        text-white/55
+                        leading-relaxed
+                        break-words
+                        max-w-[680px]
+                      "
+                    >
+                      {service.description}
+                    </p>
 
-            <div className="p-5 md:p-6">
-
-              <div className="flex justify-between gap-5">
-
-                <div className="space-y-3 flex-1">
-
-                  <h3 className="text-lg md:text-xl font-semibold">
-                    {service.title}
-                  </h3>
-
-                  <p className="text-sm text-white/60 leading-relaxed">
-                    {service.description}
-                  </p>
+                  </div>
 
                 </div>
 
-                <div className="text-right shrink-0">
+                {/* ================= RIGHT ================= */}
 
-                  <div className="text-xl font-bold">
+                <div
+                  className="
+                    shrink-0
+                    text-right
+                    flex
+                    flex-col
+                    items-end
+                    justify-start
+                    self-start
+                    pt-1
+                  "
+                >
+
+                  <div
+                    className="
+                      text-[14px]
+                      text-white/35
+                      mb-3
+                    "
+                  >
+                    Starting from
+                  </div>
+
+                  <div
+                    className="
+                      text-[42px]
+                      font-bold
+                      text-white
+                      leading-none
+                      tracking-tight
+                    "
+                  >
                     {data.currency}{" "}
                     {service.price}
                   </div>
 
-                  <div className="text-xs text-white/40 mt-1">
-                    {
-                      service.durationMinutes
-                    }{" "}
-                    min
+                  <div
+                    className="
+                      text-[15px]
+                      text-white/40
+                      mt-3
+                    "
+                  >
+                    {service.durationMinutes} min
                   </div>
 
                 </div>
