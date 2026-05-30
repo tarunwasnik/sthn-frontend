@@ -41,30 +41,38 @@ interface Review {
 /* ================= COMPONENT ================= */
 
 export default function CreatorPublicProfile() {
+
   const { slug } = useParams<{ slug: string }>();
 
   const [data, setData] =
     useState<CreatorPublicProfileDTO | null>(null);
 
   const [slots, setSlots] = useState<Slot[]>([]);
-  const [selectedDate, setSelectedDate] = useState("");
+
+  const [selectedDate, setSelectedDate] =
+    useState("");
 
   const [selectedService, setSelectedService] =
     useState<Service | null>(null);
 
-  const [selectedSlots, setSelectedSlots] = useState<
-    string[]
-  >([]);
+  const [selectedSlots, setSelectedSlots] =
+    useState<string[]>([]);
 
   const [loadingBooking, setLoadingBooking] =
     useState(false);
 
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] =
+    useState<Review[]>([]);
+
   const [loadingReviews, setLoadingReviews] =
     useState(true);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] =
+    useState(1);
+
+  const [hasMore, setHasMore] =
+    useState(true);
+
   const [loadingMore, setLoadingMore] =
     useState(false);
 
@@ -73,31 +81,35 @@ export default function CreatorPublicProfile() {
 
   const LIMIT = 5;
 
-  /* ================= PREVIEW ================= */
+  /* ================= GLOBAL IMAGE PREVIEW ================= */
 
-  const [previewIndex, setPreviewIndex] =
-    useState<number | null>(null);
+  const [previewImage, setPreviewImage] =
+    useState<string | null>(null);
 
-  const openPreview = (index: number) => {
-    setPreviewIndex(index);
+  const openPreview = (image: string) => {
+    setPreviewImage(image);
   };
 
   const closePreview = () => {
-    setPreviewIndex(null);
+    setPreviewImage(null);
   };
 
   /* ================= FETCH PROFILE ================= */
 
   useEffect(() => {
+
     if (!slug) return;
 
     fetchCreatorProfile(slug).then((res) => {
+
       setData(res);
 
       if (res?.id) {
         fetchReviews(res.id, 1, true);
       }
+
     });
+
   }, [slug]);
 
   /* ================= FETCH REVIEWS ================= */
@@ -107,7 +119,9 @@ export default function CreatorPublicProfile() {
     page: number,
     initial = false
   ) => {
+
     try {
+
       if (initial) {
         setLoadingReviews(true);
       } else {
@@ -124,8 +138,11 @@ export default function CreatorPublicProfile() {
         }
       );
 
-      const newReviews = res.data.reviews || [];
-      const pagination = res.data.pagination;
+      const newReviews =
+        res.data.reviews || [];
+
+      const pagination =
+        res.data.pagination;
 
       setReviews((prev) =>
         page === 1
@@ -133,22 +150,36 @@ export default function CreatorPublicProfile() {
           : [...prev, ...newReviews]
       );
 
-      setHasMore(page < pagination.totalPages);
+      setHasMore(
+        page < pagination.totalPages
+      );
 
       setCurrentPage(page);
+
     } catch {
+
       setHasMore(false);
+
     } finally {
+
       setLoadingReviews(false);
       setLoadingMore(false);
+
     }
+
   };
 
   /* ================= INFINITE SCROLL ================= */
 
   const lastReviewRef = useCallback(
     (node: HTMLDivElement | null) => {
-      if (loadingMore || loadingReviews) return;
+
+      if (
+        loadingMore ||
+        loadingReviews
+      ) {
+        return;
+      }
 
       if (observerRef.current) {
         observerRef.current.disconnect();
@@ -156,18 +187,24 @@ export default function CreatorPublicProfile() {
 
       observerRef.current =
         new IntersectionObserver((entries) => {
+
           if (
             entries[0].isIntersecting &&
             hasMore &&
             data?.id
           ) {
-            fetchReviews(data.id, currentPage + 1);
+            fetchReviews(
+              data.id,
+              currentPage + 1
+            );
           }
+
         });
 
       if (node) {
         observerRef.current.observe(node);
       }
+
     },
     [
       loadingMore,
@@ -179,13 +216,18 @@ export default function CreatorPublicProfile() {
   );
 
   useEffect(() => {
-    return () => observerRef.current?.disconnect();
+    return () =>
+      observerRef.current?.disconnect();
   }, []);
 
   /* ================= FETCH SLOTS ================= */
 
-  const fetchSlots = async (date: string) => {
+  const fetchSlots = async (
+    date: string
+  ) => {
+
     try {
+
       if (!slug) return;
 
       const res = await api.get(
@@ -195,154 +237,189 @@ export default function CreatorPublicProfile() {
         }
       );
 
-      setSlots(res.data.slots || []);
-      setSelectedSlots([]);
-    } catch {
-      setSlots([]);
-    }
-  };
+      setSlots(
+        res.data.slots || []
+      );
 
-  
+      setSelectedSlots([]);
+
+    } catch {
+
+      setSlots([]);
+
+    }
+
+  };
 
   /* ================= HELPERS ================= */
 
   const formatTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    new Date(iso).toLocaleTimeString(
+      [],
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
 
   if (!data) {
+
     return (
       <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
         Loading...
       </div>
     );
+
   }
 
-  const services = data.services || [];
+  const services =
+    data.services || [];
 
-  const galleryImages = (
-    data.media || []
-  ).slice(0, 6);
+  const galleryImages =
+    (data.media || []).slice(0, 6);
 
   /* ================= SLOT LOGIC ================= */
 
-  const toggleSlot = (slotId: string) => {
-    const clickedSlot = slots.find(
-      (s) => s.id === slotId
-    );
+  const toggleSlot = (
+    slotId: string
+  ) => {
 
-    if (!clickedSlot || !selectedService) return;
-
-    if (clickedSlot.serviceId !== selectedService.id) {
-      return;
-    }
-
-    let updated = [...selectedSlots];
-
-    if (updated.includes(slotId)) {
-      updated = updated.filter(
-        (id) => id !== slotId
+    const clickedSlot =
+      slots.find(
+        (s) => s.id === slotId
       );
-    } else {
-      updated.push(slotId);
-    }
 
-    setSelectedSlots(updated);
-  };
-
-  const totalPrice = selectedSlots.length
-    ? slots
-        .filter((s) =>
-          selectedSlots.includes(s.id)
-        )
-        .reduce((sum, s) => sum + s.price, 0)
-    : 0;
-
-  /* ================= BOOKING ================= */
-
-  const handleBooking = async () => {
     if (
-      !selectedService ||
-      selectedSlots.length === 0
+      !clickedSlot ||
+      !selectedService
     ) {
       return;
     }
 
-    try {
-      setLoadingBooking(true);
-
-      await api.post("/v1/bookings/request", {
-        serviceId: selectedService.id,
-        slotIds: selectedSlots,
-      });
-
-      alert("Booking request sent successfully.");
-
-      setSelectedSlots([]);
-    } catch (err: any) {
-      alert(
-        err?.response?.data?.message ||
-          "Booking failed"
-      );
-    } finally {
-      setLoadingBooking(false);
+    if (
+      clickedSlot.serviceId !==
+      selectedService.id
+    ) {
+      return;
     }
+
+    let updated = [
+      ...selectedSlots,
+    ];
+
+    if (
+      updated.includes(slotId)
+    ) {
+
+      updated = updated.filter(
+        (id) => id !== slotId
+      );
+
+    } else {
+
+      updated.push(slotId);
+
+    }
+
+    setSelectedSlots(updated);
+
   };
+
+  const totalPrice =
+    selectedSlots.length
+      ? slots
+          .filter((s) =>
+            selectedSlots.includes(
+              s.id
+            )
+          )
+          .reduce(
+            (sum, s) =>
+              sum + s.price,
+            0
+          )
+      : 0;
+
+  /* ================= BOOKING ================= */
+
+  const handleBooking =
+    async () => {
+
+      if (
+        !selectedService ||
+        selectedSlots.length === 0
+      ) {
+        return;
+      }
+
+      try {
+
+        setLoadingBooking(true);
+
+        await api.post(
+          "/v1/bookings/request",
+          {
+            serviceId:
+              selectedService.id,
+            slotIds:
+              selectedSlots,
+          }
+        );
+
+        alert(
+          "Booking request sent successfully."
+        );
+
+        setSelectedSlots([]);
+
+      } catch (err: any) {
+
+        alert(
+          err?.response?.data
+            ?.message ||
+            "Booking failed"
+        );
+
+      } finally {
+
+        setLoadingBooking(false);
+
+      }
+
+    };
 
   /* ================= RATING BREAKDOWN ================= */
 
-  const ratingCounts = [5, 4, 3, 2, 1].map(
-    (star) => ({
-      star,
-      count: reviews.filter(
-        (r) => r.rating === star
-      ).length,
-    })
-  );
+  const ratingCounts =
+    [5, 4, 3, 2, 1].map(
+      (star) => ({
+        star,
+        count: reviews.filter(
+          (r) =>
+            r.rating === star
+        ).length,
+      })
+    );
 
-  const totalReviews = reviews.length || 1;
+  const totalReviews =
+    reviews.length || 1;
 
-
-
-  const showPrevImage = () => {
-  if (previewIndex === null) return;
-
-  setPreviewIndex((prev) => {
-    if (prev === null) return 0;
-
-    return prev === 0
-      ? galleryImages.length - 1
-      : prev - 1;
-  });
-};
-
-const showNextImage = () => {
-  if (previewIndex === null) return;
-
-  setPreviewIndex((prev) => {
-    if (prev === null) return 0;
-
-    return prev === galleryImages.length - 1
-      ? 0
-      : prev + 1;
-  });
-};
-
- return (
+return (
   <div className="min-h-screen bg-[#050505] text-white">
 
     {/* ================= IMAGE PREVIEW MODAL ================= */}
 
-    {previewIndex !== null && (
+    {previewImage && (
+
       <div
         className="
           fixed inset-0 z-[999]
           bg-black/95
           backdrop-blur-xl
           flex items-center justify-center
+          p-4
         "
+        onClick={closePreview}
       >
 
         {/* CLOSE */}
@@ -366,70 +443,39 @@ const showNextImage = () => {
           ×
         </button>
 
-        {/* PREVIOUS */}
-
-        {galleryImages.length > 1 && (
-          <button
-            onClick={showPrevImage}
-            className="
-              absolute left-4 md:left-8
-              w-12 h-12
-              rounded-full
-              bg-white/10
-              hover:bg-white/20
-              border border-white/10
-              text-white
-              text-2xl
-              transition-all
-              duration-300
-              z-30
-            "
-          >
-            ←
-          </button>
-        )}
-
         {/* IMAGE */}
 
-        <div className="w-full h-full flex items-center justify-center px-4 md:px-16">
+        <div
+          className="
+            w-full
+            h-full
+            flex
+            items-center
+            justify-center
+            px-4
+            md:px-16
+          "
+          onClick={(e) =>
+            e.stopPropagation()
+          }
+        >
 
           <img
-            src={galleryImages[previewIndex]}
-            alt={`preview-${previewIndex}`}
+            src={previewImage}
+            alt="preview"
             className="
               max-w-full
               max-h-[92vh]
               object-contain
               rounded-[28px]
+              shadow-2xl
             "
           />
 
         </div>
 
-        {/* NEXT */}
-
-        {galleryImages.length > 1 && (
-          <button
-            onClick={showNextImage}
-            className="
-              absolute right-4 md:right-8
-              w-12 h-12
-              rounded-full
-              bg-white/10
-              hover:bg-white/20
-              border border-white/10
-              text-white
-              text-2xl
-              transition-all
-              duration-300
-              z-30
-            "
-          >
-            →
-          </button>
-        )}
-
       </div>
+
     )}
 
     <div
@@ -452,231 +498,424 @@ const showNextImage = () => {
   className="
     relative
     overflow-hidden
-    rounded-[36px]
+
+    rounded-[28px]
+    md:rounded-[36px]
+
     border border-white/10
-    h-[260px]
+
+    h-[220px]
+    sm:h-[260px]
     md:h-[520px]
+
     bg-white/[0.03]
   "
 >
 
-  <img
-    src={
-      data.coverUrl ||
-      data.media?.[0] ||
-      "/covers/default.png"
+  {/* COVER IMAGE */}
+
+  <button
+    type="button"
+    onClick={() =>
+      openPreview(
+        data.coverUrl ||
+        data.media?.[0] ||
+        "/covers/default.png"
+      )
     }
-    alt={data.displayName}
-    className="w-full h-full object-cover"
-  />
+    className="w-full h-full"
+  >
+
+    <img
+      src={
+        data.coverUrl ||
+        data.media?.[0] ||
+        "/covers/default.png"
+      }
+      alt={data.displayName}
+      className="
+        w-full
+        h-full
+        object-cover
+        transition-transform
+        duration-700
+        hover:scale-[1.02]
+      "
+    />
+
+  </button>
 
   {/* OVERLAY */}
 
-<div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10" />
+  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/10" />
 
   {/* CONTENT */}
+
+<div
+  className="
+    absolute
+    inset-x-0
+    bottom-0
+
+    p-5
+    sm:p-6
+    md:p-12
+
+    pb-3
+    sm:pb-5
+    md:pb-16
+  "
+>
+
+  {/* PROFILE */}
 
   <div
     className="
       absolute
-      inset-x-0
-      bottom-0
-      p-8
-      md:p-12
-      pb-10
-      md:pb-16
+
+      left-4
+      right-4
+
+      md:left-14
+      md:right-auto
+
+      lg:left-20
+
+      bottom-3
+      sm:bottom-4
+      md:bottom-14
+
+      flex
+      flex-col
+      md:flex-row
+
+      items-start
+      md:items-end
+
+      gap-2
+      sm:gap-3
+      md:gap-6
     "
   >
 
-    <div className="flex flex-col gap-7 justify-end">
+    {/* AVATAR */}
 
-      {/* PROFILE */}
+    <button
+      type="button"
+      onClick={() =>
+        openPreview(
+          data.avatarUrl ??
+          "/avatars/default.png"
+        )
+      }
+      className="shrink-0"
+    >
 
-      <div
-  className="
-    absolute
-    left-8
-md:left-14
-lg:left-20
-    bottom-10
-    md:bottom-14
-    -translate-x-0
-    w-[92%]
-    flex
-    flex-col
-    md:flex-row
-    items-center
-    gap-4
-    md:gap-6
-  "
->
+      <img
+        src={
+          data.avatarUrl ??
+          "/avatars/default.png"
+        }
+        alt={data.displayName}
+        className="
+          w-16 h-16
+          sm:w-20 sm:h-20
+          md:w-36 md:h-36
 
-        {/* AVATAR */}
+          rounded-full
+          object-cover
 
-        <img
-          src={
-            data.avatarUrl ??
-            "/avatars/default.png"
-          }
-          alt={data.displayName}
-          className="
-            w-20 h-20
-            md:w-36 md:h-36
-            rounded-full
-            object-cover
-            border border-white/10
-            ring-4 ring-emerald-400/10
-            bg-white/[0.04]
-            shrink-0
-          "
-        />
+          border border-white/10
+          ring-4 ring-emerald-400/10
 
-        {/* INFO */}
+          bg-white/[0.04]
 
-<div
-  className="
-    space-y-2
-    md:space-y-3
-    text-center
-    md:text-left
-  "
->
+          transition-transform
+          duration-500
 
-  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+          hover:scale-[1.03]
+        "
+      />
 
-    <h1
+    </button>
+
+    {/* INFO */}
+
+    <div
       className="
-        text-4xl
-md:text-5xl
-lg:text-6xl
-font-bold
-        tracking-tight
-        text-white
-        leading-none
-        drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)]
+        space-y-1
+        md:space-y-3
+
+        text-left
       "
     >
-      {data.displayName}
-    </h1>
+
+      <h1
+        className="
+          text-[18px]
+          sm:text-[24px]
+          md:text-5xl
+          lg:text-6xl
+
+          font-bold
+          tracking-tight
+          text-white
+
+          leading-[0.95]
+
+          drop-shadow-[0_2px_14px_rgba(0,0,0,0.45)]
+        "
+      >
+        {data.displayName}
+      </h1>
+
+      {data.reviewCount > 0 && (
+
+        <div
+          className="
+            flex
+            items-center
+            gap-2
+
+            text-xs
+            sm:text-sm
+          "
+        >
+
+          <StarRating
+            value={Math.round(data.rating ?? 0)}
+            readonly
+          />
+
+          <span className="font-medium text-white">
+            {(data.rating ?? 0).toFixed(1)}
+          </span>
+
+          <span className="text-white/60">
+            ({data.reviewCount} reviews)
+          </span>
+
+        </div>
+
+      )}
+
+    </div>
 
   </div>
 
-  {/* RATING */}
-
-  {data.reviewCount > 0 && (
-    <div className="flex items-center justify-center md:justify-start gap-3">
-
-      <StarRating
-        value={Math.round(data.rating ?? 0)}
-        readonly
-      />
-
-      <span className="font-medium text-white">
-        {(data.rating ?? 0).toFixed(1)}
-      </span>
-
-      <span className="text-white/60 text-sm">
-        ({data.reviewCount} reviews)
-      </span>
-
-    </div>
-  )}
-
 </div>
 
+  </div>
+
+      {/* ================= INFO SECTION ================= */}
+
+<div className="space-y-8 md:space-y-12">
+
+  {/* ================= INFO GRID ================= */}
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    {/* AGE */}
+
+    <div
+      className="
+        rounded-[30px]
+        border border-white/[0.06]
+        bg-gradient-to-b
+        from-white/[0.025]
+        to-white/[0.01]
+        px-6
+        py-5
+        space-y-4
+        shadow-[0_0_0_1px_rgba(255,255,255,0.02)]
+      "
+    >
+
+      <h3
+        className="
+          text-[13px]
+          uppercase
+          tracking-[0.18em]
+          text-white/35
+          font-medium
+        "
+      >
+        Age
+      </h3>
+
+      <div
+        className="
+          text-white
+          text-lg
+          font-semibold
+        "
+      >
+        {data.age
+          ? `${data.age} years`
+          : "Not specified"}
+      </div>
+
+    </div>
+
+    {/* LANGUAGES */}
+
+    {data.languages?.length > 0 && (
+
+      <div
+        className="
+          rounded-[30px]
+          border border-white/[0.06]
+          bg-gradient-to-b
+          from-white/[0.025]
+          to-white/[0.01]
+          px-6
+          py-5
+          space-y-4
+          shadow-[0_0_0_1px_rgba(255,255,255,0.02)]
+        "
+      >
+
+        <h3
+          className="
+            text-[13px]
+            uppercase
+            tracking-[0.18em]
+            text-white/35
+            font-medium
+          "
+        >
+          Languages
+        </h3>
+
+        <div
+          className="
+            text-white
+            text-lg
+            font-semibold
+          "
+        >
+          {data.languages.join(", ")}
+        </div>
+
+      </div>
+
+    )}
+
+    {/* LOCATION */}
+
+    <div
+      className="
+        rounded-[30px]
+        border border-white/[0.06]
+        bg-gradient-to-b
+        from-white/[0.025]
+        to-white/[0.01]
+        px-6
+        py-5
+        space-y-4
+        shadow-[0_0_0_1px_rgba(255,255,255,0.02)]
+      "
+    >
+
+      <h3
+        className="
+          text-[13px]
+          uppercase
+          tracking-[0.18em]
+          text-white/35
+          font-medium
+        "
+      >
+        Location
+      </h3>
+
+      <div
+        className="
+          text-white
+          text-lg
+          font-semibold
+        "
+      >
+        {data.city}, {data.country}
       </div>
 
     </div>
 
   </div>
 
-</div>
+  {/* ================= CATEGORIES ================= */}
 
-      {/* ================= INFO SECTION ================= */}
+  {data.categories?.length > 0 && (
 
-      <div className="space-y-12">
+    <div
+      className="
+        rounded-[30px]
+        border border-white/[0.06]
+        bg-gradient-to-b
+        from-white/[0.025]
+        to-white/[0.01]
+        px-6
+        py-5
+        space-y-4
+        shadow-[0_0_0_1px_rgba(255,255,255,0.02)]
+      "
+    >
 
-        {/* INFO GRID */}
+      <div className="flex items-center justify-between">
 
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3
+          className="
+            text-[13px]
+            uppercase
+            tracking-[0.18em]
+            text-white/35
+            font-medium
+          "
+        >
+          Categories
+        </h3>
 
+      </div>
 
-        <div
-              className="
-                rounded-[24px]
-                border border-white/10
-                bg-white/[0.03]
-                backdrop-blur-xl
-                p-5
-                space-y-2
-              "
-            >
+      <div className="flex flex-wrap gap-3">
 
-  <div className="text-sm text-white/40">
-    Age
-  </div>
-
-  <div className="font-semibold text-white">
-    {data.age ? `${data.age} years` : "Not specified"}
-  </div>
-
-</div>
-
-          {/* LANGUAGES */}
-
-          {data.languages?.length > 0 && (
-
-            <div
-              className="
-                rounded-[24px]
-                border border-white/10
-                bg-white/[0.03]
-                backdrop-blur-xl
-                p-5
-                space-y-2
-              "
-            >
-
-              <div className="text-sm text-white/40">
-                Languages
-              </div>
-
-              <div className="text-white font-medium">
-                {data.languages.join(", ")}
-              </div>
-
-            </div>
-
-          )}
-
-          {/* LOCATION */}
+        {data.categories.map((category) => (
 
           <div
+            key={category}
             className="
-              rounded-[24px]
-              border border-white/10
+              px-5 py-2.5
+              rounded-full
+              border border-white/[0.08]
               bg-white/[0.03]
-              backdrop-blur-xl
-              p-5
-              space-y-2
+              text-white/85
+              text-sm
+              font-medium
+              tracking-wide
+
+              transition-all
+              duration-300
+
+              hover:bg-white/[0.07]
+              hover:border-white/[0.14]
+              hover:text-white
+              hover:-translate-y-[1px]
+
+              shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]
             "
           >
-
-            <div className="text-sm text-white/40">
-              Location
-            </div>
-
-            <div className="text-white font-medium">
-              {data.city}, {data.country}
-            </div>
-
+            {category}
           </div>
 
-        </div>
+        ))}
 
-        {/* ================= CATEGORIES ================= */}
+      </div>
 
-{data.categories?.length > 0 && (
+    </div>
+
+  )}
+
+  {/* ================= ABOUT ================= */}
 
   <div
     className="
@@ -692,90 +931,32 @@ font-bold
     "
   >
 
-    {/* HEADER */}
+    <h3
+      className="
+        text-[13px]
+        uppercase
+        tracking-[0.18em]
+        text-white/35
+        font-medium
+      "
+    >
+      About
+    </h3>
 
-    <div className="flex items-center justify-between">
-
-      <h3
-        className="
-          text-[13px]
-          uppercase
-          tracking-[0.18em]
-          text-white/35
-          font-medium
-        "
-      >
-        Categories
-      </h3>
-
-    </div>
-
-    {/* CATEGORY LIST */}
-
-    <div className="flex flex-wrap gap-3">
-
-      {data.categories.map((category) => (
-
-        <div
-          key={category}
-          className="
-            px-5 py-2.5
-            rounded-full
-            border border-white/[0.08]
-            bg-white/[0.03]
-            text-white/85
-            text-sm
-            font-medium
-            tracking-wide
-
-            transition-all
-            duration-300
-
-            hover:bg-white/[0.07]
-            hover:border-white/[0.14]
-            hover:text-white
-            hover:-translate-y-[1px]
-
-            shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]
-          "
-        >
-          {category}
-        </div>
-
-      ))}
-
-    </div>
+    <p
+      className="
+        text-white/75
+        leading-relaxed
+        text-[15px]
+      "
+    >
+      {data.bio ||
+        "No creator bio added yet."}
+    </p>
 
   </div>
 
-)}
-
-        {/* ABOUT */}
-
-        <div
-          className="
-            rounded-[30px]
-            bg-white/[0.03]
-            border border-white/10
-            backdrop-blur-xl
-            p-6 md:p-7
-            space-y-4
-          "
-        >
-
-          <h2 className="text-2xl font-semibold">
-            About
-          </h2>
-
-          <p className="text-white/70 leading-relaxed text-[15px] md:text-base">
-            {data.bio ||
-              "No creator bio added yet."}
-          </p>
-
-        </div>
-
-      </div>
-
+</div>
       {/* ================= GALLERY ================= */}
 
 {galleryImages.length > 0 && (
@@ -798,101 +979,123 @@ font-bold
 
     {/* GRID */}
 
-    <div
-      className="
-        grid
-        grid-cols-1
-        sm:grid-cols-2
-        lg:grid-cols-3
-        xl:grid-cols-4
-        gap-5
-      "
-    >
+<div
+  className="
+    grid
+    grid-cols-2
+    sm:grid-cols-2
+    lg:grid-cols-3
+    xl:grid-cols-4
 
-      {galleryImages.map(
-        (
-          image: string,
-          index: number
-        ) => (
+    gap-3
+    md:gap-5
+  "
+>
 
-          <button
-            key={index}
-            onClick={() => openPreview(index)}
-            className="
-              relative
-              overflow-hidden
-              rounded-[30px]
-              aspect-[4/5]
-              bg-white/[0.02]
-              border border-white/[0.06]
+  {galleryImages.map(
+    (
+      image: string,
+      index: number
+    ) => (
 
-              group
-              transition-all
-              duration-500
+      <button
+        key={index}
+        onClick={() => openPreview(image)}
+        className="
+          relative
+          overflow-hidden
 
-              hover:-translate-y-1
-              hover:border-white/[0.12]
-            "
-          >
+          rounded-[22px]
+          md:rounded-[30px]
 
-            {/* IMAGE */}
+          aspect-[4/5]
 
-            <img
-              src={image}
-              alt={`gallery-${index}`}
-              className="
-                w-full
-                h-full
-                object-cover
-                transition-transform
-                duration-700
-                group-hover:scale-[1.04]
-              "
-            />
+          bg-white/[0.02]
+          border border-white/[0.06]
 
-            {/* OVERLAY */}
+          group
+          transition-all
+          duration-500
 
-            <div
-              className="
-                absolute inset-0
-                bg-gradient-to-t
-                from-black/40
-                via-transparent
-                to-transparent
-                opacity-70
-              "
-            />
+          hover:-translate-y-1
+          hover:border-white/[0.12]
+        "
+      >
 
-            {/* INDEX */}
+        {/* IMAGE */}
 
-            <div
-              className="
-                absolute
-                top-4
-                right-4
-                w-8
-                h-8
-                rounded-full
-                bg-black/40
-                border border-white/10
-                backdrop-blur-md
+        <img
+          src={image}
+          alt={`gallery-${index}`}
+          className="
+            w-full
+            h-full
+            object-cover
 
-                flex items-center justify-center
+            transition-transform
+            duration-700
 
-                text-xs
-                text-white/70
-                font-medium
-              "
-            >
-              {index + 1}
-            </div>
+            group-hover:scale-[1.04]
+          "
+        />
 
-          </button>
+        {/* OVERLAY */}
 
-        )
-      )}
+        <div
+          className="
+            absolute inset-0
 
-    </div>
+            bg-gradient-to-t
+            from-black/40
+            via-transparent
+            to-transparent
+
+            opacity-70
+          "
+        />
+
+        {/* INDEX */}
+
+        <div
+          className="
+            absolute
+            top-2
+            right-2
+
+            md:top-4
+            md:right-4
+
+            w-7
+            h-7
+            md:w-8
+            md:h-8
+
+            rounded-full
+
+            bg-black/40
+            border border-white/10
+            backdrop-blur-md
+
+            flex
+            items-center
+            justify-center
+
+            text-[11px]
+            md:text-xs
+
+            text-white/70
+            font-medium
+          "
+        >
+          {index + 1}
+        </div>
+
+      </button>
+
+    )
+  )}
+
+</div>
 
   </div>
 
@@ -1007,13 +1210,20 @@ font-bold
           >
 
             <div
-              className="
-                flex
-                items-start
-                gap-8
-                p-5
-              "
-            >
+  className="
+    flex
+    flex-col
+    md:flex-row
+
+    items-start
+
+    gap-4
+    md:gap-8
+
+    p-4
+    md:p-5
+  "
+>
 
               {/* ================= IMAGE ================= */}
 
@@ -1029,26 +1239,29 @@ font-bold
 
       if (!imageUrl) return;
 
-      const imageIndex =
-        galleryImages.findIndex(
-          (img) => img === imageUrl
-        );
-
-      if (imageIndex !== -1) {
-        openPreview(imageIndex);
-      }
+      openPreview(imageUrl);
     }}
     className="
       group/image
       relative
       overflow-hidden
-      w-[260px]
-      h-[170px]
+
+      w-full
+      md:w-[260px]
+
+      h-[180px]
+      md:h-[170px]
+
       shrink-0
-      rounded-[26px]
+
+      rounded-[22px]
+      md:rounded-[26px]
+
       border border-white/10
       bg-white/[0.03]
+
       hover:border-white/20
+
       transition-all
       duration-300
     "
@@ -1061,13 +1274,15 @@ font-bold
         w-full
         h-full
         object-cover
+
         transition-transform
         duration-700
+
         group-hover/image:scale-[1.05]
       "
     />
 
-    {/* ================= OVERLAY ================= */}
+    {/* OVERLAY */}
 
     <div
       className="
@@ -1080,23 +1295,30 @@ font-bold
       "
     />
 
-    {/* ================= PREVIEW BADGE ================= */}
+    {/* PREVIEW BADGE */}
 
     <div
       className="
         absolute
         bottom-3
         right-3
+
         px-3
         py-1.5
+
         rounded-full
+
         bg-black/55
         backdrop-blur-md
+
         border border-white/10
+
         text-[11px]
         text-white/80
+
         opacity-0
         group-hover/image:opacity-100
+
         transition-all
         duration-300
       "
@@ -1110,17 +1332,26 @@ font-bold
               {/* ================= CONTENT ================= */}
 
               <div
-                className="
-                  flex-1
-                  flex
-                  items-start
-                  justify-between
-                  gap-10
-                  min-h-[170px]
-                  pr-2
-                  py-3
-                "
-              >
+  className="
+    flex-1
+
+    flex
+    flex-col
+    md:flex-row
+
+    items-start
+    md:justify-between
+
+    gap-4
+    md:gap-10
+
+    min-h-auto
+    md:min-h-[170px]
+
+    py-1
+    md:py-3
+  "
+>
 
                 {/* ================= LEFT ================= */}
 
@@ -1138,28 +1369,38 @@ font-bold
                   <div className="space-y-3">
 
                     <h3
-                      className="
-                        text-[22px]
-                        md:text-[28px]
-                        font-semibold
-                        text-white
-                        tracking-tight
-                        leading-tight
-                        break-words
-                      "
-                    >
+  className="
+    text-[22px]
+    md:text-[28px]
+
+    font-semibold
+    text-white
+
+    tracking-tight
+    leading-tight
+
+    break-words
+
+    max-w-full
+  "
+>
                       {service.title}
                     </h3>
 
                     <p
-                      className="
-                        text-[15px]
-                        text-white/55
-                        leading-relaxed
-                        break-words
-                        max-w-[680px]
-                      "
-                    >
+  className="
+    text-[14px]
+    md:text-[15px]
+
+    text-white/55
+
+    leading-relaxed
+    break-words
+
+    max-w-full
+    md:max-w-[680px]
+  "
+>
                       {service.description}
                     </p>
 
@@ -1170,17 +1411,27 @@ font-bold
                 {/* ================= RIGHT ================= */}
 
                 <div
-                  className="
-                    shrink-0
-                    text-right
-                    flex
-                    flex-col
-                    items-end
-                    justify-start
-                    self-start
-                    pt-1
-                  "
-                >
+  className="
+    w-full
+    md:w-auto
+
+    shrink-0
+
+    text-left
+    md:text-right
+
+    flex
+    flex-col
+
+    items-start
+    md:items-end
+
+    justify-start
+
+    pt-2
+    md:pt-1
+  "
+>
 
                   <div
                     className="
@@ -1194,7 +1445,7 @@ font-bold
 
                   <div
                     className="
-                      text-[42px]
+                      text-[32px]
                       font-bold
                       text-white
                       leading-none
@@ -1234,68 +1485,356 @@ font-bold
 
           {/* ================= REVIEWS ================= */}
 
-          <div className="space-y-5">
+<div className="space-y-6">
 
-            <h2 className="text-2xl font-semibold">
-              Reviews & Ratings
-            </h2>
+  {/* HEADER */}
 
-            {reviews.length > 0 && (
+  <div className="flex items-center justify-between">
 
-              <div
-                className="
-                  rounded-[26px]
-                  border border-white/10
-                  bg-white/[0.03]
-                  backdrop-blur-xl
-                  p-5 md:p-6
-                  space-y-4
-                "
-              >
+    <h2 className="text-2xl font-semibold">
+      Reviews & Ratings
+    </h2>
 
-                {ratingCounts.map(
-                  ({ star, count }) => {
+    {reviews.length > 0 && (
+      <div className="text-sm text-white/40">
+        {reviews.length} review
+        {reviews.length !== 1 && "s"}
+      </div>
+    )}
 
-                    const percent =
-                      (count / totalReviews) * 100;
+  </div>
 
-                    return (
+  {/* ================= RATING SUMMARY ================= */}
+
+  {reviews.length > 0 && (
+
+    <div
+      className="
+        rounded-[30px]
+        border border-white/10
+        bg-white/[0.03]
+        backdrop-blur-xl
+        p-6 md:p-7
+        space-y-6
+      "
+    >
+
+      {/* TOP */}
+
+      <div
+        className="
+          flex
+          flex-col
+          md:flex-row
+          md:items-center
+          gap-6
+          md:gap-10
+        "
+      >
+
+        {/* LEFT */}
+
+        <div className="shrink-0">
+
+          <div
+            className="
+              text-5xl
+              font-bold
+              tracking-tight
+              text-white
+            "
+          >
+            {(data.rating ?? 0).toFixed(1)}
+          </div>
+
+          <div className="mt-2">
+            <StarRating
+              value={Math.round(data.rating ?? 0)}
+              readonly
+            />
+          </div>
+
+          <div className="text-sm text-white/45 mt-2">
+            Based on {reviews.length} reviews
+          </div>
+
+        </div>
+
+        {/* RIGHT */}
+
+        <div className="flex-1 space-y-4">
+
+          {ratingCounts.map(
+            ({ star, count }) => {
+
+              const percent =
+                (count / totalReviews) * 100;
+
+              return (
+
+                <div
+                  key={star}
+                  className="
+                    flex
+                    items-center
+                    gap-3
+                  "
+                >
+
+                  <div
+                    className="
+                      w-10
+                      text-sm
+                      text-white/70
+                    "
+                  >
+                    {star}★
+                  </div>
+
+                  <div
+                    className="
+                      flex-1
+                      h-2.5
+                      rounded-full
+                      overflow-hidden
+                      bg-white/[0.06]
+                    "
+                  >
+
+                    <div
+                      className="
+                        h-full
+                        rounded-full
+                        bg-emerald-300
+                      "
+                      style={{
+                        width: `${percent}%`,
+                      }}
+                    />
+
+                  </div>
+
+                  <div
+                    className="
+                      w-12
+                      text-right
+                      text-xs
+                      text-white/45
+                    "
+                  >
+                    {count}
+                  </div>
+
+                </div>
+
+              );
+            }
+          )}
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )}
+
+  {/* ================= REVIEW LIST ================= */}
+
+  {reviews.length > 0 ? (
+
+    <div className="space-y-4">
+
+      {reviews.map(
+        (review, index) => {
+
+          const isLast =
+            index === reviews.length - 1;
+
+          return (
+
+            <div
+              key={review._id}
+              ref={
+                isLast
+                  ? lastReviewRef
+                  : null
+              }
+              className="
+                rounded-[28px]
+                border border-white/10
+                bg-white/[0.03]
+                backdrop-blur-xl
+                p-5 md:p-6
+                transition-all
+                duration-300
+                hover:border-white/15
+              "
+            >
+
+              <div className="flex gap-4">
+
+                {/* AVATAR */}
+
+                <div className="shrink-0">
+
+                  <img
+                    src={
+                      review.reviewerId
+                        ?.avatarUrl ||
+                      "/avatars/default.png"
+                    }
+                    alt={
+                      review.reviewerId
+                        ?.displayName ||
+                      "User"
+                    }
+                    className="
+                      w-14
+                      h-14
+                      rounded-full
+                      object-cover
+                      border border-white/10
+                      bg-white/[0.04]
+                    "
+                  />
+
+                </div>
+
+                {/* CONTENT */}
+
+                <div className="flex-1 min-w-0">
+
+                  {/* TOP */}
+
+                  <div
+                    className="
+                      flex
+                      flex-col
+                      md:flex-row
+                      md:items-start
+                      md:justify-between
+                      gap-3
+                    "
+                  >
+
+                    <div className="space-y-2">
 
                       <div
-                        key={star}
-                        className="flex items-center gap-3 text-sm"
+                        className="
+                          text-white
+                          font-semibold
+                          text-[16px]
+                        "
                       >
-
-                        <span className="w-8 text-white/70">
-                          {star}★
-                        </span>
-
-                        <div className="flex-1 bg-white/[0.06] h-2 rounded-full overflow-hidden">
-
-                          <div
-                            className="bg-emerald-300 h-full rounded-full"
-                            style={{
-                              width: `${percent}%`,
-                            }}
-                          />
-
-                        </div>
-
-                        <span className="text-white/50 text-xs w-10 text-right">
-                          {Math.round(percent)}%
-                        </span>
-
+                        {review.reviewerId
+                          ?.displayName ||
+                          "Anonymous User"}
                       </div>
 
-                    );
-                  }
-                )}
+                      <StarRating
+                        value={review.rating}
+                        readonly
+                      />
+
+                    </div>
+
+                    <div
+                      className="
+                        text-xs
+                        text-white/40
+                        shrink-0
+                      "
+                    >
+                      {new Date(
+                        review.createdAt
+                      ).toLocaleDateString()}
+                    </div>
+
+                  </div>
+
+                  {/* COMMENT */}
+
+                  {review.comment && (
+
+                    <p
+                      className="
+                        mt-4
+                        text-[15px]
+                        leading-relaxed
+                        text-white/65
+                        break-words
+                      "
+                    >
+                      {review.comment}
+                    </p>
+
+                  )}
+
+                </div>
 
               </div>
 
-            )}
+            </div>
 
-          </div>
+          );
+        }
+      )}
+
+      {/* LOADING MORE */}
+
+      {loadingMore && (
+
+        <div
+          className="
+            rounded-[24px]
+            border border-white/10
+            bg-white/[0.03]
+            p-5
+            text-center
+            text-sm
+            text-white/50
+          "
+        >
+          Loading more reviews...
+        </div>
+
+      )}
+
+    </div>
+
+  ) : (
+
+    <div
+      className="
+        rounded-[28px]
+        border border-white/10
+        bg-white/[0.03]
+        backdrop-blur-xl
+        p-8
+        text-center
+        space-y-3
+      "
+    >
+
+      <div className="text-5xl">
+        ⭐
+      </div>
+
+      <div className="text-xl font-semibold">
+        No reviews yet
+      </div>
+
+      <p className="text-sm text-white/50">
+        Reviews and ratings from users
+        will appear here.
+      </p>
+
+    </div>
+
+  )}
+
+</div>
 
         </div>
 
