@@ -340,6 +340,14 @@ export default function CreatorPublicProfile() {
           )
       : 0;
 
+  const totalDuration =
+  selectedService
+    ? (
+        selectedSlots.length || 1
+      ) *
+      selectedService.durationMinutes
+    : 0;
+
   /* ================= BOOKING ================= */
 
   const handleBooking =
@@ -1162,173 +1170,221 @@ return (
         return (
 
           <div
-            key={service.id}
-            onClick={() => {
+  key={service.id}
+  onClick={() => {
 
-              if (
-                selectedService?.id ===
-                service.id
-              ) {
-                setSelectedService(null);
-                setSelectedSlots([]);
-                return;
-              }
+    if (
+      selectedService?.id ===
+      service.id
+    ) {
+      setSelectedService(null);
+      setSelectedSlots([]);
+      return;
+    }
 
-              setSelectedService(service);
-              setSelectedSlots([]);
+    setSelectedService(service);
+    setSelectedSlots([]);
 
-            }}
-            className={`
-              group
-              cursor-pointer
-              overflow-hidden
-              rounded-[34px]
-              border
-              transition-all
-              duration-300
-              backdrop-blur-xl
-              ${
-                selected
-                  ? `
-                    border-white/20
-                    bg-gradient-to-r
-                    from-white/[0.06]
-                    to-white/[0.03]
-                    ring-1 ring-white/10
-                  `
-                  : `
-                    border-white/10
-                    bg-gradient-to-r
-                    from-white/[0.045]
-                    to-white/[0.02]
-                    hover:from-white/[0.06]
-                    hover:to-white/[0.03]
-                    hover:border-white/15
-                  `
-              }
-            `}
-          >
+  }}
+  className={`
+    group
+    relative
+    cursor-pointer
+    overflow-hidden
+    rounded-[34px]
+    border
+    transition-all
+    duration-300
+    backdrop-blur-xl
 
-            <div
-  className="
-    flex
-    flex-col
-    md:flex-row
+    ${
+  selected
+    ? `
+      border-emerald-400/60
 
-    items-start
+      bg-gradient-to-r
+      from-white/[0.06]
+      to-white/[0.03]
 
-    gap-4
-    md:gap-8
+      ring-1
+      ring-emerald-400/30
 
-    p-4
-    md:p-5
-  "
+      shadow-[0_0_0_1px_rgba(52,211,153,0.12)]
+    `
+    : `
+      border-white/10
+
+      bg-gradient-to-r
+      from-white/[0.045]
+      to-white/[0.02]
+
+      hover:from-white/[0.06]
+      hover:to-white/[0.03]
+      hover:border-white/15
+    `
+}
+  `}
 >
 
-              {/* ================= IMAGE ================= */}
+  {/* SELECTED BADGE */}
 
-{service.media?.[0] && (
+  {selected && (
 
-  <button
-    type="button"
-    onClick={(e) => {
-      e.stopPropagation();
-
-      const imageUrl =
-        service.media?.[0];
-
-      if (!imageUrl) return;
-
-      openPreview(imageUrl);
-    }}
+  <div
     className="
-      group/image
-      relative
-      overflow-hidden
+      absolute
+      top-4
+      right-4
+      z-20
 
-      w-full
-      md:w-[260px]
+      px-3
+      py-1.5
 
-      h-[180px]
-      md:h-[170px]
+      rounded-full
 
-      shrink-0
+      border border-emerald-400/30
+      bg-emerald-400/15
 
-      rounded-[22px]
-      md:rounded-[26px]
+      backdrop-blur-xl
 
-      border border-white/10
-      bg-white/[0.03]
+      text-[11px]
+      font-medium
+      text-emerald-200
+    "
+  >
+    Selected
+  </div>
 
-      hover:border-white/20
+)}
 
-      transition-all
-      duration-300
+  <div
+    className="
+      flex
+      flex-col
+      md:flex-row
+
+      items-start
+
+      gap-4
+      md:gap-8
+
+      p-4
+      md:p-5
     "
   >
 
-    <img
-      src={service.media[0]}
-      alt={service.title}
-      className="
-        w-full
-        h-full
-        object-cover
+    {/* ================= IMAGE ================= */}
 
-        transition-transform
-        duration-700
+    {service.media?.[0] && (
 
-        group-hover/image:scale-[1.05]
-      "
-    />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
 
-    {/* OVERLAY */}
+          const imageUrl =
+            service.media?.[0];
 
-    <div
-      className="
-        absolute
-        inset-0
-        bg-gradient-to-t
-        from-black/35
-        via-black/5
-        to-transparent
-      "
-    />
+          if (!imageUrl) return;
 
-    {/* PREVIEW BADGE */}
+          openPreview(imageUrl);
+        }}
+        className={`
+          group/image
+          relative
+          overflow-hidden
 
-    <div
-      className="
-        absolute
-        bottom-3
-        right-3
+          w-full
+          md:w-[260px]
 
-        px-3
-        py-1.5
+          h-[180px]
+          md:h-[170px]
 
-        rounded-full
+          shrink-0
 
-        bg-black/55
-        backdrop-blur-md
+          rounded-[22px]
+          md:rounded-[26px]
 
-        border border-white/10
+          bg-white/[0.03]
 
-        text-[11px]
-        text-white/80
+          transition-all
+          duration-300
 
-        opacity-0
-        group-hover/image:opacity-100
+          ${
+            selected
+              ? `
+                border border-white/20
+              `
+              : `
+                border border-white/10
+                hover:border-white/20
+              `
+          }
+        `}
+      >
 
-        transition-all
-        duration-300
-      "
-    >
-      Preview
-    </div>
+        <img
+          src={service.media[0]}
+          alt={service.title}
+          className="
+            w-full
+            h-full
+            object-cover
 
-  </button>
+            transition-transform
+            duration-700
 
-)}
+            group-hover/image:scale-[1.05]
+          "
+        />
+
+        {/* OVERLAY */}
+
+        <div
+          className="
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/35
+            via-black/5
+            to-transparent
+          "
+        />
+
+        {/* PREVIEW BADGE */}
+
+        <div
+          className="
+            absolute
+            bottom-3
+            right-3
+
+            px-3
+            py-1.5
+
+            rounded-full
+
+            bg-black/55
+            backdrop-blur-md
+
+            border border-white/10
+
+            text-[11px]
+            text-white/80
+
+            opacity-0
+            group-hover/image:opacity-100
+
+            transition-all
+            duration-300
+          "
+        >
+          Preview
+        </div>
+
+      </button>
+
+    )}
               {/* ================= CONTENT ================= */}
 
               <div
@@ -1483,7 +1539,296 @@ return (
 
 </div>
 
-          {/* ================= REVIEWS ================= */}
+          
+
+        </div>
+
+        {/* ================= BOOKING PANEL ================= */}
+
+<div
+  className="
+    lg:sticky
+    lg:top-24
+    h-fit
+    rounded-[28px]
+    border border-white/10
+    bg-white/[0.03]
+    backdrop-blur-xl
+    p-5 md:p-6
+    space-y-6
+  "
+>
+
+  {!selectedService ? (
+
+    <div className="space-y-5 max-w-3xl">
+
+      <div className="text-white font-medium">
+        Select an experience
+      </div>
+
+      <p className="text-sm text-white/50 leading-relaxed">
+        Choose a service to view pricing,
+        available slots, and booking
+        details.
+      </p>
+
+    </div>
+
+  ) : (
+
+    <>
+
+      {/* ================= PRICE ================= */}
+
+      <div className="space-y-2">
+
+        <div className="text-3xl font-bold">
+
+          {data.currency}{" "}
+          {totalPrice || selectedService.price}
+
+        </div>
+
+        <div className="text-sm text-white/50">
+
+          {selectedSlots.length > 0
+            ? "Booking Summary"
+            : `${selectedService.durationMinutes} minute experience`}
+
+        </div>
+
+      </div>
+
+      {/* ================= SERVICE SUMMARY ================= */}
+
+      <div
+        className="
+          rounded-2xl
+          border border-white/10
+          bg-black/20
+          p-4
+          space-y-2
+        "
+      >
+
+        <div className="font-medium">
+          {selectedService.title}
+        </div>
+
+        <p className="text-sm text-white/50 leading-relaxed">
+          {selectedService.description}
+        </p>
+
+      </div>
+
+      {/* ================= DATE ================= */}
+
+      <div className="space-y-2">
+
+        <div className="text-sm text-white/60">
+          Select Date
+        </div>
+
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => {
+
+            const value =
+              e.target.value;
+
+            setSelectedDate(value);
+
+            fetchSlots(value);
+
+          }}
+          className="
+            w-full
+            rounded-xl
+            border border-white/10
+            bg-white/[0.03]
+            px-4 py-3
+            text-white
+            outline-none
+          "
+        />
+
+      </div>
+
+      {/* ================= SLOTS ================= */}
+
+      {slots.length > 0 ? (
+
+        <div className="space-y-5">
+
+          <div className="text-sm text-white/60">
+            Available Slots
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+
+            {slots.map((slot) => (
+
+              <button
+                key={slot.id}
+                onClick={() =>
+                  toggleSlot(slot.id)
+                }
+                className={`
+                  rounded-xl
+                  border
+                  px-3 py-3
+                  text-sm
+                  transition-all
+                  duration-300
+                  ${
+                    selectedSlots.includes(
+                      slot.id
+                    )
+                      ? `
+                        bg-emerald-400/15
+                        border-emerald-400/30
+                        text-emerald-200
+                      `
+                      : `
+                        bg-white/[0.03]
+                        border-white/10
+                        hover:border-white/20
+                      `
+                  }
+                `}
+              >
+
+                <div>
+                  {formatTime(
+                    slot.startTime
+                  )}
+                </div>
+
+                <div className="text-xs opacity-60 mt-1">
+                  {formatTime(
+                    slot.endTime
+                  )}
+                </div>
+
+              </button>
+
+            ))}
+
+          </div>
+
+        </div>
+
+      ) : (
+        selectedDate && (
+
+          <div
+            className="
+              rounded-2xl
+              border border-white/10
+              bg-black/20
+              p-4
+              text-sm text-white/50
+            "
+          >
+            No slots available for this date.
+          </div>
+
+        )
+      )}
+
+      {/* ================= BOOKING SUMMARY ================= */}
+
+      {selectedSlots.length > 0 && (
+
+        <div className="border-t border-white/10 pt-5 space-y-5">
+
+          <div className="space-y-3">
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-white/60">
+                Slots Selected
+              </span>
+
+              <span className="font-semibold">
+                {selectedSlots.length}
+              </span>
+
+            </div>
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-white/60">
+                Total Duration
+              </span>
+
+              <span className="font-semibold">
+
+                {totalDuration} min
+
+                {totalDuration >= 60 &&
+                  ` (${(
+                    totalDuration / 60
+                  ).toFixed(
+                    totalDuration % 60 === 0
+                      ? 0
+                      : 1
+                  )} hr)`}
+
+              </span>
+
+            </div>
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-white/60">
+                Total Price
+              </span>
+
+              <span className="text-xl font-bold">
+                {data.currency}{" "}
+                {totalPrice}
+              </span>
+
+            </div>
+
+          </div>
+
+          <button
+            disabled={loadingBooking}
+            onClick={handleBooking}
+            className="
+              w-full
+              rounded-2xl
+              bg-emerald-400
+              hover:bg-emerald-300
+              text-black
+              font-semibold
+              py-3.5
+              transition-all
+              duration-300
+              disabled:opacity-50
+            "
+          >
+
+            {loadingBooking
+              ? "Processing..."
+              : "Book Experience"}
+
+          </button>
+
+        </div>
+
+      )}
+
+    </>
+
+  )}
+
+</div>
+        {/* ================= REVIEWS ================= */}
 
 <div className="space-y-6">
 
@@ -1835,254 +2180,6 @@ return (
   )}
 
 </div>
-
-        </div>
-
-        {/* ================= BOOKING PANEL ================= */}
-
-        <div
-          className="
-            lg:sticky
-            lg:top-24
-            h-fit
-            rounded-[28px]
-            border border-white/10
-            bg-white/[0.03]
-            backdrop-blur-xl
-            p-5 md:p-6
-            space-y-6
-          "
-        >
-
-          {!selectedService ? (
-
-            <div className="space-y-5 max-w-3xl">
-
-              <div className="text-white font-medium">
-                Select an experience
-              </div>
-
-              <p className="text-sm text-white/50 leading-relaxed">
-                Choose a service to view pricing,
-                available slots, and booking
-                details.
-              </p>
-
-            </div>
-
-          ) : (
-
-            <>
-
-              {/* PRICE */}
-
-              <div className="space-y-2">
-
-                <div className="text-3xl font-bold">
-
-                  {data.currency}{" "}
-                  {totalPrice ||
-                    selectedService.price}
-
-                </div>
-
-                <div className="text-sm text-white/50">
-                  {
-                    selectedService.durationMinutes
-                  }{" "}
-                  minute experience
-                </div>
-
-              </div>
-
-              {/* SERVICE SUMMARY */}
-
-              <div
-                className="
-                  rounded-2xl
-                  border border-white/10
-                  bg-black/20
-                  p-4
-                  space-y-2
-                "
-              >
-
-                <div className="font-medium">
-                  {selectedService.title}
-                </div>
-
-                <p className="text-sm text-white/50 leading-relaxed">
-                  {selectedService.description}
-                </p>
-
-              </div>
-
-              {/* DATE */}
-
-              <div className="space-y-2">
-
-                <div className="text-sm text-white/60">
-                  Select Date
-                </div>
-
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => {
-                    const value =
-                      e.target.value;
-
-                    setSelectedDate(value);
-
-                    fetchSlots(value);
-                  }}
-                  className="
-                    w-full
-                    rounded-xl
-                    border border-white/10
-                    bg-white/[0.03]
-                    px-4 py-3
-                    text-white
-                    outline-none
-                  "
-                />
-
-              </div>
-
-              {/* SLOTS */}
-
-              {slots.length > 0 ? (
-
-                <div className="space-y-5 max-w-3xl">
-
-                  <div className="text-sm text-white/60">
-                    Available Slots
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
-
-                    {slots.map((slot) => (
-
-                      <button
-                        key={slot.id}
-                        onClick={() =>
-                          toggleSlot(slot.id)
-                        }
-                        className={`
-                          rounded-xl
-                          border
-                          px-3 py-3
-                          text-sm
-                          transition-all
-                          duration-300
-                          ${
-                            selectedSlots.includes(
-                              slot.id
-                            )
-                              ? `
-                                bg-emerald-400/15
-                                border-emerald-400/30
-                                text-emerald-200
-                              `
-                              : `
-                                bg-white/[0.03]
-                                border-white/10
-                                hover:border-white/20
-                              `
-                          }
-                        `}
-                      >
-
-                        <div>
-                          {formatTime(
-                            slot.startTime
-                          )}
-                        </div>
-
-                        <div className="text-xs opacity-60 mt-1">
-                          {formatTime(
-                            slot.endTime
-                          )}
-                        </div>
-
-                      </button>
-
-                    ))}
-
-                  </div>
-
-                </div>
-
-              ) : (
-                selectedDate && (
-
-                  <div
-                    className="
-                      rounded-2xl
-                      border border-white/10
-                      bg-black/20
-                      p-4
-                      text-sm text-white/50
-                    "
-                  >
-                    No slots available for this
-                    date.
-                  </div>
-
-                )
-              )}
-
-              {/* TOTAL */}
-
-              {selectedSlots.length > 0 && (
-
-                <div className="border-t border-white/10 pt-5 space-y-5">
-
-                  <div className="flex items-center justify-between">
-
-                    <span className="text-white/60">
-                      Total Price
-                    </span>
-
-                    <span className="text-xl font-bold">
-                      {data.currency}{" "}
-                      {totalPrice}
-                    </span>
-
-                  </div>
-
-                  <button
-                    disabled={loadingBooking}
-                    onClick={handleBooking}
-                    className="
-                      w-full
-                      rounded-2xl
-                      bg-emerald-400
-                      hover:bg-emerald-300
-                      text-black
-                      font-semibold
-                      py-3.5
-                      transition-all
-                      duration-300
-                      disabled:opacity-50
-                    "
-                  >
-
-                    {loadingBooking
-                      ? "Processing..."
-                      : "Book Experience"}
-
-                  </button>
-
-                </div>
-
-              )}
-
-            </>
-
-          )}
-
-        </div>
 
       </div>
 
