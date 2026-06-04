@@ -27,28 +27,51 @@ export interface RecentActivity {
   createdAt: string;
 }
 
+export interface NextUpcomingBooking {
+  id: string;
+  serviceTitle: string;
+  status: string;
+  startTime: string;
+  endTime: string;
+}
+
 interface DashboardResponse {
   creatorProfile: CreatorProfile;
+
   stats: DashboardStats;
+
   recentActivity: RecentActivity[];
+
+  nextUpcomingBooking: NextUpcomingBooking | null;
 }
 
 export function useCreatorDashboard() {
-  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [data, setData] =
+    useState<DashboardResponse | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [errorCode, setErrorCode] = useState<number | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [errorCode, setErrorCode] =
+    useState<number | null>(null);
+
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await axios.get("/v1/creator/dashboard");
+        const response = await axios.get(
+          "/v1/creator/dashboard"
+        );
+
         setData(response.data);
       } catch (err: any) {
         if (err.response) {
           setErrorCode(err.response.status);
+
           setErrorMessage(
-            err.response.data?.message || "Something went wrong"
+            err.response.data?.message ||
+              "Something went wrong"
           );
         } else {
           setErrorMessage("Network error");
@@ -61,5 +84,10 @@ export function useCreatorDashboard() {
     fetchDashboard();
   }, []);
 
-  return { data, loading, errorCode, errorMessage };
+  return {
+    data,
+    loading,
+    errorCode,
+    errorMessage,
+  };
 }

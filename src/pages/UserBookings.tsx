@@ -15,17 +15,30 @@ interface Slot {
 
 interface Booking {
   _id: string;
+
   status: string;
   paymentStatus: string;
+
   createdAt: string;
   expiresAt: string;
 
+  price: number;
+  currency: string;
+
   service: {
-    title: string;
+    _id?: string;
+    title?: string;
+
+    data?: {
+      media?: string[];
+    };
   };
 
   creator: {
+    _id?: string;
+
     profile: {
+      slug?: string;
       displayName?: string;
       avatarUrl?: string | null;
     };
@@ -38,8 +51,10 @@ const filters = [
   "ALL",
   "REQUESTED",
   "CONFIRMED",
+  "COMPLETED",
   "REJECTED",
   "EXPIRED",
+  "CANCELLED",
 ];
 
 export default function UserBookings() {
@@ -52,10 +67,15 @@ export default function UserBookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
+
       const res = await getUserBookingsAPI();
+
       setBookings(res.bookings || []);
     } catch (err) {
-      console.error("Failed to fetch user bookings", err);
+      console.error(
+        "Failed to fetch user bookings",
+        err
+      );
     } finally {
       setLoading(false);
     }
@@ -68,241 +88,896 @@ export default function UserBookings() {
   const filteredBookings =
     filter === "ALL"
       ? bookings
-      : bookings.filter((b) => b.status === filter);
+      : bookings.filter(
+          (b) => b.status === filter
+        );
+
+  const getStatusStyle = (
+    status: string
+  ) => {
+    switch (status) {
+      case "CONFIRMED":
+        return `
+          bg-[rgba(34,197,94,0.14)]
+          text-[#86EFAC]
+          border border-[rgba(34,197,94,0.22)]
+        `;
+
+      case "REQUESTED":
+        return `
+          bg-[rgba(255,255,255,0.05)]
+          text-[#E5E7EB]
+          border border-[rgba(255,255,255,0.10)]
+        `;
+
+      case "REJECTED":
+        return `
+          bg-[rgba(239,68,68,0.14)]
+          text-[#FCA5A5]
+          border border-[rgba(239,68,68,0.22)]
+        `;
+
+      case "EXPIRED":
+        return `
+          bg-[rgba(107,114,128,0.16)]
+          text-[#E5E7EB]
+          border border-[rgba(107,114,128,0.20)]
+        `;
+
+      case "CANCELLED":
+        return `
+          bg-[rgba(249,115,22,0.14)]
+          text-[#FDBA74]
+          border border-[rgba(249,115,22,0.20)]
+        `;
+
+      case "COMPLETED":
+        return `
+          bg-[rgba(6,182,212,0.14)]
+          text-[#67E8F9]
+          border border-[rgba(6,182,212,0.22)]
+        `;
+
+      default:
+        return `
+          bg-[rgba(255,255,255,0.05)]
+          text-[#F8FAFC]
+          border border-[rgba(255,255,255,0.08)]
+        `;
+    }
+
+    
+   };
+
+   const getPaymentText = (
+    booking: Booking
+     ) => {
+    if (
+    booking.status === "EXPIRED" ||
+    booking.status === "CANCELLED" ||
+    booking.status === "REJECTED"
+   ) {
+    return "REFUNDED";
+   }
+
+   return (
+    booking.paymentStatus ||
+    "PAID"
+   );
+      };
 
   return (
     <UserDashboardLayout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="min-h-screen">
 
-        <h1 className="text-2xl font-bold">
-          My Bookings
-        </h1>
+        <div className="max-w-6xl mx-auto px-1 md:px-2 pb-24 space-y-8">
 
-        {/* FILTER */}
-        <div className="flex gap-2 flex-wrap">
-          {filters.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-4 py-1.5 rounded-lg text-sm transition ${
-                filter === s
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+          {/* HEADER */}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#F8FAFC]">
+              My Bookings
+            </h1>
 
-        {loading && (
-          <p className="text-gray-400">
-            Loading bookings...
-          </p>
-        )}
+            <p className="mt-2 text-white/55 text-sm md:text-base">
+              Manage all your bookings
+            </p>
+          </div>
 
-        {!loading && filteredBookings.length === 0 && (
-          <p className="text-gray-500">
-            No bookings found.
-          </p>
-        )}
-
-        <div className="space-y-4">
-          {filteredBookings.map((b) => {
-            const totalPrice = b.slots.reduce(
-              (sum, s) => sum + s.price,
-              0
-            );
-
-            const groupedSlots: Record<string, Slot[]> = {};
-
-            b.slots.forEach((slot) => {
-              const dateKey = new Date(slot.startTime)
-                .toLocaleDateString(undefined, {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                });
-
-              if (!groupedSlots[dateKey]) {
-                groupedSlots[dateKey] = [];
+          {/* MOBILE FILTER */}
+          <div className="md:hidden">
+            <select
+              value={filter}
+              onChange={(e) =>
+                setFilter(e.target.value)
               }
+              className="
+                w-full
+                bg-white/[0.03]
+                border border-white/10
+                rounded-[20px]
+                px-4 py-3
+                text-white
+                outline-none
+              "
+            >
+              {filters.map((status) => (
+                <option
+                  key={status}
+                  value={status}
+                  className="bg-[#111111]"
+                >
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
 
-              groupedSlots[dateKey].push(slot);
-            });
-
-            return (
-              <div
-                key={b._id}
-                className="bg-[#0B1220] border border-gray-800 rounded-2xl p-5 hover:border-gray-700 transition"
+          {/* DESKTOP FILTER */}
+          <div className="hidden md:flex flex-wrap gap-4">
+            {filters.map((status) => (
+              <button
+                key={status}
+                onClick={() =>
+                  setFilter(status)
+                }
+                className={`
+                  h-12
+                  px-6
+                  rounded-[18px]
+                  text-[15px]
+                  transition-all
+                  border
+                  ${
+                    filter === status
+                      ? `
+                        bg-white/[0.07]
+                        text-white
+                        border-white/20
+                      `
+                      : `
+                        bg-white/[0.03]
+                        text-white/70
+                        border-white/10
+                        hover:bg-white/[0.05]
+                      `
+                  }
+                `}
               >
-                {/* HEADER */}
-                <div className="flex justify-between items-start mb-4">
+                {status}
+              </button>
+            ))}
+          </div>
 
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">
-                      {new Date(b.createdAt).toLocaleString()}
-                    </p>
+          {/* LOADING */}
+          {loading && (
+            <div className="space-y-5">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="
+                    h-[240px]
+                    rounded-[30px]
+                    border border-white/10
+                    bg-white/[0.03]
+                    animate-pulse
+                  "
+                />
+              ))}
+            </div>
+          )}
 
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        b.status === "CONFIRMED"
-                          ? "bg-green-900 text-green-400"
-                          : b.status === "REQUESTED"
-                          ? "bg-yellow-900 text-yellow-400"
-                          : b.status === "REJECTED"
-                          ? "bg-red-900 text-red-400"
-                          : "bg-gray-700 text-gray-300"
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  </div>
+          {/* EMPTY */}
+          {!loading &&
+            filteredBookings.length ===
+              0 && (
+              <div
+                className="
+                  rounded-[34px]
+                  border border-white/10
+                  bg-white/[0.03]
+                  backdrop-blur-xl
+                  p-10 md:p-14
+                  text-center
+                "
+              >
+                <h3 className="text-2xl font-semibold text-white">
+                  No bookings yet
+                </h3>
 
-                  <div className="text-right space-y-1">
-                    <p className="text-xs text-gray-400">
-                      Payment: {b.paymentStatus}
-                    </p>
-
-                    <p className="text-sm text-green-400 font-semibold">
-                      ₹{totalPrice}
-                    </p>
-                  </div>
-                </div>
-
-                {/* SERVICE */}
-                <div className="mb-4">
-                  <p className="text-xs text-gray-400">
-                    Service
-                  </p>
-                  <p className="text-white font-medium text-lg">
-                    {b.service?.title || "N/A"}
-                  </p>
-                </div>
-
-                {/* CREATOR */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center text-sm text-white">
-                    {b.creator?.profile?.displayName?.[0]?.toUpperCase() || "C"}
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400">
-                      Creator
-                    </p>
-                    <p className="text-sm text-white font-medium">
-                      {b.creator?.profile?.displayName || "Unknown"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* SLOTS */}
-                <div className="space-y-4 mb-4">
-                  {Object.entries(groupedSlots).map(([date, slots]) => (
-                    <div key={date}>
-                      <p className="text-sm text-blue-400 font-medium mb-2">
-                        {date}
-                      </p>
-
-                      <div className="space-y-2">
-                        {slots.map((slot) => {
-                          const start = new Date(slot.startTime);
-                          const end = new Date(slot.endTime);
-
-                          return (
-                            <div
-                              key={slot._id}
-                              className="bg-[#0F172A] p-3 rounded-lg border border-gray-800 text-sm flex justify-between"
-                            >
-                              <span>
-                                {start.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}{" "}
-                                -{" "}
-                                {end.toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-
-                              <span className="text-gray-400">
-                                ₹{slot.price}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* STATUS */}
-                <p className="text-xs font-medium mb-3">
-                  {b.status === "CONFIRMED" && (
-                    <span className="text-green-400">
-                      Booking confirmed ✅
-                    </span>
-                  )}
-                  {b.status === "REQUESTED" && (
-                    <span className="text-yellow-400">
-                      Waiting for creator ⏳
-                    </span>
-                  )}
-                  {b.status === "REJECTED" && (
-                    <span className="text-red-400">
-                      Booking rejected ❌
-                    </span>
-                  )}
-                  {b.status === "EXPIRED" && (
-                    <span className="text-gray-400">
-                      Booking expired
-                    </span>
-                  )}
+                <p className="text-white/50 mt-3 max-w-md mx-auto">
+                  Browse creators and schedule
+                  your first experience.
                 </p>
 
-                {/* 🔥 ACTIONS */}
-                <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    navigate(
+                      "/dashboard/user/browse"
+                    )
+                  }
+                  className="
+                    mt-6
+                    h-12
+                    px-6
+                    rounded-2xl
+                    bg-white/[0.05]
+                    border border-white/10
+                    text-white
+                    hover:bg-white/[0.08]
+                    transition-all
+                  "
+                >
+                  Explore Creators
+                </button>
+              </div>
+            )}
 
-                  {/* VIEW BUTTON */}
-                  <button
-                    onClick={() =>
+          {/* LIST */}
+{!loading && (
+  <div className="space-y-5">
+
+    {filteredBookings.map((b) => {
+
+      const totalPrice = b.slots.reduce(
+        (sum, slot) => sum + slot.price,
+        0
+      );
+
+      const serviceImage =
+        b.service?.data?.media?.find(
+          (item) =>
+            typeof item === "string" &&
+            item.trim() !== ""
+        );
+
+      return (
+
+        <div
+          key={b._id}
+          className="
+            group
+            relative
+            overflow-hidden
+            rounded-[30px]
+            border border-white/10
+            bg-gradient-to-br
+            from-white/[0.045]
+            to-white/[0.015]
+            backdrop-blur-xl
+            px-5
+            py-5
+            shadow-[0_10px_30px_rgba(0,0,0,0.35)]
+            transition-all
+            duration-300
+            hover:-translate-y-[2px]
+            hover:shadow-[0_14px_40px_rgba(0,0,0,0.45)]
+          "
+        >
+
+          {/* MOBILE */}
+          <div className="md:hidden relative z-10 space-y-5">
+
+            {/* TOP */}
+            <div className="flex justify-between gap-4">
+
+              {/* LEFT */}
+              <div className="flex-1 min-w-0">
+
+                <p className="text-[26px] font-bold text-[#F8FAFC] leading-none">
+                  {b.service?.title || "Untitled Service"}
+                </p>
+
+                {/* CREATOR */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (b.creator?._id) {
                       navigate(
-                        `/dashboard/user/bookings/${b._id}`
-                      )
+                        `/creators/${b.creator.profile?.slug}`
+                      );
                     }
-                    className="px-3 py-1.5 bg-gray-700 rounded-lg text-xs hover:bg-gray-600"
-                  >
-                    View
-                  </button>
+                  }}
+                  className="flex items-center gap-3 mt-5"
+                >
 
-                  {/* CHAT */}
-                  {b.status === "CONFIRMED" && (
-                    <button
-                      onClick={() =>
-                        navigate(`/dashboard/chat/${b._id}`)
-                      }
-                      className="px-4 py-2 bg-blue-600 rounded-lg text-xs hover:bg-blue-700"
+                  {b.creator?.profile?.avatarUrl ? (
+                    <img
+                      src={b.creator.profile.avatarUrl}
+                      alt="creator"
+                      className="
+                        w-11
+                        h-11
+                        rounded-full
+                        object-cover
+                        border border-[rgba(255,255,255,0.08)]
+                      "
+                    />
+                  ) : (
+                    <div
+                      className="
+                        w-11
+                        h-11
+                        rounded-full
+                        bg-[rgba(255,255,255,0.05)]
+                        flex
+                        items-center
+                        justify-center
+                        text-white
+                      "
                     >
-                      Open Chat
-                    </button>
+                      {(
+                        b.creator?.profile
+                          ?.displayName || "C"
+                      )[0]}
+                    </div>
                   )}
+
+                  <div className="text-left">
+
+                    <p className="text-xs text-[rgba(255,255,255,0.42)]">
+                      Creator
+                    </p>
+
+                    <p className="text-[17px] font-semibold text-[#F8FAFC]">
+                      {b.creator?.profile?.displayName ||
+                        "Unknown"}
+                    </p>
+
+                  </div>
+
+                </button>
+
+              </div>
+
+              {/* RIGHT */}
+              <div className="flex flex-col items-end gap-3 shrink-0">
+
+                <span
+                  className={`
+                    px-3
+                    py-1.5
+                    rounded-full
+                    text-[11px]
+                    font-semibold
+                    whitespace-nowrap
+                    ${getStatusStyle(b.status)}
+                  `}
+                >
+                  {b.status}
+                </span>
+
+                <div className="flex flex-col items-end gap-2">
+
+                  {b.slots?.map((slot) => {
+
+                    const start = new Date(
+                      slot.startTime
+                    );
+
+                    const end = new Date(
+                      slot.endTime
+                    );
+
+                    return (
+                      <div
+                        key={slot._id}
+                        className="
+                          px-3
+                          py-2
+                          rounded-xl
+                          bg-[rgba(255,255,255,0.03)]
+                          border border-[rgba(255,255,255,0.07)]
+                          text-[11px]
+                          text-[#F8FAFC]
+                          whitespace-nowrap
+                        "
+                      >
+                        {start.toLocaleTimeString(
+                          [],
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                        {" - "}
+                        {end.toLocaleTimeString(
+                          [],
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </div>
+                    );
+                  })}
 
                 </div>
 
-                {/* EXPIRY */}
-                {b.status === "REQUESTED" && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Expires at:{" "}
-                    {new Date(b.expiresAt).toLocaleTimeString()}
-                  </p>
-                )}
               </div>
-            );
-          })}
+
+            </div>
+
+                      {/* SERVICE IMAGE */}
+<div
+  className="
+    w-full
+    h-[190px]
+    rounded-[28px]
+    overflow-hidden
+    border border-[rgba(255,255,255,0.08)]
+    bg-white/[0.03]
+  "
+>
+
+  {serviceImage ? (
+    <img
+      src={serviceImage}
+      alt={b.service?.title || "Service"}
+      className="
+        w-full
+        h-full
+        object-cover
+      "
+    />
+  ) : (
+    <div
+      className="
+        w-full
+        h-full
+        flex
+        items-center
+        justify-center
+        text-[rgba(255,255,255,0.35)]
+        text-sm
+      "
+    >
+      No Media
+    </div>
+  )}
+
+</div>
+
+{/* FOOTER */}
+<div className="flex items-end justify-between">
+
+  <div>
+    <p className="text-[12px] text-[rgba(255,255,255,0.50)]">
+      Payment: {getPaymentText(b)}
+    </p>
+  </div>
+
+  <div className="text-right">
+
+    <p
+      className="
+        text-[#4ADE80]
+        text-sm
+        font-semibold
+      "
+    >
+      {b.currency}
+    </p>
+
+    <p
+      className="
+        text-[#4ADE80]
+        text-[25px]
+        font-bold
+        leading-none
+      "
+    >
+      {totalPrice}
+    </p>
+
+  </div>
+
+</div>
+
+{/* BUTTONS */}
+<div className="space-y-2">
+
+  <button
+    onClick={() =>
+      navigate(
+        `/dashboard/user/bookings/${b._id}`
+      )
+    }
+    className="
+      w-full
+      h-[54px]
+      rounded-2xl
+      bg-[rgba(255,255,255,0.04)]
+      border border-[rgba(255,255,255,0.08)]
+      text-white
+      hover:bg-[rgba(255,255,255,0.07)]
+      transition
+      font-semibold
+      text-[17px]
+    "
+  >
+    View Details
+  </button>
+
+  {b.status === "CONFIRMED" && (
+
+    <button
+      onClick={() =>
+        navigate(
+          `/dashboard/chat/${b._id}`
+        )
+      }
+      className="
+        w-full
+        h-[54px]
+        rounded-2xl
+        bg-[rgba(255,255,255,0.04)]
+        border border-[rgba(255,255,255,0.08)]
+        text-white
+        hover:bg-[rgba(255,255,255,0.07)]
+        transition
+        font-medium
+      "
+    >
+      Open Chat
+    </button>
+
+  )}
+
+</div>
+
+{b.status === "REQUESTED" && (
+  <p className="text-xs text-[rgba(255,255,255,0.40)]">
+    Expires at{" "}
+    {new Date(
+      b.expiresAt
+    ).toLocaleTimeString()}
+  </p>
+)}
+
+</div>
+
+                      {/* DESKTOP */}
+<div
+  className="
+    hidden
+    md:grid
+    md:grid-cols-[1fr_minmax(0,50%)_190px]
+    gap-6
+  "
+>
+
+  {/* LEFT CONTENT */}
+  <div className="min-w-0">
+
+    {/* TOP */}
+    <div className="flex items-center gap-3 flex-wrap">
+
+      <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+        {new Date(
+          b.createdAt
+        ).toLocaleString()}
+      </p>
+
+      <span
+        className={`
+          px-3
+          py-1
+          rounded-full
+          text-[10px]
+          font-semibold
+          ${getStatusStyle(
+            b.status
+          )}
+        `}
+      >
+        {b.status}
+      </span>
+
+    </div>
+
+    {/* SERVICE */}
+    <div className="mt-3">
+
+      <p className="text-[rgba(255,255,255,0.38)] text-sm">
+        Service
+      </p>
+
+      <h2
+        className="
+          text-[16px]
+          font-bold
+          text-[#F8FAFC]
+          mt-1
+          truncate
+        "
+      >
+        {b.service?.title ||
+          "Untitled Service"}
+      </h2>
+
+    </div>
+
+    {/* CREATOR */}
+    <button
+      type="button"
+      onClick={() => {
+        if (b.creator?._id) {
+          navigate(
+            `/creators/${b.creator.profile?.slug}`
+          );
+        }
+      }}
+      className="
+        flex
+        items-center
+        gap-3
+        mt-4
+      "
+    >
+
+      {b.creator?.profile?.avatarUrl ? (
+        <img
+          src={
+            b.creator.profile.avatarUrl
+          }
+          alt="creator"
+          className="
+            w-9
+            h-9
+            rounded-full
+            object-cover
+            border border-[rgba(255,255,255,0.08)]
+          "
+        />
+      ) : (
+        <div
+          className="
+            w-9
+            h-9
+            rounded-full
+            bg-[rgba(255,255,255,0.05)]
+            flex
+            items-center
+            justify-center
+            text-white
+            text-sm
+          "
+        >
+          {(
+            b.creator?.profile
+              ?.displayName ||
+            "C"
+          )[0]}
         </div>
+      )}
+
+      <div className="text-left">
+
+        <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+          Creator
+        </p>
+
+        <p className="text-[#F8FAFC] font-semibold text-[15px]">
+          {b.creator?.profile
+            ?.displayName ||
+            "Unknown"}
+        </p>
 
       </div>
-    </UserDashboardLayout>
-  );
+
+    </button>
+
+    {/* SLOT ROW */}
+    <div className="flex flex-wrap gap-2 mt-4">
+
+      {b.slots?.map((slot) => {
+
+        const start = new Date(
+          slot.startTime
+        );
+
+        const end = new Date(
+          slot.endTime
+        );
+
+        return (
+          <div
+            key={slot._id}
+            className="
+              px-3
+              py-2
+              rounded-xl
+              bg-white/[0.04]
+              border border-white/10
+              text-[11px]
+              text-[#F8FAFC]
+            "
+          >
+            {start.toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            )}
+            {" - "}
+            {end.toLocaleTimeString(
+              [],
+              {
+                hour: "2-digit",
+                minute: "2-digit",
+              }
+            )}
+          </div>
+        );
+      })}
+
+    </div>
+
+  </div>
+
+                      {/* MIDDLE IMAGE */}
+<div
+  className="
+    h-[190px]
+    w-full
+    max-w-[380px]
+    rounded-[28px]
+    overflow-hidden
+    border border-white/10
+    bg-white/[0.03]
+    justify-self-start
+  "
+>
+
+  {serviceImage ? (
+    <img
+      src={serviceImage}
+      alt={b.service?.title || "Service"}
+      className="
+        w-full
+        h-full
+        object-cover
+      "
+    />
+  ) : (
+    <div
+      className="
+        w-full
+        h-full
+        flex
+        items-center
+        justify-center
+        text-[rgba(255,255,255,0.35)]
+        text-sm
+      "
+    >
+      No Media
+    </div>
+  )}
+
+</div>
+
+{/* RIGHT */}
+<div
+  className="
+    flex
+    flex-col
+    items-center
+    justify-center
+    h-full
+  "
+>
+
+  <div className="text-right">
+
+    <p className="text-[rgba(255,255,255,0.50)] text-xs">
+      Payment:{" "}
+      {getPaymentText(b)}
+    </p>
+
+    <div className="mt-3">
+
+      <p
+        className="
+          text-[#4ADE80]
+          text-xs
+          font-semibold
+        "
+      >
+        {b.currency}
+      </p>
+
+      <p
+        className="
+          text-[#4ADE80]
+          text-[26px]
+          font-bold
+          leading-none
+          mt-1
+        "
+      >
+        {totalPrice}
+      </p>
+
+    </div>
+
+  </div>
+
+  <div className="w-full mt-5 space-y-2">
+
+    <button
+      onClick={() =>
+        navigate(
+          `/dashboard/user/bookings/${b._id}`
+        )
+      }
+      className="
+        w-full
+        h-11
+        rounded-2xl
+        bg-[rgba(255,255,255,0.04)]
+        border border-[rgba(255,255,255,0.08)]
+        text-white
+        text-sm
+        font-medium
+        hover:bg-[rgba(255,255,255,0.07)]
+        transition
+      "
+    >
+      View Details
+    </button>
+
+    {b.status === "CONFIRMED" && (
+
+      <button
+        onClick={() =>
+          navigate(
+            `/dashboard/chat/${b._id}`
+          )
+        }
+        className="
+          w-full
+          h-11
+          rounded-2xl
+          bg-[rgba(255,255,255,0.04)]
+          border border-[rgba(255,255,255,0.08)]
+          text-white
+          text-sm
+          hover:bg-[rgba(255,255,255,0.07)]
+          transition
+        "
+      >
+        Open Chat
+      </button>
+
+    )}
+
+  </div>
+
+  {b.status === "REQUESTED" && (
+    <p className="mt-4 text-xs text-white/40 text-center">
+      Expires at{" "}
+      {new Date(
+        b.expiresAt
+      ).toLocaleTimeString()}
+    </p>
+  )}
+
+</div>
+
+</div>
+
+</div>
+
+);
+})}
+
+</div>
+)}
+
+</div>
+</div>
+</UserDashboardLayout>
+);
 }

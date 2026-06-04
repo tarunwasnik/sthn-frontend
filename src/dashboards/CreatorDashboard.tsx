@@ -63,6 +63,7 @@ export default function CreatorDashboard() {
               <h1 className="text-2xl sm:text-3xl font-semibold text-white">
                 Welcome, {data.creatorProfile.displayName}
               </h1>
+
               <p className="text-gray-400 text-sm mt-1">
                 Here's what's happening with your experiences today.
               </p>
@@ -82,7 +83,9 @@ export default function CreatorDashboard() {
         {errorCode && (
           <div className="mb-6">
             <SectionCard title="Error">
-              <p className="text-red-400 text-sm">{errorMessage}</p>
+              <p className="text-red-400 text-sm">
+                {errorMessage}
+              </p>
             </SectionCard>
           </div>
         )}
@@ -128,13 +131,22 @@ export default function CreatorDashboard() {
                     {data.recentActivity.map((activity) => (
                       <div
                         key={activity.id}
-                        className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                        className="
+                          p-4
+                          rounded-xl
+                          bg-white/5
+                          border
+                          border-white/10
+                          hover:bg-white/10
+                          transition
+                        "
                       >
                         <div className="flex justify-between items-center">
                           <div>
                             <p className="text-sm text-white">
                               {activity.status}
                             </p>
+
                             <p className="text-xs text-gray-400">
                               {new Date(
                                 activity.createdAt
@@ -196,10 +208,68 @@ export default function CreatorDashboard() {
               </div>
             </SectionCard>
 
-            {/* NEXT 24 HOURS */}
-            <SectionCard title="Next 24 Hours">
-              <EmptyState text="No upcoming sessions" />
-            </SectionCard>
+            {/* UPCOMING SESSION */}
+<SectionCard title="Upcoming Session">
+  {!data.nextUpcomingBooking ? (
+    <EmptyState text="No upcoming bookings" />
+  ) : (
+    <div
+      className="
+        p-4
+        rounded-xl
+        bg-white/5
+        border
+        border-white/10
+      "
+    >
+      <p className="text-xs text-gray-400 mb-2">
+        Next Booking
+      </p>
+
+      <h4 className="text-sm font-medium text-white">
+        {data.nextUpcomingBooking.serviceTitle}
+      </h4>
+
+      <div className="mt-2">
+        <p className="text-xs text-gray-400">
+          {new Date(
+            data.nextUpcomingBooking.startTime
+          ).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </p>
+
+        <p className="text-sm text-white/80 mt-1">
+          {new Date(
+            data.nextUpcomingBooking.startTime
+          ).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })}
+        </p>
+      </div>
+
+      <div className="mt-3">
+        <span
+          className={`px-2 py-1 rounded-full text-xs ${
+            data.nextUpcomingBooking.status ===
+            "REQUESTED"
+              ? "bg-yellow-500/10 text-yellow-400"
+              : data.nextUpcomingBooking.status ===
+                "CONFIRMED"
+              ? "bg-emerald-500/10 text-emerald-400"
+              : "bg-white/10 text-white/60"
+          }`}
+        >
+          {data.nextUpcomingBooking.status}
+        </span>
+      </div>
+    </div>
+  )}
+</SectionCard>
+
           </div>
         </div>
       </div>

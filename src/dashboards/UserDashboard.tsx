@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import DashboardCard from "../components/common/DashboardCard";
 import api from "../api/axios";
 
 type User = {
@@ -13,7 +14,12 @@ type User = {
 };
 
 type Profile = {
-  profileStatus: "pending_verification" | "verified" | "rejected";
+  profileStatus:
+    | "pending_verification" 
+    | "verified"
+    | "rejected";
+
+  username?: string;
 };
 
 export default function UserDashboard() {
@@ -38,8 +44,12 @@ export default function UserDashboard() {
         setUser(userData);
 
         setProfile({
-          profileStatus: profileRes.data.profile?.profileStatus,
-        });
+  profileStatus:
+    profileRes.data.profile?.profileStatus,
+
+  username:
+    profileRes.data.profile?.username,
+});
 
       } catch (err) {
         console.error("Dashboard load failed", err);
@@ -78,154 +88,218 @@ export default function UserDashboard() {
     role === "USER" && isVerified;
 
   return (
-    <UserDashboardLayout>
-      <div className="space-y-8 px-4">
+  <UserDashboardLayout>
+    <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
 
-        {/* HEADER */}
-        <div>
-          <h1 className="text-3xl font-bold">
-            Welcome back
-          </h1>
-          <p className="text-gray-400 mt-2">
-            Browse creators, manage bookings, and explore experiences.
-          </p>
-        </div>
+      {/* HERO */}
+      <DashboardCard className="p-6 md:p-7">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 
-        {/* ================= ACCOUNT STATUS ================= */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-          <h2 className="font-semibold text-lg mb-4">
-            Account Status
-          </h2>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+              Welcome back{profile.username ? `, ${profile.username}` : ""}
+            </h1>
 
-          {!profileStatus && (
-            <div className="px-4 py-3 bg-gray-500/10 text-gray-400 rounded-lg">
-              Unable to determine status.
+            <p className="text-white/60 mt-3 max-w-2xl">
+              Browse creators, discover experiences, and manage your bookings from one place.
+            </p>
+
+            <div className="flex flex-wrap gap-3 mt-5">
+
+              <div
+                className={`px-3 py-1.5 rounded-full text-sm border ${
+                  profileStatus === "verified"
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : profileStatus === "pending_verification"
+                    ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                    : "bg-red-500/10 text-red-400 border-red-500/20"
+                }`}
+              >
+                {profileStatus === "verified"
+                  ? "Verified"
+                  : profileStatus === "pending_verification"
+                  ? "Pending Verification"
+                  : "Rejected"}
+              </div>
+
+              <div className="px-3 py-1.5 rounded-full text-sm border border-white/10 bg-white/5 text-white/70">
+                Creator: {creatorStatus}
+              </div>
+
             </div>
-          )}
+          </div>
 
-          {profileStatus === "pending_verification" && (
-            <div className="px-4 py-3 bg-yellow-500/10 text-yellow-400 rounded-lg">
-              Your profile is under verification.
-            </div>
-          )}
+          <div className="flex flex-wrap gap-3">
 
-          {profileStatus === "rejected" && (
-            <div className="px-4 py-3 bg-red-500/10 text-red-400 rounded-lg">
-              Your profile was rejected. Please update it.
-            </div>
-          )}
-
-          {profileStatus === "verified" && (
-            <div className="px-4 py-3 bg-green-500/10 text-green-400 rounded-lg">
-              Your account is verified.
-            </div>
-          )}
-
-        </div>
-
-        {/* ================= GRID SECTION ================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* PROFILE CARD */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[160px]">
-            <div>
-              <h3 className="font-semibold text-lg mb-1">
-                Your Profile
-              </h3>
-              <p className="text-gray-400 text-sm">
-                View and manage your details.
-              </p>
-            </div>
+            <button
+              onClick={() => navigate("/explore")}
+              className="
+                px-5
+                py-3
+                rounded-xl
+                bg-emerald-400
+                hover:bg-emerald-300
+                transition
+                text-black
+                font-semibold
+              "
+            >
+              Browse Creators
+            </button>
 
             <button
               onClick={() => navigate("/profile")}
-              className="mt-6 bg-gray-800 hover:bg-gray-700 transition rounded-lg py-2"
+              className="
+                px-5
+                py-3
+                rounded-xl
+                bg-white/5
+                border
+                border-white/10
+                hover:bg-white/10
+                transition
+                text-white
+                font-medium
+              "
             >
               My Profile
             </button>
+
           </div>
 
-          {/* ================= CREATOR CARD (DYNAMIC) ================= */}
-          {showCreatorCard && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col justify-between min-h-[160px]">
+        </div>
+      </DashboardCard>
 
-              <div>
-                <h3 className="font-semibold text-lg mb-1">
-                  Become a Creator
-                </h3>
-                <p className="text-gray-400 text-sm">
-                  Start offering experiences.
-                </p>
-              </div>
+      {/* CREATOR JOURNEY */}
+      {showCreatorCard && (
+        <DashboardCard className="p-6">
+          <h2 className="text-xl font-semibold text-white mb-4">
+            Creator Journey
+          </h2>
 
-              {/* NOT APPLIED */}
-              {creatorStatus === "none" && (
-                <button
-                  onClick={() => navigate("/creator-application")}
-                  className="mt-6 bg-teal-400 text-black font-semibold py-2 rounded-lg hover:bg-teal-300 transition"
-                >
-                  Apply Now
-                </button>
-              )}
+          {creatorStatus === "none" && (
+            <>
+              <p className="text-white/60">
+                Start offering experiences and become a creator.
+              </p>
 
-              {/* PENDING */}
-              {creatorStatus === "pending" && (
-                <div className="mt-6 px-4 py-3 bg-yellow-500/10 text-yellow-400 rounded-lg">
-                  Your creator application is under review
-                </div>
-              )}
+              <button
+                onClick={() =>
+                  navigate("/creator-application")
+                }
+                className="
+                  mt-5
+                  px-5
+                  py-2.5
+                  rounded-xl
+                  bg-emerald-400
+                  hover:bg-emerald-300
+                  transition
+                  text-black
+                  font-semibold
+                "
+              >
+                Apply Now
+              </button>
+            </>
+          )}
 
-              {/* APPROVED */}
-              {creatorStatus === "approved" && (
-                <button
-                  onClick={() => navigate("/creator-dashboard")}
-                  className="mt-6 bg-black text-white font-semibold py-2 rounded-lg hover:bg-gray-900 transition"
-                >
-                  Go to Creator Dashboard
-                </button>
-              )}
-
-              {/* REJECTED */}
-              {creatorStatus === "rejected" && (
-                <div className="mt-6">
-                  <p className="text-red-400 text-sm mb-2">
-                    Your application was rejected
-                  </p>
-                  <button
-                    onClick={() => navigate("/creator-application")}
-                    className="w-full border border-white/20 py-2 rounded-lg hover:bg-white/5 transition"
-                  >
-                    Apply Again
-                  </button>
-                </div>
-              )}
-
+          {creatorStatus === "pending" && (
+            <div className="text-yellow-400">
+              Your creator application is under review.
             </div>
           )}
 
-        </div>
+          {creatorStatus === "approved" && (
+            <>
+              <p className="text-emerald-400">
+                Creator access approved.
+              </p>
 
-        {/* ================= BOOKINGS ================= */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+              <button
+                onClick={() =>
+                  navigate("/creator-dashboard")
+                }
+                className="
+                  mt-5
+                  px-5
+                  py-2.5
+                  rounded-xl
+                  bg-white/5
+                  border
+                  border-white/10
+                  hover:bg-white/10
+                  transition
+                "
+              >
+                Open Creator Dashboard
+              </button>
+            </>
+          )}
 
-          <h3 className="text-lg font-semibold mb-3">
-            No bookings yet
-          </h3>
+          {creatorStatus === "rejected" && (
+            <>
+              <p className="text-red-400">
+                Your creator application was rejected.
+              </p>
 
-          <p className="text-gray-400 mb-4">
-            Explore creators and book your first experience.
+              <button
+                onClick={() =>
+                  navigate("/creator-application")
+                }
+                className="
+                  mt-5
+                  px-5
+                  py-2.5
+                  rounded-xl
+                  border
+                  border-white/10
+                  hover:bg-white/5
+                  transition
+                "
+              >
+                Apply Again
+              </button>
+            </>
+          )}
+        </DashboardCard>
+      )}
+
+      {/* UPCOMING BOOKINGS */}
+      <DashboardCard className="p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Upcoming Bookings
+        </h2>
+
+        <div className="text-center py-10">
+          <p className="text-white/70">
+            No upcoming bookings yet
+          </p>
+
+          <p className="text-white/50 text-sm mt-2">
+            Browse creators and schedule your first experience.
           </p>
 
           <button
             onClick={() => navigate("/explore")}
-            className="bg-teal-400 text-black px-6 py-2 rounded-lg font-semibold hover:bg-teal-300 transition"
+            className="
+              mt-5
+              px-5
+              py-2.5
+              rounded-xl
+              bg-emerald-400
+              hover:bg-emerald-300
+              transition
+              text-black
+              font-semibold
+            "
           >
             Explore Creators
           </button>
-
         </div>
+      </DashboardCard>
 
-      </div>
-    </UserDashboardLayout>
-  );
+    </div>
+  </UserDashboardLayout>
+);
 }

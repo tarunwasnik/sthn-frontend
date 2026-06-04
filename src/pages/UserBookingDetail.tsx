@@ -101,11 +101,13 @@ export default function UserBookingDetail() {
 
       const res = await getUserBookingsAPI();
 
-      const found = res.bookings.find(
-        (b: Booking) => b._id === bookingId
-      );
+const found = res.bookings.find(
+  (b: Booking) => b._id === bookingId
+);
 
-      setBooking(found || null);
+console.log("BOOKING DETAILS:", found);
+
+setBooking(found || null);
     } catch (err) {
       console.error("FETCH ERROR:", err);
     } finally {
