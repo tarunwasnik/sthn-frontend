@@ -301,7 +301,19 @@ const handleMediaUpload = async (
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_2fr] gap-10">
 
         {/* LEFT: ADD SERVICE */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-5 sticky top-6 h-fit">
+        <div
+  className="
+    bg-white/5
+    backdrop-blur-xl
+    border border-white/10
+    rounded-2xl
+    p-6
+    space-y-5
+    h-fit
+    lg:sticky
+    lg:top-6
+  "
+>
 
           <h2 className="text-base font-semibold text-white">
             Add New Service
