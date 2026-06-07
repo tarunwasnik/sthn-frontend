@@ -223,19 +223,23 @@ export default function CreatorPublicProfile() {
   /* ================= FETCH SLOTS ================= */
 
   const fetchSlots = async (
-    date: string
-  ) => {
+  date: string,
+  serviceId: string
+) => {
 
     try {
 
       if (!slug) return;
 
       const res = await api.get(
-        `/public/creators/${slug}/slots`,
-        {
-          params: { date },
-        }
-      );
+  `/public/creators/${slug}/slots`,
+  {
+    params: {
+      date,
+      serviceId,
+    },
+  }
+);
 
       setSlots(
         res.data.slots || []
@@ -292,13 +296,6 @@ export default function CreatorPublicProfile() {
     if (
       !clickedSlot ||
       !selectedService
-    ) {
-      return;
-    }
-
-    if (
-      clickedSlot.serviceId !==
-      selectedService.id
     ) {
       return;
     }
@@ -1173,19 +1170,23 @@ return (
   key={service.id}
   onClick={() => {
 
-    if (
-      selectedService?.id ===
-      service.id
-    ) {
-      setSelectedService(null);
-      setSelectedSlots([]);
-      return;
-    }
-
-    setSelectedService(service);
+  if (
+    selectedService?.id ===
+    service.id
+  ) {
+    setSelectedService(null);
     setSelectedSlots([]);
+    setSlots([]);
+    setSelectedDate("");
+    return;
+  }
 
-  }}
+  setSelectedService(service);
+  setSelectedSlots([]);
+  setSlots([]);
+  setSelectedDate("");
+
+}}
   className={`
     group
     relative
@@ -1634,15 +1635,17 @@ return (
           type="date"
           value={selectedDate}
           onChange={(e) => {
+  const value = e.target.value;
 
-            const value =
-              e.target.value;
+  setSelectedDate(value);
 
-            setSelectedDate(value);
-
-            fetchSlots(value);
-
-          }}
+  if (selectedService) {
+    fetchSlots(
+      value,
+      selectedService.id
+    );
+  }
+}}
           className="
             w-full
             rounded-xl
@@ -1653,6 +1656,24 @@ return (
             outline-none
           "
         />
+        {selectedDate && (
+  <div
+    className="
+      mt-3
+      rounded-xl
+      bg-cyan-500/10
+      border border-cyan-500/20
+      p-3
+      text-sm
+      text-cyan-200
+    "
+  >
+    Viewing availability for{" "}
+    <span className="font-semibold">
+  {new Date(selectedDate).toLocaleDateString("en-GB")}
+</span>
+  </div>
+)}
 
       </div>
 
@@ -1662,9 +1683,26 @@ return (
 
         <div className="space-y-5">
 
-          <div className="text-sm text-white/60">
-            Available Slots
-          </div>
+         <div className="flex items-center justify-between">
+  <div className="text-sm text-white/60">
+    Available Slots
+  </div>
+
+  <div
+    className="
+      px-3
+      py-1
+      rounded-full
+      bg-cyan-500/10
+      border border-cyan-500/20
+      text-cyan-300
+      text-xs
+      font-medium
+    "
+  >
+    {slots.length} available
+  </div>
+</div>
 
           <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
 

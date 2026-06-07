@@ -6,12 +6,20 @@ import api from "../api/axios";
 import SlotTimeline from "../components/availability/SlotTimeline";
 import TimeSelect from "../components/common/TimeSelect";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { TIMEZONES } from "../constants/timezones";
 
 interface Availability {
   _id: string;
+
+  serviceId: string;
+  serviceTitle?: string;
+
   date: string;
+  timezone: string;
+
   startTime: string;
   endTime: string;
+
   status: string;
 
   totalSlots: number;
@@ -41,14 +49,19 @@ export default function CreatorAvailability() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [activeAvailability, setActiveAvailability] = useState<string | null>(null);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [message, setMessage] = useState<{
+  type: "success" | "error";
+  text: string;
+} | null>(null);
 
   const [form, setForm] = useState({
-    serviceId: "",
-    date: "",
-    startTime: "10:00",
-    endTime: "18:00",
-    slotDurationMinutes: 60,
-  });
+  serviceId: "",
+  date: "",
+  startTime: "10:00",
+  endTime: "18:00",
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  slotDurationMinutes: 60,
+});
 
   const slotDurations = [30,45,60,90,120,180,240,360,480];
 
@@ -94,23 +107,67 @@ export default function CreatorAvailability() {
     fetchSlots(availabilityId);
   };
 
-  const handleCreate = async () => {
-    if (!isValid) return;
+ const handleCreate = async () => {
+  if (!isValid) return;
 
-    try {
-      await api.post("/v1/creator/availability", form);
+  try {
+    const res = await api.post(
+      "/v1/creator/availability",
+      form
+    );
 
-      setForm({
-        serviceId: "",
-        date: "",
-        startTime: "10:00",
-        endTime: "18:00",
-        slotDurationMinutes: 60,
-      });
+    setMessage({
+      type: "success",
+      text:
+        res.data?.message ||
+        "Availability created successfully",
+    });
 
-      fetchAvailabilities();
-    } catch {}
-  };
+    setForm({
+      serviceId: "",
+      date: "",
+      startTime: "10:00",
+      endTime: "18:00",
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      slotDurationMinutes: 60,
+    });
+
+    fetchAvailabilities();
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  } catch (error: any) {
+
+  console.log(
+    "CREATE ERROR:",
+    error
+  );
+
+  console.log(
+    "RESPONSE:",
+    error?.response
+  );
+
+  console.log(
+    "DATA:",
+    error?.response?.data
+  );
+
+  setMessage({
+    type: "error",
+    text:
+      error?.response?.data?.message ||
+      "Failed to create availability",
+  });
+
+  setTimeout(() => {
+    setMessage(null);
+  }, 4000);
+}
+};
 
   const cancelAvailability = async (availabilityId: string) => {
     try {
@@ -184,6 +241,7 @@ const deleteSlot = async (slotId: string) => {
           </p>
         </div>
 
+
         {/* TOGGLE */}
         <div className="flex items-center gap-3">
           <input
@@ -248,8 +306,54 @@ const deleteSlot = async (slotId: string) => {
     {s.title}
   </option>
 ))}
-                  </select>
-                </div>
+    </select>
+              </div>
+
+{/*TIMEZONE*/}
+
+<div className="space-y-1">
+  <p className="text-xs text-white/40">Timezone</p>
+
+  <select
+    value={form.timezone}
+    onChange={(e) =>
+      setForm({
+        ...form,
+        timezone: e.target.value,
+      })
+    }
+    className="
+      w-full
+      bg-white/5
+      border border-white/10
+      rounded-xl
+      px-4
+      py-3
+      text-white
+      outline-none
+      focus:outline-none
+      focus:ring-0
+      focus:border-white/10
+    "
+  >
+    {TIMEZONES.map((tz) => (
+  <option
+    key={tz.value}
+    value={tz.value}
+    className="bg-[#0f0f0f] text-white"
+  >
+    {tz.label}
+  </option>
+))}
+  </select>
+
+  <p className="text-[11px] text-white/40">
+    Users will automatically see these slots in their local timezone.
+  </p>
+</div>
+
+
+
 
                 <div className="space-y-1">
                   <p className="text-xs text-white/40">Date</p>
@@ -262,6 +366,7 @@ const deleteSlot = async (slotId: string) => {
                     className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
                   />
                 </div>
+
 
                 <div className="space-y-1">
                   <p className="text-xs text-white/40">Time Range</p>
@@ -308,6 +413,33 @@ const deleteSlot = async (slotId: string) => {
                   </select>
                 </div>
 
+                        {message && (
+  <div
+    className={`
+      rounded-xl
+      px-4
+      py-3
+      text-sm
+      border
+      ${
+        message.type === "success"
+          ? `
+            bg-emerald-500/10
+            border-emerald-500/20
+            text-emerald-300
+          `
+          : `
+            bg-red-500/10
+            border-red-500/20
+            text-red-300
+          `
+      }
+    `}
+  >
+    {message.text}
+  </div>
+)}
+
                 <button
                   onClick={handleCreate}
                   disabled={!isValid}
@@ -350,17 +482,41 @@ const deleteSlot = async (slotId: string) => {
                   <div className="flex justify-between items-start">
 
                     <div>
-                      <div className="font-semibold">
-                        {new Date(a.date).toDateString()}
-                      </div>
-                      <div className="text-white/60 text-sm">
-                        {a.startTime} - {a.endTime}
-                      </div>
-                      <div className="text-xs text-white/40">
-                        Status: {a.status}
-                      </div>
-                    </div>
 
+<div
+  className="
+    inline-flex
+    items-center
+    gap-2
+    px-4
+    py-2
+    rounded-xl
+    bg-cyan-500/10
+    border
+    border-cyan-500/20
+    text-cyan-300
+    text-sm
+    font-medium
+    mb-3
+  "
+>
+  <span>●</span>
+  <span>{a.serviceTitle || "Unknown Service"}</span>
+</div>
+
+  <div className="font-semibold">
+    {new Date(a.date).toDateString()}
+  </div>
+
+  <div className="text-white/60 text-sm">
+    {a.startTime} - {a.endTime}
+  </div>
+
+  <div className="text-xs text-white/40">
+    Status: {a.status}
+  </div>
+
+</div>
                     {a.status === "ACTIVE" && (
                       <button
                         onClick={() => cancelAvailability(a._id)}
@@ -417,11 +573,54 @@ const deleteSlot = async (slotId: string) => {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  const colors: Record<string, string> = {
+    Total: "text-white/70",
+    Available: "text-emerald-300",
+    Locked: "text-amber-300",
+    Booked: "text-sky-300",
+    Disabled: "text-red-300",
+  };
+
+  const color =
+    colors[label] || "text-white";
+
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-      <p className="text-white/50 text-[10px]">{label}</p>
-      <p className="font-semibold text-sm">{value}</p>
+    <div
+      className="
+        bg-white/5
+        border
+        border-white/10
+        rounded-xl
+        p-3
+        text-center
+      "
+    >
+      <p
+        className={`
+          text-[10px]
+          ${color}
+        `}
+      >
+        {label}
+      </p>
+
+      <p
+        className={`
+          font-semibold
+          text-sm
+          mt-1
+          ${color}
+        `}
+      >
+        {value}
+      </p>
     </div>
   );
 }
