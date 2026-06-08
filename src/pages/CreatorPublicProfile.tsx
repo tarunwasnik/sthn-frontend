@@ -15,6 +15,7 @@ interface Slot {
   price: number;
   startTime: string;
   endTime: string;
+  timezone?: string;
 }
 
 interface Service {
@@ -265,6 +266,17 @@ export default function CreatorPublicProfile() {
         minute: "2-digit",
       }
     );
+
+    const formatSelectedDate = (
+  date: string
+) => {
+  const [year, month, day] =
+    date.split("-");
+
+  return `${day}/${month}/${year}`;
+};
+
+
 
   if (!data) {
 
@@ -1678,10 +1690,19 @@ return (
       text-cyan-200
     "
   >
-    Viewing availability for{" "}
-    <span className="font-semibold">
-  {new Date(selectedDate).toLocaleDateString("en-GB")}
-</span>
+    <div>
+      Viewing availability for{" "}
+      <span className="font-semibold">
+        {formatSelectedDate(selectedDate)}
+      </span>
+    </div>
+
+    {slots.length > 0 && (
+      <div className="mt-1 text-xs text-cyan-100/70">
+        Times below are displayed in your local timezone.
+        Creator timezone: {slots[0].timezone}
+      </div>
+    )}
   </div>
 )}
 

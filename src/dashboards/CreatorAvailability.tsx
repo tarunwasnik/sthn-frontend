@@ -60,10 +60,8 @@ export default function CreatorAvailability() {
   startTime: "10:00",
   endTime: "18:00",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  slotDurationMinutes: 60,
 });
 
-  const slotDurations = [30,45,60,90,120,180,240,360,480];
 
   useEffect(() => {
     fetchServices();
@@ -130,7 +128,6 @@ export default function CreatorAvailability() {
       endTime: "18:00",
       timezone:
         Intl.DateTimeFormat().resolvedOptions().timeZone,
-      slotDurationMinutes: 60,
     });
 
     fetchAvailabilities();
@@ -166,25 +163,114 @@ export default function CreatorAvailability() {
   setTimeout(() => {
     setMessage(null);
   }, 4000);
-}
+ }
+ };
+
+  const cancelAvailability = async (
+  availabilityId: string
+) => {
+  try {
+
+    const res = await api.delete(
+      `/v1/creator/availability/${availabilityId}`
+    );
+
+    setMessage({
+      type: "success",
+      text:
+        res.data?.message ||
+        "Availability cancelled successfully",
+    });
+
+    if (activeAvailability === availabilityId) {
+      setActiveAvailability(null);
+      setSlots([]);
+    }
+
+    await fetchAvailabilities();
+
+  } catch (error: any) {
+
+    setMessage({
+      type: "error",
+      text:
+        error?.response?.data?.message ||
+        "Failed to cancel availability",
+    });
+
+  } finally {
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  }
 };
 
-  const cancelAvailability = async (availabilityId: string) => {
-    try {
-      await api.delete(`/v1/creator/availability/${availabilityId}`);
+  const deleteAvailability = async (
+  availabilityId: string
+) => {
 
-      if (activeAvailability === availabilityId) {
-        setActiveAvailability(null);
-        setSlots([]);
-      }
+  const confirmed = window.confirm(
+    "Permanently delete this availability and all generated slots?"
+  );
 
-      fetchAvailabilities();
-    } catch {}
-  };
+  if (!confirmed) return;
 
-  const disableSlot = async (slotId: string) => {
   try {
-    await api.patch(`/v1/creator/slots/${slotId}/disable`);
+
+    await api.delete(
+      `/v1/creator/availability/${availabilityId}/permanent`
+    );
+
+    setMessage({
+      type: "success",
+      text: "Availability deleted successfully",
+    });
+
+    if (activeAvailability === availabilityId) {
+      setActiveAvailability(null);
+      setSlots([]);
+    }
+
+    await fetchAvailabilities();
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  } catch (error: any) {
+
+    setMessage({
+      type: "error",
+      text:
+        error?.response?.data?.message ||
+        "Failed to delete availability",
+    });
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+  }
+};
+
+
+
+  const disableSlot = async (
+  slotId: string
+) => {
+  try {
+
+    const res = await api.patch(
+      `/v1/creator/slots/${slotId}/disable`
+    );
+
+    setMessage({
+      type: "success",
+      text:
+        res.data?.message ||
+        "Slot disabled successfully",
+    });
 
     if (activeAvailability) {
       await fetchSlots(activeAvailability);
@@ -192,12 +278,39 @@ export default function CreatorAvailability() {
 
     await fetchAvailabilities();
 
-  } catch {}
+  } catch (error: any) {
+
+    setMessage({
+      type: "error",
+      text:
+        error?.response?.data?.message ||
+        "Failed to disable slot",
+    });
+
+  } finally {
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  }
 };
 
-const enableSlot = async (slotId: string) => {
+ const enableSlot = async (
+  slotId: string
+) => {
   try {
-    await api.patch(`/v1/creator/slots/${slotId}/enable`);
+
+    const res = await api.patch(
+      `/v1/creator/slots/${slotId}/enable`
+    );
+
+    setMessage({
+      type: "success",
+      text:
+        res.data?.message ||
+        "Slot enabled successfully",
+    });
 
     if (activeAvailability) {
       await fetchSlots(activeAvailability);
@@ -205,12 +318,46 @@ const enableSlot = async (slotId: string) => {
 
     await fetchAvailabilities();
 
-  } catch {}
+  } catch (error: any) {
+
+    setMessage({
+      type: "error",
+      text:
+        error?.response?.data?.message ||
+        "Failed to enable slot",
+    });
+
+  } finally {
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  }
 };
 
-const deleteSlot = async (slotId: string) => {
+ const deleteSlot = async (
+  slotId: string
+) => {
+
+  const confirmed = window.confirm(
+    "Permanently delete this slot?"
+  );
+
+  if (!confirmed) return;
+
   try {
-    await api.delete(`/v1/creator/slots/${slotId}`);
+
+    const res = await api.delete(
+      `/v1/creator/slots/${slotId}`
+    );
+
+    setMessage({
+      type: "success",
+      text:
+        res.data?.message ||
+        "Slot deleted successfully",
+    });
 
     if (activeAvailability) {
       await fetchSlots(activeAvailability);
@@ -218,7 +365,22 @@ const deleteSlot = async (slotId: string) => {
 
     await fetchAvailabilities();
 
-  } catch {}
+  } catch (error: any) {
+
+    setMessage({
+      type: "error",
+      text:
+        error?.response?.data?.message ||
+        "Failed to delete slot",
+    });
+
+  } finally {
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 4000);
+
+  }
 };
 
   const isValid =
@@ -230,6 +392,40 @@ const deleteSlot = async (slotId: string) => {
 
   return (
     <DashboardLayout>
+      {message && (
+  <div
+    className={`
+      fixed
+      bottom-24
+      left-1/2
+      -translate-x-1/2
+      z-[9999]
+      w-[90vw]
+      max-w-md
+      px-4
+      py-3
+      rounded-xl
+      border
+      shadow-2xl
+      backdrop-blur-xl
+      ${
+        message.type === "success"
+          ? `
+            bg-emerald-500/15
+            border-emerald-500/30
+            text-emerald-300
+          `
+          : `
+            bg-red-500/15
+            border-red-500/30
+            text-red-300
+          `
+      }
+    `}
+  >
+    {message.text}
+  </div>
+)}
 
       <div className="max-w-7xl mx-auto px-4 space-y-6 text-white">
 
@@ -250,7 +446,7 @@ const deleteSlot = async (slotId: string) => {
             onChange={() => setShowCancelled(!showCancelled)}
           />
           <span className="text-sm text-white/60">
-            Show Cancelled History
+            History
           </span>
         </div>
 
@@ -291,13 +487,13 @@ const deleteSlot = async (slotId: string) => {
   focus:ring-0
   focus:border-white/10
   transition
-"
+ "
                   >
                     <option value="" className="bg-[#0b0f1a] text-white">
   Select Service
-</option>
+ </option>
 
-{services.map((s) => (
+ {services.map((s) => (
   <option
     key={s._id}
     value={s._id}
@@ -305,13 +501,13 @@ const deleteSlot = async (slotId: string) => {
   >
     {s.title}
   </option>
-))}
+ ))}
     </select>
               </div>
 
-{/*TIMEZONE*/}
+ {/*TIMEZONE*/}
 
-<div className="space-y-1">
+ <div className="space-y-1">
   <p className="text-xs text-white/40">Timezone</p>
 
   <select
@@ -344,13 +540,13 @@ const deleteSlot = async (slotId: string) => {
   >
     {tz.label}
   </option>
-))}
+ ))}
   </select>
 
   <p className="text-[11px] text-white/40">
     Users will automatically see these slots in their local timezone.
   </p>
-</div>
+ </div>
 
 
 
@@ -375,70 +571,6 @@ const deleteSlot = async (slotId: string) => {
                     <TimeSelect value={form.endTime} onChange={(t) => setForm({ ...form, endTime: t })} />
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs text-white/40">Slot Duration</p>
-                  <select
-                    value={form.slotDurationMinutes}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        slotDurationMinutes: Number(e.target.value),
-                      })
-                    }
-                    className="
-  w-full
-  bg-white/5
-  border border-white/10
-  rounded-xl
-  px-4
-  py-3
-  text-white
-  outline-none
-  focus:outline-none
-  focus:ring-0
-  focus:border-white/10
-  transition
-"
-                  >
-                    {slotDurations.map((d) => (
-                      <option
-  key={d}
-  value={d}
-  className="bg-[#0f0f0f] text-white"
->
-  {d} min slots
-</option>
-                    ))}
-                  </select>
-                </div>
-
-                        {message && (
-  <div
-    className={`
-      rounded-xl
-      px-4
-      py-3
-      text-sm
-      border
-      ${
-        message.type === "success"
-          ? `
-            bg-emerald-500/10
-            border-emerald-500/20
-            text-emerald-300
-          `
-          : `
-            bg-red-500/10
-            border-red-500/20
-            text-red-300
-          `
-      }
-    `}
-  >
-    {message.text}
-  </div>
-)}
 
                 <button
                   onClick={handleCreate}
@@ -481,53 +613,86 @@ const deleteSlot = async (slotId: string) => {
 
                   <div className="flex justify-between items-start">
 
-                    <div>
+  <div>
 
-<div
-  className="
-    inline-flex
-    items-center
-    gap-2
-    px-4
-    py-2
-    rounded-xl
-    bg-cyan-500/10
-    border
-    border-cyan-500/20
-    text-cyan-300
-    text-sm
-    font-medium
-    mb-3
-  "
->
-  <span>●</span>
-  <span>{a.serviceTitle || "Unknown Service"}</span>
+    <div
+      className="
+        inline-flex
+        items-center
+        gap-2
+        px-4
+        py-2
+        rounded-xl
+        bg-cyan-500/10
+        border
+        border-cyan-500/20
+        text-cyan-300
+        text-sm
+        font-medium
+        mb-3
+      "
+    >
+      <span>●</span>
+      <span>{a.serviceTitle || "Unknown Service"}</span>
+    </div>
+
+    <div className="font-semibold">
+      {new Date(a.date).toDateString()}
+    </div>
+
+    <div className="text-white/60 text-sm">
+      {a.startTime} - {a.endTime}
+    </div>
+
+    <div className="text-xs text-white/40">
+  Status: {
+    showCancelled && a.status === "ACTIVE"
+      ? "EXPIRED"
+      : a.status
+  }
 </div>
 
-  <div className="font-semibold">
-    {new Date(a.date).toDateString()}
   </div>
 
-  <div className="text-white/60 text-sm">
-    {a.startTime} - {a.endTime}
-  </div>
+  <div className="flex gap-2">
 
-  <div className="text-xs text-white/40">
-    Status: {a.status}
-  </div>
+  {!showCancelled && (
+    <button
+      onClick={() => cancelAvailability(a._id)}
+      className="
+        bg-amber-500/20
+        hover:bg-amber-500/30
+        text-amber-300
+        px-3
+        py-2
+        rounded-lg
+        text-xs
+      "
+    >
+      Cancel
+    </button>
+  )}
+
+  {showCancelled && (
+    <button
+      onClick={() => deleteAvailability(a._id)}
+      className="
+        bg-red-500/20
+        hover:bg-red-500/30
+        text-red-300
+        px-3
+        py-2
+        rounded-lg
+        text-xs
+      "
+    >
+      Delete
+    </button>
+  )}
 
 </div>
-                    {a.status === "ACTIVE" && (
-                      <button
-                        onClick={() => cancelAvailability(a._id)}
-                        className="bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-2 rounded-lg text-xs"
-                      >
-                        Cancel
-                      </button>
-                    )}
 
-                  </div>
-
+</div>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
                     <Stat label="Total" value={a.totalSlots} />
                     <Stat label="Available" value={a.availableSlots} />
