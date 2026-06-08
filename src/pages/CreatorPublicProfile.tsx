@@ -280,7 +280,7 @@ export default function CreatorPublicProfile() {
     data.services || [];
 
   const galleryImages =
-    (data.media || []).slice(0, 6);
+    (data.media || []).slice(0, 20);
 
   /* ================= SLOT LOGIC ================= */
 
@@ -362,20 +362,30 @@ export default function CreatorPublicProfile() {
         setLoadingBooking(true);
 
         await api.post(
-          "/v1/bookings/request",
-          {
-            serviceId:
-              selectedService.id,
-            slotIds:
-              selectedSlots,
-          }
-        );
+  "/v1/bookings/request",
+  {
+    serviceId:
+      selectedService.id,
+    slotIds:
+      selectedSlots,
+  }
+);
 
-        alert(
-          "Booking request sent successfully."
-        );
+alert(
+  "Booking request sent successfully."
+);
 
-        setSelectedSlots([]);
+setSelectedSlots([]);
+
+if (
+  selectedDate &&
+  selectedService
+) {
+  await fetchSlots(
+    selectedDate,
+    selectedService.id
+  );
+}
 
       } catch (err: any) {
 
