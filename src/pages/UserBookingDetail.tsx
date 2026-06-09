@@ -302,24 +302,20 @@ setBooking(found || null);
   if (loading) {
     return (
       <UserDashboardLayout>
-        <div className="mx-auto max-w-7xl space-y-3">
-
-          <div className="h-7 w-32 animate-pulse rounded-lg bg-white/5" />
+        <div className="mx-auto max-w-[1500px] space-y-3">
+          <div className="h-7 w-28 animate-pulse rounded-lg bg-white/5" />
 
           <div className="grid gap-3 xl:grid-cols-[1.65fr_0.75fr]">
-
             <div className="space-y-3">
+              <div className="h-[260px] animate-pulse rounded-[22px] bg-white/5" />
 
-              <div className="h-[260px] animate-pulse rounded-[24px] bg-white/5" />
-
-              <div className="h-[180px] animate-pulse rounded-[24px] bg-white/5" />
+              <div className="h-[160px] animate-pulse rounded-[22px] bg-white/5" />
             </div>
 
             <div className="space-y-3">
+              <div className="h-[130px] animate-pulse rounded-[22px] bg-white/5" />
 
-              <div className="h-[140px] animate-pulse rounded-[24px] bg-white/5" />
-
-              <div className="h-[180px] animate-pulse rounded-[24px] bg-white/5" />
+              <div className="h-[160px] animate-pulse rounded-[22px] bg-white/5" />
             </div>
           </div>
         </div>
@@ -331,9 +327,7 @@ setBooking(found || null);
     return (
       <UserDashboardLayout>
         <div className="flex min-h-[50vh] items-center justify-center">
-
-          <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-white/[0.04] p-6 text-center">
-
+          <div className="w-full max-w-md rounded-[22px] border border-white/10 bg-white/[0.04] p-6 text-center shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
             <h2 className="text-lg font-semibold text-white">
               Booking not found
             </h2>
@@ -344,10 +338,8 @@ setBooking(found || null);
             </p>
 
             <button
-              onClick={() =>
-                navigate(-1)
-              }
-              className="mt-5 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm text-white hover:bg-white/[0.08]"
+              onClick={() => navigate(-1)}
+              className="mt-5 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-2 text-sm font-medium text-white transition hover:bg-white/[0.08]"
             >
               Go Back
             </button>
@@ -413,514 +405,526 @@ setBooking(found || null);
   <UserDashboardLayout>
 
     <div className="mx-auto max-w-[1020px] space-y-3 pb-4">
+    
+          {/* ================= TOP ================= */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    
+            <div>
+              <button
+                onClick={() => navigate(-1)}
+                className="mb-1 inline-flex items-center gap-1.5 text-[16px] text-white/45 transition hover:text-white"
+              >
+                ← Back
+              </button>
+    
+              <h1 className="text-[22px] font-semibold tracking-tight text-[#F8FAFC]">
+                Booking Details
+              </h1>
+    
+              <p className="mt-0.5 text-[10px] text-white/45">
+                Created on{" "}
+                {new Date(
+                  booking.createdAt
+                ).toLocaleString()}
+              </p>
+            </div>
+    
+            <div
+              className={`inline-flex w-fit items-center gap-1.5 rounded-md px-3 py-1.5 text-[10px] font-medium ${getStatusClasses(
+                booking.status
+              )}`}
+            >
+              <div className="h-1.5 w-1.5 rounded-full bg-current" />
+              {booking.status}
+            </div>
+          </div>
+    
+          {/* ================= MAIN GRID ================= */}
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+    
+            {/* ================= LEFT CONTENT ================= */}
+            <div className="space-y-3">
+    
+              {/* ================= MAIN SERVICE CARD ================= */}
+              <div className="rounded-[22px] border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.015] p-4 sm:p-5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+    
+                {/* ================= TOP CONTENT ================= */}
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-5">
+    
+                  {/* ================= IMAGE ================= */}
+                  <div className="relative h-[210px] w-full overflow-hidden rounded-[20px] bg-[#09101F] sm:h-[230px] xl:h-[205px] xl:w-[300px] xl:flex-shrink-0">
+    
+                    {serviceImage ? (
+                      <img
+                        src={serviceImage}
+                        alt={booking.service?.title}
+                        className="h-full w-full object-cover object-center"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-[#050816]">
+    
+                        <div className="flex flex-col items-center gap-3">
+    
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
+    
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-7 w-7 text-white/30"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={1.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"
+                              />
+    
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+    
+                          <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[9px] text-white/40">
+                            No Service Media
+                          </div>
+                        </div>
+                      </div>
+                    )}
+    
+                    
+                  </div>
+    
+                  {/* ================= SERVICE INFO ================= */}
+                  <div className="min-w-0 flex-1 pt-0 xl:pt-2">
+    
+                    <div className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[8px] text-white/50">
+                      Service
+                    </div>
+    
+                    <h2 className="mt-3 text-[20px] font-semibold text-white">
+                      {booking.service?.title}
+                    </h2>
+    
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      
+    
+                      <div className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] text-white/65">
+                        Duration:{" "}
+                        <span className="text-white">
+                          {booking.durationMinutes} mins
+                        </span>
+                      </div>
+    
+                      <div className="rounded-md border border-green-500/15 bg-green-500/10 px-3 py-1.5 text-[10px] font-medium text-[#86EFAC]">
+                        {booking.currency} {totalPrice}
+                      </div>
+                    </div>
+                    <div className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
 
-      {/* ================= HEADER ================= */}
+  <p className="text-[8px] uppercase tracking-wider text-white/35">
+  Booking ID
+</p>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+<p className="mt-1.5 break-all text-[10px] text-white/70">
+  {booking._id}
+</p>
 
-        <div>
+</div>
+                  </div>
+                </div>
+    
+                {/* ================= SLOT SECTION ================= */}
+                <div className="mt-5 border-t border-white/5 pt-5">
+    
+                  <div className="mb-4 flex items-center justify-between">
+    
+                    <h3 className="text-[14px] font-semibold text-white">
+                      Slot Information
+                    </h3>
+    
+                    <div className="text-[10px] text-white/45">
+                      {booking.slots.length} slots
+                    </div>
+                  </div>
+    
+                  <div className="space-y-3">
+    
+                    {Object.entries(groupedSlots).map(([date, slots]) => (
+    
+                      <div
+                        key={date}
+                        className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3 sm:p-5"
+                      >
+    
+                        <div className="mb-4 flex items-center justify-between">
+    
+                          <h4 className="text-[11px] font-medium text-white">
+                            {date}
+                          </h4>
+    
+                          <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[8px] text-white/45">
+                            {slots.length} slots
+                          </div>
+                        </div>
+    
+                        {/* ================= SLOT GRID ================= */}
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+    
+                          {slots.map((slot) => (
+    
+                            <div
+                              key={slot._id}
+                              className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3 sm:p-4 transition hover:bg-white/[0.06]"
+                            >
+    
+                              <div className="flex items-start justify-between gap-2">
+    
+                                <div className="min-w-0">
+    
+                                  <p className="text-[10px] font-semibold leading-relaxed text-white">
+                                    {formatTime(
+                                      slot.startTime
+                                    )}{" "}
+                                    -{" "}
+                                    {formatTime(
+                                      slot.endTime
+                                    )}
+                                  </p>
+    
+                                  <p className="mt-2 text-[8px] text-white/40">
+                                    Slot Booking
+                                  </p>
+                                </div>
+    
+                                <div className="rounded-md border border-green-500/15 bg-green-500/10 px-2 py-1 text-[7px] font-medium text-[#86EFAC]">
+                                  {booking.currency}{" "}
+                                  {slot.price}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+    
+            </div>
+    
+                    {/* ================= RIGHT SIDE ================= */}
+    <div className="space-y-3">
+    
+      {/* CREATOR */}
+<div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
 
-          <button
-            onClick={() => navigate(-1)}
-            className="mb-2 inline-flex items-center gap-2 text-white/45 transition hover:text-white"
-          >
-            ← Back
-          </button>
+  <div className="flex items-center justify-between">
 
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#F8FAFC]">
-            Booking Details
-          </h1>
+    <h3 className="text-[12px] font-semibold text-white">
+      Creator
+    </h3>
 
-          <p className="mt-1 text-xs text-white/45">
-            Created on{" "}
-            {new Date(
-              booking.createdAt
-            ).toLocaleString()}
-          </p>
+    <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[7px] text-white/45">
+      Profile
+    </div>
+  </div>
 
-          <p className="mt-1 text-xs text-white/30">
-            Booking ID: {booking._id}
-          </p>
+  <div className="mt-3">
 
+    <button
+      onClick={() =>
+        creatorSlug &&
+        navigate(`/creators/${creatorSlug}`)
+      }
+      className="group flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.06]"
+    >
+
+      {creatorAvatar ? (
+
+        <img
+          src={creatorAvatar}
+          alt={creatorName}
+          className="h-11 w-11 rounded-full border border-white/10 object-cover"
+        />
+
+      ) : (
+
+        <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-[11px] font-semibold text-white">
+          {creatorName?.charAt(0)}
         </div>
+      )}
 
-        <div
-          className={`inline-flex w-fit items-center gap-1.5 rounded-md px-3 py-1.5 text-[10px] font-medium ${getStatusClasses(
-            booking.status
-          )}`}
-        >
-          <div className="h-2 w-2 rounded-full bg-current" />
-          {booking.status}
-        </div>
+      <div className="min-w-0 flex-1">
 
+        <p className="truncate text-[11px] font-medium text-white">
+          {creatorName}
+        </p>
+
+        <p className="mt-0.5 text-[8px] text-white/45">
+          Creator Account
+        </p>
       </div>
 
-      {/* ================= MAIN GRID ================= */}
-
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
-
-        {/* ================= LEFT ================= */}
-
-        <div className="space-y-4">
-
-          <div className="rounded-[22px] border border-white/10 bg-gradient-to-br from-white/[0.045] to-white/[0.015] p-5 backdrop-blur-xl">
-
-            <div className="flex flex-col gap-5 xl:flex-row">
-
-              {/* IMAGE */}
-
-              <div className="relative h-[210px] w-full overflow-hidden rounded-[20px] bg-[#09101F] sm:h-[230px] xl:h-[205px] xl:w-[300px] xl:flex-shrink-0">
-
-                {serviceImage ? (
-                  <img
-                    src={serviceImage}
-                    alt={booking.service.title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-white/35">
-                    No Service Media
-                  </div>
-                )}
-
-              </div>
-
-              {/* SERVICE INFO */}
-
-              <div className="flex-1">
-
-                <div className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] text-white/50">
-                  Service
-                </div>
-
-                <h2 className="mt-3 text-[20px] font-semibold text-white">
-                  {booking.service.title}
-                </h2>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-
-                  <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs text-white/65">
-                    Duration:{" "}
-                    <span className="text-white">
-                      {booking.durationMinutes} mins
-                    </span>
-                  </div>
-
-                  <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-2 text-xs font-semibold text-[#86EFAC]">
-                    {booking.currency} {totalPrice}
-                  </div>
-
-                </div>
-
-              </div>
-
-            </div>
-
-            {/* SLOT INFORMATION */}
-
-            <div className="mt-6 border-t border-white/5 pt-6">
-
-              <div className="mb-4 flex items-center justify-between">
-
-                <h3 className="text-[14px] font-semibold text-white">
-                  Slot Information
-                </h3>
-
-                <div className="text-xs text-white/45">
-                  {booking.slots.length} slots
-                </div>
-
-              </div>
-
-              <div className="space-y-3">
-
-                {Object.entries(groupedSlots).map(
-                  ([date, slots]) => (
-
-                    <div
-                      key={date}
-                      className="rounded-[20px] border border-white/10 bg-white/[0.03] p-3 sm:p-5"
-                    >
-
-                      <div className="mb-4 flex items-center justify-between">
-
-                        <h4 className="font-medium text-white">
-                          {date}
-                        </h4>
-
-                        <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] text-white/45">
-                          {slots.length} slots
-                        </div>
-
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
-
-                        {slots.map((slot) => (
-
-                          <div
-                            key={slot._id}
-                            className="rounded-[18px] border border-white/10 bg-white/[0.04] p-3 sm:p-4 transition hover:bg-white/[0.06]"
-                          >
-
-                            <div className="flex items-start justify-between">
-
-                              <div>
-
-                                <p className="text-sm font-medium text-white">
-                                  {formatTime(slot.startTime)}
-                                  {" - "}
-                                  {formatTime(slot.endTime)}
-                                </p>
-
-                                <p className="mt-2 text-xs text-white/40">
-                                  Slot Booking
-                                </p>
-
-                              </div>
-
-                              <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-1 text-xs font-medium text-[#86EFAC]">
-                                {booking.currency} {slot.price}
-                              </div>
-
-                            </div>
-
-                          </div>
-
-                        ))}
-
-                      </div>
-
-                    </div>
-
-                  )
-                )}
-
-              </div>
-
-            </div>
-
+      <div className="text-white/35 transition group-hover:text-white">
+        →
+      </div>
+    </button>
+  </div>
+</div>
+    
+      {/* PAYMENT */}
+      <div className="rounded-[20px] border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.015] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+    
+        <div className="flex items-center justify-between">
+    
+          <h3 className="text-[12px] font-semibold text-white">
+            Payment
+          </h3>
+    
+          <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[7px] text-white/45">
+            Transaction
           </div>
-
         </div>
-        {/* ================= RIGHT SIDEBAR ================= */}
-
-        <div className="space-y-4">
-
-          {/* ================= CREATOR CARD ================= */}
-
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-
+    
+        <div className="mt-3">
+    
+          <p className="text-[8px] text-white/45">
+            Total Amount
+          </p>
+    
+          <h2 className="mt-2 text-[26px] font-semibold tracking-tight text-[#86EFAC] sm:text-[18px]">
+            {booking.currency} {totalPrice}
+          </h2>
+    
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+    
             <div className="flex items-center justify-between">
-
-              <h3 className="text-sm font-semibold text-white">
-                Creator
-              </h3>
-
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/45">
-                Profile
-              </div>
-
+    
+              <span className="text-[8px] text-white/45">
+                Payment Status
+              </span>
+    
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[7px] font-medium text-white">
+                {
+                  booking.paymentStatus
+                }
+              </span>
             </div>
-
-            <button
-              onClick={() =>
-                creatorSlug &&
-                navigate(`/creators/${creatorSlug}`)
-              }
-              className="mt-3 flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:bg-white/[0.06]"
-            >
-
-              {creatorAvatar ? (
-                <img
-                  src={creatorAvatar}
-                  alt={creatorName}
-                  className="h-12 w-12 rounded-full border border-white/10 object-cover"
-                />
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] font-semibold text-white">
-                  {creatorName.charAt(0)}
-                </div>
-              )}
-
-              <div className="flex-1 min-w-0">
-
-                <p className="truncate text-sm font-medium text-white">
-                  {creatorName}
-                </p>
-
-                <p className="text-xs text-white/45">
-                  Creator Account
-                </p>
-
-              </div>
-
-              <div className="text-white/35">
-                →
-              </div>
-
-            </button>
-
           </div>
-
-          {/* ================= PAYMENT ================= */}
-
-          <div className="rounded-[20px] border border-white/10 bg-gradient-to-br from-white/[0.045] to-white/[0.015] p-4 backdrop-blur-xl">
-
-            <div className="flex items-center justify-between">
-
-              <h3 className="text-sm font-semibold text-white">
-                Payment
-              </h3>
-
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/45">
-                Transaction
-              </div>
-
-            </div>
-
-            <div className="mt-4">
-
-              <p className="text-xs text-white/45">
-                Total Amount
+        </div>
+      </div>
+    
+      {/* LIFECYCLE */}
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
+    
+        <div className="flex items-center justify-between">
+    
+          <h3 className="text-[12px] font-semibold text-white">
+            Booking Lifecycle
+          </h3>
+    
+          <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[7px] text-white/45">
+            Live Status
+          </div>
+        </div>
+    
+        <div className="mt-4 space-y-3">
+    
+          <div className="flex items-start gap-2">
+    
+            <div className="mt-1 h-1.5 w-1.5 rounded-full bg-white/40" />
+    
+            <div>
+    
+              <p className="text-[9px] font-medium text-white">
+                Booking Created
               </p>
-
-              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[#86EFAC]">
-                {booking.currency} {totalPrice}
-              </h2>
-
-              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
-
-                <div className="flex items-center justify-between">
-
-                  <span className="text-xs text-white/45">
-                    Payment Status
-                  </span>
-
-                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] font-medium text-white">
-                    {booking.paymentStatus}
-                  </span>
-
-                </div>
-
-              </div>
-
+    
+              <p className="mt-0.5 text-[7px] text-white/45">
+                {new Date(
+                  booking.createdAt
+                ).toLocaleString()}
+              </p>
             </div>
-
           </div>
-
-          {/* ================= LIFECYCLE ================= */}
-
-         <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-2.5 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-
-            <div className="flex items-center justify-between">
-
-              <h3 className="text-sm font-semibold text-white">
-                Booking Lifecycle
-              </h3>
-
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/45">
-                Live Status
-              </div>
-
-            </div>
-
-            <div className="mt-4 space-y-4">
-
-              <div className="flex items-start gap-3">
-
-                <div className="mt-1.5 h-2 w-2 rounded-full bg-white/40" />
-
+    
+          {booking.status === "COMPLETED" &&
+            booking.completedAt && (
+              <div className="flex items-start gap-2">
+    
+                <div className="mt-1 h-1.5 w-1.5 rounded-full bg-green-400" />
+    
                 <div>
-
-                  <p className="text-sm font-medium text-white">
-                    Booking Created
+    
+                  <p className="text-[9px] font-medium text-white">
+                    Session Completed
                   </p>
-
-                  <p className="text-xs text-white/45">
+    
+                  <p className="mt-0.5 text-[7px] text-white/45">
                     {new Date(
-                      booking.createdAt
+                      booking.completedAt
                     ).toLocaleString()}
                   </p>
-
                 </div>
-
               </div>
-
-              {booking.status === "COMPLETED" &&
-                booking.completedAt && (
-
-                  <div className="flex items-start gap-3">
-
-                    <div className="mt-1.5 h-2 w-2 rounded-full bg-green-400" />
-
-                    <div>
-
-                      <p className="text-sm font-medium text-white">
-                        Session Completed
-                      </p>
-
-                      <p className="text-xs text-white/45">
-                        {new Date(
-                          booking.completedAt
-                        ).toLocaleString()}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                )}
-
-              {booking.status === "CANCELLED" && (
-
-                <div className="flex items-start gap-3">
-
-                  <div className="mt-1.5 h-2 w-2 rounded-full bg-red-400" />
-
-                  <div>
-
-                    <p className="text-sm font-medium text-white">
-                      Booking Cancelled
-                    </p>
-
-                    <p className="text-xs text-white/45">
-                      Booking was cancelled
-                    </p>
-
-                  </div>
-
-                </div>
-
-              )}
-
-              {booking.status === "EXPIRED" && (
-
-                <div className="flex items-start gap-3">
-
-                  <div className="mt-1.5 h-2 w-2 rounded-full bg-yellow-400" />
-
-                  <div>
-
-                    <p className="text-sm font-medium text-white">
-                      Booking Expired
-                    </p>
-
-                    <p className="text-xs text-white/45">
-                      Booking expired automatically
-                    </p>
-
-                  </div>
-
-                </div>
-
-              )}
-
+            )}
+    
+          {booking.status === "CANCELLED" && (
+            <div className="flex items-start gap-2">
+    
+              <div className="mt-1 h-1.5 w-1.5 rounded-full bg-red-400" />
+    
+              <div>
+    
+                <p className="text-[9px] font-medium text-white">
+                  Booking Cancelled
+                </p>
+    
+                <p className="mt-0.5 text-[7px] text-white/45">
+                  Booking was cancelled
+                </p>
+              </div>
             </div>
-
-          </div>
-
-          {/* ================= ACTIONS ================= */}
-
-          <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-
-            <div className="flex flex-col gap-3">
-
-              {booking.status === "CONFIRMED" && (
-                <>
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/dashboard/chat/${booking._id}`
-                      )
-                    }
-                    className="w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.10]"
-                  >
-                    Open Chat
-                  </button>
-
-                  <div className="overflow-hidden rounded-2xl">
-                    <CompleteButton
-                      bookingId={booking._id}
-                      role="user"
-                      onCompleted={handleCompleted}
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => setShowModal(true)}
-                    disabled={cancelling}
-                    className="w-full rounded-2xl border border-red-500/20 bg-red-500/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-60"
-                  >
-                    {cancelling
-                      ? "Cancelling..."
-                      : "Cancel Booking"}
-                  </button>
-                </>
-              )}
-
-              {[
-                "COMPLETED",
-                "CANCELLED",
-                "EXPIRED",
-              ].includes(booking.status) && (
-                <>
-                  <DisputeTimer
-                    status={booking.status}
-                    completedAt={booking.completedAt}
-                  />
-
-                  {[
-                    "CANCELLED",
-                    "EXPIRED",
-                  ].includes(booking.status) && (
-                    <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-                      You can raise a dispute for this booking
-                    </div>
-                  )}
-
-                  {canRaiseDispute() && (
-                    <button
-                      onClick={() =>
-                        setDisputeOpen(true)
-                      }
-                      className="w-full rounded-2xl border border-yellow-500/20 bg-yellow-500/15 px-4 py-3 text-sm font-semibold text-yellow-200 transition hover:bg-yellow-500/25"
-                    >
-                      Raise Dispute
-                    </button>
-                  )}
-                </>
-              )}
-
+          )}
+    
+          {booking.status === "EXPIRED" && (
+            <div className="flex items-start gap-2">
+    
+              <div className="mt-1 h-1.5 w-1.5 rounded-full bg-yellow-400" />
+    
+              <div>
+    
+                <p className="text-[9px] font-medium text-white">
+                  Booking Expired
+                </p>
+    
+                <p className="mt-0.5 text-[7px] text-white/45">
+                  Booking expired automatically
+                </p>
+              </div>
             </div>
-
-          </div>
-
+          )}
         </div>
       </div>
+    
+      {/* ACTION BAR */}
+<div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
 
-      {/* ================= MODALS ================= */}
+  <div className="flex flex-col gap-2">
 
-      <ConfirmModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onConfirm={handleCancel}
-        loading={cancelling}
-      />
+    {/* CONFIRMED */}
+    {booking.status === "CONFIRMED" && (
+      <>
+        <button
+          onClick={() =>
+            navigate(
+              `/dashboard/chat/${booking._id}`
+            )
+          }
+          className="w-full rounded-[16px] border border-white/10 bg-white/[0.05] px-4 py-3 text-[11px] font-semibold text-white transition hover:bg-white/[0.10]"
+        >
+          Open Chat
+        </button>
 
-      <ReviewModal
-        open={reviewOpen}
-        bookingId={booking._id}
-        onClose={() => setReviewOpen(false)}
-      />
+        <div className="overflow-hidden rounded-[16px]">
 
-      <DisputeModal
-        open={disputeOpen}
-        bookingId={booking._id}
-        onClose={() => setDisputeOpen(false)}
-      />
+          <CompleteButton
+            bookingId={booking._id}
+            role="user"
+            onCompleted={
+              handleCompleted
+            }
+          />
+        </div>
 
+        <button
+          onClick={() =>
+            setShowModal(true)
+          }
+          disabled={cancelling}
+          className="w-full rounded-[16px] border border-red-500/20 bg-red-500/20 px-4 py-3 text-[11px] font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-60"
+        >
+          {cancelling
+            ? "Cancelling..."
+            : "Cancel Booking"}
+        </button>
+      </>
+    )}
+
+    {/* COMPLETED / CANCELLED / EXPIRED */}
+    {[
+      "COMPLETED",
+      "CANCELLED",
+      "EXPIRED",
+    ].includes(booking.status) && (
+      <>
+
+        <DisputeTimer
+          status={booking.status}
+          completedAt={
+            booking.completedAt
+          }
+        />
+
+        {[
+          "CANCELLED",
+          "EXPIRED",
+        ].includes(booking.status) && (
+          <div className="rounded-[16px] border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-[10px] text-yellow-200">
+            You can raise a dispute for this booking
+          </div>
+        )}
+
+        {canRaiseDispute() && (
+          <button
+            onClick={() =>
+              setDisputeOpen(true)
+            }
+            className="w-full rounded-[16px] border border-yellow-500/20 bg-yellow-500/15 px-4 py-3 text-[11px] font-semibold text-yellow-200 transition hover:bg-yellow-500/25"
+          >
+            Raise Dispute
+          </button>
+        )}
+      </>
+    )}
+  </div>
+</div>
     </div>
+          </div>
+    
+          {/* ================= MODALS ================= */}
+    
+          <ConfirmModal
+            open={showModal}
+            onClose={() =>
+              setShowModal(false)
+            }
+            onConfirm={handleCancel}
+            loading={cancelling
+            }
+          />
+    
+          <ReviewModal
+            open={reviewOpen}
+            bookingId={booking._id}
+            onClose={() =>
+              setReviewOpen(false)
+            }
+          />
+    
+          <DisputeModal
+            open={disputeOpen}
+            bookingId={booking._id}
+            onClose={() =>
+              setDisputeOpen(false)
+            }
+          />
+        </div>
 
   </UserDashboardLayout>
 );

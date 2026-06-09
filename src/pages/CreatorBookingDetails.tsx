@@ -522,6 +522,19 @@ return (
                     {booking.currency} {totalPrice}
                   </div>
                 </div>
+
+                <div className="mt-3 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+
+  <p className="text-[8px] uppercase tracking-wider text-white/35">
+  Booking ID
+</p>
+
+<p className="mt-1.5 break-all text-[10px] text-white/70">
+  {booking._id}
+</p>
+
+</div>
+
               </div>
             </div>
 
