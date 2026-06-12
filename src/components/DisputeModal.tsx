@@ -47,7 +47,7 @@ export default function DisputeModal({
   return (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
 
-    <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#0B1220] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+    <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.015] backdrop-blur-xl p-5 shadow-[0_20px_60px_rgba(0,0,0,0.55)]">
 
       {/* HEADER */}
       <div>
@@ -71,25 +71,40 @@ export default function DisputeModal({
           placeholder="Describe the issue..."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="min-h-[140px] w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-3 text-[12px] text-white outline-none transition focus:border-white/20"
+          className="
+            min-h-[170px]
+            w-full
+            rounded-[18px]
+            border border-white/10
+            bg-white/[0.03]
+            px-4 py-3
+            text-sm text-white
+            outline-none
+            transition
+            placeholder:text-white/35
+            focus:border-white/20
+            focus:bg-white/[0.05]
+          "
         />
+
       </div>
 
       {/* WARNING */}
-      <div className="mt-4 rounded-[16px] border border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
+      <div className="mt-4 rounded-[18px] border border-yellow-500/20 bg-yellow-500/10 p-4">
 
-        <p className="text-[11px] text-yellow-200">
-          Submitting a dispute will notify the moderation team and may require additional review before resolution.
+        <p className="text-[12px] leading-relaxed text-yellow-200">
+          Submitting a dispute will notify the moderation team and may require
+          additional review before resolution.
         </p>
 
       </div>
 
       {/* ACTIONS */}
-      <div className="mt-5 flex gap-2">
+      <div className="mt-5 flex gap-3">
 
         <button
           onClick={onClose}
-          className="flex-1 rounded-[16px] border border-white/10 bg-white/[0.05] px-4 py-3 text-[11px] font-semibold text-white transition hover:bg-white/[0.08]"
+          className="flex-1 rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
         >
           Cancel
         </button>
@@ -97,7 +112,19 @@ export default function DisputeModal({
         <button
           onClick={handleSubmit}
           disabled={loading || !reason.trim()}
-          className="flex-1 rounded-[16px] border border-red-500/20 bg-red-500/15 px-4 py-3 text-[11px] font-semibold text-red-200 transition hover:bg-red-500/25 disabled:opacity-60"
+          className="
+            flex-1
+            rounded-[18px]
+            border border-red-500/20
+            bg-red-500/15
+            px-4 py-3
+            text-sm font-semibold text-red-200
+            transition
+            hover:bg-red-500/25
+            disabled:bg-white/[0.05]
+            disabled:text-white/25
+            disabled:border-white/10
+          "
         >
           {loading
             ? "Submitting..."

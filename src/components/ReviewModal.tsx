@@ -55,8 +55,7 @@ export default function ReviewModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-      <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#0B1220] p-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-
+      <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#0A0A0A] shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl p-5">
         <div>
   <h2 className="text-[18px] font-semibold text-white">
     Submit Review

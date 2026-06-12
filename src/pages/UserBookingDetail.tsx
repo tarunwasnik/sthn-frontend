@@ -461,7 +461,7 @@ setBooking(found || null);
                         className="h-full w-full object-cover object-center"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[#050816]">
+                      <div className="flex h-full w-full items-center justify-center bg-[#050505]">
     
                         <div className="flex flex-col items-center gap-3">
     

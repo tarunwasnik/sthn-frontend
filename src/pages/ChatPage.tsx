@@ -1,4 +1,7 @@
 // frontend/src/pages/ChatPage.tsx
+import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import DashboardLayout from "../layouts/DashboardLayout";
+
 
 import {
   useEffect,
@@ -25,8 +28,7 @@ import { useAuth } from "../context/AuthContext";
 
 import { socket } from "../lib/socket";
 
-import UserDashboardLayout from "../layouts/UserDashboardLayout";
-import DashboardLayout from "../layouts/DashboardLayout";
+
 
 interface ChatMessage {
   _id: string;
@@ -1061,7 +1063,7 @@ export default function ChatPage() {
       background: rgba(255,255,255,0.16);
     }
   `}
-</style>
+   </style>
 
       </div>
 

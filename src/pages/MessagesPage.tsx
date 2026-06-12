@@ -23,6 +23,7 @@ import type {
 } from "../api/chat";
 
 import { socket } from "../lib/socket";
+import ChatPanel from "../components/chat/ChatPanel";
 
 export default function MessagesPage() {
   const navigate = useNavigate();
@@ -43,6 +44,16 @@ export default function MessagesPage() {
 
   const [loading, setLoading] =
     useState(true);
+
+    const [
+  selectedBookingId,
+  setSelectedBookingId,
+] = useState<string | null>(null);
+
+const [
+  chatOpen,
+  setChatOpen,
+] = useState(false);
 
   /* ======================================================
      FETCH
@@ -171,12 +182,34 @@ export default function MessagesPage() {
   ====================================================== */
 
   const openChat = (
-    bookingId: string
-  ) => {
+  bookingId: string
+) => {
+
+  if (window.innerWidth < 1024) {
     navigate(
       `/dashboard/chat/${bookingId}`
     );
-  };
+    return;
+  }
+
+  if (
+    selectedBookingId === bookingId &&
+    chatOpen
+  ) {
+    setChatOpen(false);
+    return;
+  }
+
+  setSelectedBookingId(
+    bookingId
+  );
+
+  setChatOpen(true);
+};
+
+const closeChat = () => {
+  setChatOpen(false);
+};
 
   const getInitials = (
     name: string
@@ -260,7 +293,7 @@ export default function MessagesPage() {
               shadow-[0_10px_30px_rgba(0,0,0,0.35)]
               px-5
               md:px-6
-              py-5
+              py-4
             "
           >
 
@@ -499,50 +532,53 @@ export default function MessagesPage() {
 {!loading &&
   sortedConversations.length > 0 && (
 
-    <div className="space-y-3">
+    <>
+      {/* MOBILE */}
 
-      {sortedConversations.map(
-        (c) => {
+      <div className="lg:hidden space-y-3">
 
-          const profile =
-            c.otherUser?.profile;
+        {sortedConversations.map(
+          (c) => {
 
-          const displayName =
-            profile?.displayName ||
-            profile?.username ||
-            "User";
+            const profile =
+              c.otherUser?.profile;
 
-          const avatarUrl =
-            profile?.avatarUrl ||
-            profile?.avatar ||
-            profile?.profilePhotos?.[0] ||
-            null;
+            const displayName =
+              profile?.displayName ||
+              profile?.username ||
+              "User";
 
-          return (
+            const avatarUrl =
+              profile?.avatarUrl ||
+              profile?.avatar ||
+              profile?.profilePhotos?.[0] ||
+              null;
 
-            <div
-              key={c.bookingId}
-              onClick={() =>
-                openChat(c.bookingId)
-              }
-              className="
-                group
-                cursor-pointer
-                rounded-[24px]
-                border border-white/10
-                bg-gradient-to-br
-                from-white/[0.045]
-                to-white/[0.015]
-                backdrop-blur-xl
-                shadow-[0_6px_22px_rgba(0,0,0,0.26)]
-                hover:border-white/15
-                hover:bg-white/[0.03]
-                transition-all duration-200
-                active:scale-[0.995]
-              "
-            >
+            return (
 
-              <div className="px-5 py-3.5">
+              <div
+                key={c.bookingId}
+                onClick={() =>
+                  openChat(c.bookingId)
+                }
+                className="
+                  group
+                  cursor-pointer
+                  rounded-[24px]
+                  border border-white/10
+                  bg-gradient-to-br
+                  from-white/[0.045]
+                  to-white/[0.015]
+                  backdrop-blur-xl
+                  shadow-[0_6px_22px_rgba(0,0,0,0.26)]
+                  hover:border-white/15
+                  hover:bg-white/[0.03]
+                  transition-all
+                  duration-200
+                "
+              >
+
+                <div className="px-5 py-2.5">
 
                 <div className="flex items-center gap-3">
 
@@ -673,7 +709,7 @@ export default function MessagesPage() {
                           <p
                             className="
                               text-[10px]
-                              text-white/42
+                              text-white/35
                               truncate
                               leading-none
                             "
@@ -714,13 +750,13 @@ export default function MessagesPage() {
                     <div className="mt-1.5 flex items-center justify-between gap-3">
 
                       <p
-                        className="
-                          text-[13px]
-                          text-white/55
-                          truncate
-                          leading-relaxed
-                        "
-                      >
+  className="
+    text-[12px]
+    text-white/55
+    truncate
+    leading-none
+  "
+>
                         {c.lastMessage ||
                           "No messages yet"}
                       </p>
@@ -779,13 +815,368 @@ export default function MessagesPage() {
 
               </div>
 
-            </div>
-          );
-        }
-      )}
+              </div>
+            );
+          }
+        )}
 
-    </div>
-  )}
+      </div>
+
+      {/* DESKTOP */}
+
+      <div
+        className="
+          hidden
+          lg:flex
+          gap-5
+          h-[calc(100vh-240px)]
+        "
+      >
+
+        {/* LEFT PANEL */}
+
+        <div
+          className={`
+            transition-all
+            duration-300
+            ${
+              chatOpen
+                ? "w-[32%]"
+                : "w-full"
+            }
+          `}
+        >
+
+          <div className="space-y-3">
+
+            {sortedConversations.map(
+              (c) => {
+
+                const profile =
+                  c.otherUser?.profile;
+
+                const displayName =
+                  profile?.displayName ||
+                  profile?.username ||
+                  "User";
+
+                const avatarUrl =
+                  profile?.avatarUrl ||
+                  profile?.avatar ||
+                  profile?.profilePhotos?.[0] ||
+                  null;
+
+                return (
+
+                  <div
+                    key={c.bookingId}
+                    onClick={() =>
+                      openChat(
+                        c.bookingId
+                      )
+                    }
+                    className="
+                      group
+                      cursor-pointer
+                      rounded-[24px]
+                      border border-white/10
+                      bg-gradient-to-br
+                      from-white/[0.045]
+                      to-white/[0.015]
+                      backdrop-blur-xl
+                      shadow-[0_6px_22px_rgba(0,0,0,0.26)]
+                      hover:border-white/15
+                      hover:bg-white/[0.03]
+                      transition-all
+                      duration-200
+                    "
+                  >
+
+                    <div className="px-5 py-2.5">
+
+                <div className="flex items-center gap-3">
+
+                  {/* ======================================================
+                      AVATAR
+                  ====================================================== */}
+
+                  <div className="relative shrink-0">
+
+                    {avatarUrl ? (
+
+                      <img
+                        src={avatarUrl}
+                        alt="avatar"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "/default-avatar.png";
+                        }}
+                        className="
+                          w-11
+                          h-11
+                          rounded-full
+                          object-cover
+                          border border-white/10
+                        "
+                      />
+
+                    ) : (
+
+                      <div
+                        className="
+                          w-11
+                          h-11
+                          rounded-full
+                          border border-white/10
+                          bg-white/[0.06]
+                          flex items-center justify-center
+                          text-[13px]
+                          font-semibold
+                          text-white
+                        "
+                      >
+
+                        {getInitials(
+                          displayName
+                        )}
+
+                      </div>
+                    )}
+
+                    {c.unreadCount > 0 && (
+
+                      <span
+                        className="
+                          absolute
+                          -top-1
+                          -right-1
+                          min-w-[18px]
+                          h-[18px]
+                          px-1
+                          rounded-full
+                          bg-[#22C55E]
+                          text-black
+                          text-[9px]
+                          font-semibold
+                          flex items-center justify-center
+                        "
+                      >
+
+                        {c.unreadCount > 99
+                          ? "99+"
+                          : c.unreadCount}
+
+                      </span>
+                    )}
+
+                  </div>
+
+                  {/* ======================================================
+                      CONTENT
+                  ====================================================== */}
+
+                  <div className="flex-1 min-w-0">
+
+                    <div className="flex items-start justify-between gap-3">
+
+                      <div className="min-w-0">
+
+                        <div className="flex items-center gap-2 flex-wrap">
+
+                          <h2
+                            className="
+                              text-[14px]
+                              font-semibold
+                              text-[#F8FAFC]
+                              truncate
+                            "
+                          >
+                            {displayName}
+                          </h2>
+
+                          {isCreator && (
+
+                            <span
+                              className="
+                                px-2
+                                py-[3px]
+                                rounded-full
+                                text-[9px]
+                                border border-white/10
+                                bg-white/[0.04]
+                                text-white/60
+                                leading-none
+                              "
+                            >
+                              Client
+                            </span>
+                          )}
+
+                        </div>
+
+                        {/* ======================================================
+                            SERVICE TITLE
+                        ====================================================== */}
+
+                        <div className="mt-[2px]">
+
+                          <p
+                            className="
+                              text-[10px]
+                              text-white/35
+                              truncate
+                              leading-none
+                            "
+                          >
+                            {c.service?.title ||
+                              "Service"}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      {/* ======================================================
+                          TIME
+                      ====================================================== */}
+
+                      <div className="shrink-0">
+
+                        <p
+                          className="
+                            text-[11px]
+                            text-white/38
+                          "
+                        >
+                          {formatMessageTime(
+                            c.lastMessageAt
+                          )}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* ======================================================
+                        MESSAGE
+                    ====================================================== */}
+
+                    <div className="mt-1.5 flex items-center justify-between gap-3">
+
+                      <p
+  className="
+    text-[12px]
+    text-white/55
+    truncate
+    leading-none
+  "
+>
+                        {c.lastMessage ||
+                          "No messages yet"}
+                      </p>
+
+                      <div
+                        className="
+                          hidden md:flex
+                          opacity-0
+                          group-hover:opacity-100
+                          transition-opacity
+                          duration-200
+                          shrink-0
+                        "
+                      >
+
+                        <div
+                          className="
+                            w-8
+                            h-8
+                            rounded-lg
+                            border border-white/10
+                            bg-white/[0.04]
+                            flex items-center justify-center
+                          "
+                        >
+
+                          <svg
+                            className="
+                              w-3.5
+                              h-3.5
+                              text-white/60
+                            "
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+
+                          </svg>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+                  </div>
+                );
+              }
+            )}
+
+          </div>
+
+        </div>
+
+        {/* RIGHT PANEL PLACEHOLDER */}
+
+        <div
+  className={`
+    overflow-hidden
+    transition-all
+    duration-300
+    ease-in-out
+    ${
+      chatOpen
+        ? "flex-1 opacity-100"
+        : "w-0 opacity-0"
+    }
+  `}
+>
+  <div
+    className="
+      h-full
+      rounded-[28px]
+      border border-white/10
+      bg-gradient-to-br
+      from-white/[0.045]
+      to-white/[0.015]
+      backdrop-blur-xl
+    "
+  >
+    {selectedBookingId && (
+      <ChatPanel
+        bookingId={selectedBookingId}
+        embedded
+        onClose={closeChat}
+      />
+    )}
+  </div>
+</div>
+
+      </div>
+    </>
+)}
 
 </div>
 
@@ -799,9 +1190,7 @@ export default function MessagesPage() {
             width: 8px;
           }
 
-          ::-webkit-scrollbar-track {
-            background: #050816;
-          }
+          
 
           ::-webkit-scrollbar-thumb {
             background: rgba(255,255,255,0.12);
