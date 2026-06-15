@@ -435,18 +435,32 @@ const closeChat = () => {
   ====================================================== */
 
   const renderContent = () => (
-    <div className="min-h-screen text-[#F8FAFC]">
+    <div
+  className="
+    h-full
+    overflow-hidden
+    text-[#F8FAFC]
+    flex
+    flex-col
+    min-h-0
+  "
+>
 
       <div
-        className="
-          max-w-6xl
-          mx-auto
-          px-3
-          md:px-5
-          py-4
-          pb-24
-        "
-      >
+  className="
+    flex-1
+    min-h-0
+    max-w-6xl
+    mx-auto
+    w-full
+    px-3
+    md:px-5
+    py-4
+    pb-0
+    flex
+    flex-col
+  "
+>
 
         {/* ======================================================
            HEADER
@@ -997,12 +1011,12 @@ const closeChat = () => {
 
       {/* DESKTOP */}
 
-      <div
+   <div
   className="
     hidden
     lg:flex
     gap-5
-    h-[calc(100vh-240px)]
+    flex-1
     min-h-0
   "
 >
