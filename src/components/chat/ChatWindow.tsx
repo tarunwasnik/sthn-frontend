@@ -1,6 +1,5 @@
-// frontend/src/pages/ChatPage.tsx
-import UserDashboardLayout from "../layouts/UserDashboardLayout";
-import DashboardLayout from "../layouts/DashboardLayout";
+//frontend/src/components/chat/ChatWindow.tsx
+
 
 
 import {
@@ -9,25 +8,20 @@ import {
   useState,
 } from "react";
 
-import {
-  useParams,
-  useNavigate,
-} from "react-router-dom";
 
-import api from "../api/axios";
+import api from "../../api/axios";
 
 import {
   getConversations,
-} from "../api/chat";
+} from "../../api/chat";
 
 import type {
   Conversation,
-} from "../api/chat";
+} from "../../api/chat";
 
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
-import { socket } from "../lib/socket";
-
+import { socket } from "../../lib/socket";
 
 
 interface ChatMessage {
@@ -39,21 +33,22 @@ interface ChatMessage {
   createdAt: string;
 }
 
-export default function ChatPage() {
-  const { bookingId } =
-    useParams();
+interface ChatWindowProps {
+  bookingId: string;
+  embedded?: boolean;
+  onClose?: () => void;
+}
 
-  const navigate =
-    useNavigate();
+export default function ChatWindow({
+  bookingId,
+  embedded = false,
+  onClose,
+}: ChatWindowProps){
 
   const { role } =
     useAuth();
 
-  const Layout =
-    role === "creator"
-      ? DashboardLayout
-      : UserDashboardLayout;
-
+  
   const [
     messages,
     setMessages,
@@ -176,110 +171,120 @@ export default function ChatPage() {
   ====================================================== */
 
   const fetchBookingDetails =
-  async () => {
-    try {
-      let booking = null;
+    async () => {
+      try {
+        let booking = null;
 
-      if (role === "user") {
-        const res =
-          await api.get(
-            "/v1/bookings/user"
-          );
+if (role === "creator") {
+  const creatorRes =
+    await api.get(
+      "/v1/creator/bookings"
+    );
 
-        booking =
-          res.data.bookings.find(
-            (b: any) =>
-              b._id === bookingId
-          );
-      } else {
-        const res =
-          await api.get(
-            "/v1/creator/bookings"
-          );
+  booking =
+    creatorRes.data.bookings.find(
+      (b: any) =>
+        b._id === bookingId
+    );
+} else {
+  const userRes =
+    await api.get(
+       "/v1/bookings/user"
+    );
 
-        booking =
-          res.data.bookings.find(
-            (b: any) =>
-              b._id === bookingId
-          );
-      }
+  booking =
+    userRes.data.bookings.find(
+      (b: any) =>
+        b._id === bookingId
+    );
+}
 
-      if (!booking) return;
+        if (!booking) return;
 
-      const slots =
-        booking.slots || [];
-
-      if (slots.length > 0) {
-        const start =
-          new Date(
-            slots[0].startTime
-          );
-
-        const end =
-          new Date(
-            slots[
-              slots.length - 1
-            ].endTime
-          );
-
-        const formatted = `${start.toLocaleDateString(
-          [],
-          {
-            day: "2-digit",
-            month: "short",
-          }
-        )} • ${start.toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )} - ${end.toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )}`;
-
-        setSlotText(
-          formatted
-        );
+        const slots =
+          booking.slots || [];
 
         if (
-          Date.now() >
-          end.getTime()
+          slots.length > 0
         ) {
-          setChatClosed(
-            true
+          const start =
+            new Date(
+              slots[0]
+                .startTime
+            );
+
+          const end =
+            new Date(
+              slots[
+                slots.length -
+                  1
+              ].endTime
+            );
+
+          const formatted = `${start.toLocaleDateString(
+            [],
+            {
+              day: "2-digit",
+              month:
+                "short",
+            }
+          )} • ${start.toLocaleTimeString(
+            [],
+            {
+              hour:
+                "2-digit",
+              minute:
+                "2-digit",
+            }
+          )} - ${end.toLocaleTimeString(
+            [],
+            {
+              hour:
+                "2-digit",
+              minute:
+                "2-digit",
+            }
+          )}`;
+
+          setSlotText(
+            formatted
           );
+
+          if (
+            Date.now() >
+            end.getTime()
+          ) {
+            setChatClosed(
+              true
+            );
+          }
         }
+      } catch (err) {
+        console.error(
+          "Failed to fetch booking details"
+        );
       }
-    } catch (err) {
-      console.error(
-        "Failed to fetch booking details",
-        err
-      );
-    }
-  };
+    };
 
   /* ======================================================
      INITIAL LOAD
   ====================================================== */
 
   useEffect(() => {
-  if (!bookingId) return;
+    if (!bookingId)
+      return;
 
-  const init = async () => {
-    await Promise.all([
-      fetchChats(),
-      fetchBookingDetails(),
-      fetchConversation(),
-    ]);
-  };
+    const init =
+      async () => {
+        await Promise.all([
+          fetchChats(),
+          fetchBookingDetails(),
+          fetchConversation(),
+        ]);
+      };
 
-  init();
-}, [bookingId, role]);
+    init();
+  }, [bookingId]);
 
   /* ======================================================
      SOCKET
@@ -288,6 +293,11 @@ export default function ChatPage() {
   useEffect(() => {
     if (!bookingId)
       return;
+console.log(
+    "CHAT WINDOW JOIN",
+    bookingId
+  );
+
 
     socket.emit(
       "join-booking",
@@ -348,16 +358,17 @@ export default function ChatPage() {
     );
 
     return () => {
-      socket.emit(
-        "leave-booking",
-        bookingId
-      );
 
-      socket.off(
-        "chat:message",
-        handleMessage
-      );
-    };
+  console.log(
+    "CHAT WINDOW UNMOUNT",
+    bookingId
+  );
+
+  socket.off(
+    "chat:message",
+    handleMessage
+  );
+};
   }, [bookingId, role]);
 
   /* ======================================================
@@ -601,7 +612,7 @@ export default function ChatPage() {
   ====================================================== */
 
   return (
-    <Layout>
+    
 
       <div
   className="
@@ -641,19 +652,19 @@ export default function ChatPage() {
 
           <div className="flex items-center gap-3 min-w-0">
 
-            <button
-              onClick={() =>
-                navigate(-1)
-              }
-              className="
-                shrink-0
-                text-white/80
-                hover:text-white
-                transition-colors
-              "
-            >
-              ←
-            </button>
+            {onClose && (
+  <button
+    onClick={onClose}
+    className="
+      shrink-0
+      text-white/80
+      hover:text-white
+      transition-colors
+    "
+  >
+    ←
+  </button>
+)}
 
             {/* AVATAR */}
 
@@ -1051,6 +1062,6 @@ export default function ChatPage() {
 
       </div>
 
-    </Layout>
+    
   );
 }

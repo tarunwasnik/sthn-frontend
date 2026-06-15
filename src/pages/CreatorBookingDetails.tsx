@@ -172,10 +172,18 @@ export default function CreatorBookingDetails() {
   /* ================= ACTIONS ================= */
 
   const openChat = () => {
-    if (!booking?._id) return;
+  if (!booking?._id) return;
 
-    navigate(`/dashboard/chat/${booking._id}`);
-  };
+  if (window.innerWidth >= 1024) {
+    navigate(
+      `/dashboard/creator/messages?bookingId=${booking._id}`
+    );
+  } else {
+    navigate(
+      `/dashboard/chat/${booking._id}`
+    );
+  }
+};
 
   const handleDecision = async (
     decision: "ACCEPT" | "REJECT"

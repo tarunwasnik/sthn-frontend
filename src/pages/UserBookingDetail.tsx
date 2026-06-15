@@ -818,18 +818,24 @@ setBooking(found || null);
   <div className="flex flex-col gap-2">
 
     {/* CONFIRMED */}
-    {booking.status === "CONFIRMED" && (
-      <>
-        <button
-          onClick={() =>
-            navigate(
-              `/dashboard/chat/${booking._id}`
-            )
-          }
-          className="w-full rounded-[16px] border border-white/10 bg-white/[0.05] px-4 py-3 text-[11px] font-semibold text-white transition hover:bg-white/[0.10]"
-        >
-          Open Chat
-        </button>
+{booking.status === "CONFIRMED" && (
+  <>
+    <button
+      onClick={() => {
+        if (window.innerWidth >= 1024) {
+          navigate(
+            `/dashboard/user/messages?bookingId=${booking._id}`
+          );
+        } else {
+          navigate(
+            `/dashboard/chat/${booking._id}`
+          );
+        }
+      }}
+      className="w-full rounded-[16px] border border-white/10 bg-white/[0.05] px-4 py-3 text-[11px] font-semibold text-white transition hover:bg-white/[0.10]"
+    >
+      Open Chat
+    </button>
 
         <div className="overflow-hidden rounded-[16px]">
 

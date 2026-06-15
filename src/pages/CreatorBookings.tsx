@@ -897,30 +897,36 @@ border border-white/10
                             </button>
 
                             {booking.status ===
-                              "CONFIRMED" && (
+  "CONFIRMED" && (
 
-                              <button
-                                onClick={() =>
-                                  navigate(
-                                    `/dashboard/chat/${booking._id}`
-                                  )
-                                }
-                                className="
-                                  w-full
-                                  h-11
-                                  rounded-2xl
-                                  bg-[rgba(255,255,255,0.04)]
-                                  border border-[rgba(255,255,255,0.08)]
-                                  text-white
-                                  text-sm
-                                  hover:bg-[rgba(255,255,255,0.07)]
-                                  transition
-                                "
-                              >
-                                Open Chat
-                              </button>
+  <button
+    onClick={() => {
+      if (window.innerWidth >= 1024) {
+        navigate(
+          `/dashboard/creator/messages?bookingId=${booking._id}`
+        );
+      } else {
+        navigate(
+          `/dashboard/chat/${booking._id}`
+        );
+      }
+    }}
+    className="
+      w-full
+      h-11
+      rounded-2xl
+      bg-[rgba(255,255,255,0.04)]
+      border border-[rgba(255,255,255,0.08)]
+      text-white
+      text-sm
+      hover:bg-[rgba(255,255,255,0.07)]
+      transition
+    "
+  >
+    Open Chat
+  </button>
 
-                            )}
+)}
 
                           </div>
 

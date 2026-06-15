@@ -930,28 +930,38 @@ export default function UserBookings() {
 
     {b.status === "CONFIRMED" && (
 
-      <button
-        onClick={() =>
-          navigate(
-            `/dashboard/chat/${b._id}`
-          )
-        }
-        className="
-          w-full
-          h-11
-          rounded-2xl
-          bg-[rgba(255,255,255,0.04)]
-          border border-[rgba(255,255,255,0.08)]
-          text-white
-          text-sm
-          hover:bg-[rgba(255,255,255,0.07)]
-          transition
-        "
-      >
-        Open Chat
-      </button>
+  <button
+    onClick={() => {
+      console.log(
+    "OPEN CHAT BOOKING ID",
+    b._id
+  );
+      if (window.innerWidth >= 1024) {
+        navigate(
+          `/dashboard/user/messages?bookingId=${b._id}`
+        );
+      } else {
+        navigate(
+          `/dashboard/chat/${b._id}`
+        );
+      }
+    }}
+    className="
+      w-full
+      h-11
+      rounded-2xl
+      bg-[rgba(255,255,255,0.04)]
+      border border-[rgba(255,255,255,0.08)]
+      text-white
+      text-sm
+      hover:bg-[rgba(255,255,255,0.07)]
+      transition
+    "
+  >
+    Open Chat
+  </button>
 
-    )}
+)}
 
   </div>
 

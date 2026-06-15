@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -46,6 +47,28 @@ export default function ChatPanel({
   const [chatClosed, setChatClosed] =
     useState(false);
 
+  const currentRole =
+    window.location.pathname.includes(
+      "/creator/"
+    )
+      ? "CREATOR"
+      : "USER";
+
+  const bottomRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
+  const scrollToBottom = (
+    behavior:
+      | ScrollBehavior
+      | undefined = "smooth"
+  ) => {
+    bottomRef.current?.scrollIntoView({
+      behavior,
+    });
+  };
+
   /* ======================================================
      FETCH MESSAGES
   ====================================================== */
@@ -82,11 +105,28 @@ export default function ChatPanel({
   }, [bookingId]);
 
   /* ======================================================
-   SOCKET
-====================================================== */
+     INITIAL SCROLL
+  ====================================================== */
 
-useEffect(() => {
+  useEffect(() => {
+    if (!loading) {
+      requestAnimationFrame(() => {
+        scrollToBottom("auto");
+      });
+    }
+  }, [loading]);
+
+  /* ======================================================
+     SOCKET
+  ====================================================== */
+
+  useEffect(() => {
   if (!bookingId) return;
+
+  console.log(
+    "CHAT PANEL JOIN",
+    bookingId
+  );
 
   socket.emit(
     "join-booking",
@@ -96,58 +136,64 @@ useEffect(() => {
   const handleMessage = (
     msg: ChatMessage
   ) => {
+      console.log(
+        "CHAT MESSAGE RECEIVED",
+        msg
+      );
 
- console.log(
-    "CHAT MESSAGE RECEIVED",
-    msg
-  );
+      setMessages((prev) => {
+        const exists =
+          prev.find(
+            (m) =>
+              m._id === msg._id
+          );
 
+        if (exists)
+          return prev;
 
-    setMessages((prev) => {
-      const exists =
-        prev.find(
-          (m) =>
-            m._id === msg._id
-        );
+        return [
+          ...prev,
+          msg,
+        ];
+      });
 
-      if (exists)
-        return prev;
+      api.post(
+        `/v1/chat/${bookingId}/seen`
+      );
 
-      return [
-        ...prev,
-        msg,
-      ];
-    });
+      socket.emit(
+        "chat:seen",
+        {
+          bookingId,
+        }
+      );
+    };
 
-    api.post(
-      `/v1/chat/${bookingId}/seen`
-    );
-
-    socket.emit(
-      "chat:seen",
-      {
-        bookingId,
-      }
-    );
-  };
-
-  socket.on(
-    "chat:message",
-    handleMessage
-  );
-
-  return () => {
-    socket.emit(
-      "leave-booking",
-      bookingId
-    );
-
-    socket.off(
+    socket.on(
       "chat:message",
       handleMessage
     );
-  };
-}, [bookingId]);
+
+    return () => {
+  console.log(
+    "CHAT PANEL LEAVE",
+    bookingId
+  );
+
+  socket.off(
+    "chat:message",
+    handleMessage
+  );
+};
+  }, [bookingId]);
+
+  /* ======================================================
+     AUTO SCROLL
+  ====================================================== */
+
+  useEffect(() => {
+    scrollToBottom("smooth");
+  }, [messages]);
 
   /* ======================================================
      SEND MESSAGE
@@ -155,48 +201,65 @@ useEffect(() => {
 
   const handleSend =
     async () => {
-      if (
-        !input.trim() ||
-        sending ||
-        chatClosed
-      ) {
-        return;
-      }
+    if (
+      !input.trim() ||
+      sending ||
+      chatClosed
+    ) {
+      return;
+    }
 
-      const messageText =
-        input.trim();
+    const messageText =
+      input.trim();
 
-      setSending(true);
+    setSending(true);
 
-      try {
-        const res =
-          await api.post(
-            `/v1/chat/${bookingId}/messages`,
-            {
-              message:
-                messageText,
-            }
+    try {
+      const res =
+        await api.post(
+          `/v1/chat/${bookingId}/messages`,
+          {
+            message:
+              messageText,
+          }
+        );
+
+      const saved =
+        res.data.chat;
+
+      console.log(
+        "CHAT MESSAGE SENT",
+        saved
+      );
+
+      setMessages((prev) => {
+        const exists =
+          prev.find(
+            (m) =>
+              m._id ===
+              saved._id
           );
 
-        const saved =
-          res.data.chat;
+        if (exists)
+          return prev;
 
-        setMessages((prev) => [
+        return [
           ...prev,
           saved,
-        ]);
+        ];
+      });
 
-        setInput("");
-      } catch (err: any) {
-        alert(
-          err?.response?.data
-            ?.message ||
-            "Failed to send message"
-        );
-      } finally {
-        setSending(false);
-      }
-    };
+      setInput("");
+    } catch (err: any) {
+      alert(
+        err?.response?.data
+          ?.message ||
+          "Failed to send message"
+      );
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="h-full flex flex-col text-[#F8FAFC]">
@@ -240,73 +303,80 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* MESSAGES */}
+     {/* MESSAGES */}
 
-      <div
-        className="
-          flex-1
-          overflow-y-auto
-          px-4
-          py-4
-        "
-      >
-        <div className="space-y-3">
+<div
+  className="
+    flex-1
+    overflow-y-auto
+    px-4
+    py-4
+    scroll-smooth
+  "
+>
+  <div className="space-y-3">
 
-          {loading && (
-            <p className="text-sm text-white/50">
-              Loading chat...
-            </p>
-          )}
+    {loading && (
+      <p className="text-sm text-white/50">
+        Loading chat...
+      </p>
+    )}
 
-          {error && (
-            <p className="text-sm text-red-400">
-              {error}
-            </p>
-          )}
+    {error && (
+      <p className="text-sm text-red-400">
+        {error}
+      </p>
+    )}
 
-          {!loading &&
-            !error &&
-            messages.map((msg) => {
-              const isMine =
-                msg.senderRole === "USER";
+    {!loading &&
+      !error &&
+      messages.map((msg) => {
+        const isMine =
+          msg.senderRole ===
+          currentRole;
 
-              return (
-                <div
-                  key={msg._id}
-                  className={`flex ${
-                    isMine
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`
-                      max-w-[80%]
-                      rounded-2xl
-                      px-3
-                      py-2
-                      border
-                      ${
-                        isMine
-                          ? `
-                            bg-white/[0.08]
-                            border-white/[0.10]
-                          `
-                          : `
-                            bg-white/[0.04]
-                            border-white/[0.08]
-                          `
-                      }
-                    `}
-                  >
-                    <p>{msg.message}</p>
-                  </div>
-                </div>
-              );
-            })}
+        return (
+          <div
+            key={msg._id}
+            className={`flex ${
+              isMine
+                ? "justify-end"
+                : "justify-start"
+            }`}
+          >
+            <div
+              className={`
+                max-w-[80%]
+                rounded-2xl
+                px-3
+                py-2
+                border
+                ${
+                  isMine
+                    ? `
+                      bg-white/[0.08]
+                      border-white/[0.10]
+                    `
+                    : `
+                      bg-white/[0.04]
+                      border-white/[0.08]
+                    `
+                }
+              `}
+            >
+              <p>{msg.message}</p>
+            </div>
+          </div>
+        );
+      })}
 
-        </div>
-      </div>
+    <div
+      ref={bottomRef}
+      className="h-1"
+    />
+
+  </div>
+</div>
 
       {/* INPUT */}
 

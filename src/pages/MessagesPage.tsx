@@ -9,7 +9,10 @@ import {
 import {
   useLocation,
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
+
+import api from "../api/axios";
 
 import DashboardLayout from "../layouts/DashboardLayout";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
@@ -23,12 +26,16 @@ import type {
 } from "../api/chat";
 
 import { socket } from "../lib/socket";
-import ChatPanel from "../components/chat/ChatPanel";
+import ChatPanel from "../components/chat/ChatWindow";
+import ChatWindow from "../components/chat/ChatWindow";
 
 export default function MessagesPage() {
   const navigate = useNavigate();
 
   const location = useLocation();
+
+  const [searchParams] =
+  useSearchParams();
 
   const isCreator =
     location.pathname.includes(
@@ -82,100 +89,235 @@ const [
     fetchConversations();
   }, []);
 
-  /* ======================================================
-     REALTIME
-  ====================================================== */
 
-  useEffect(() => {
-    const handleMessage = (
-      msg: any
-    ) => {
-      setConversations((prev) => {
-        const index =
-          prev.findIndex(
-            (c) =>
-              c.bookingId ===
-              msg.bookingId
+  /* ======================================================
+   AUTO OPEN CHAT FROM BOOKING
+====================================================== */
+
+useEffect(() => {
+
+  console.log(
+    "AUTO OPEN",
+    {
+      loading,
+      conversationsLength:
+        conversations.length,
+      bookingId:
+        searchParams.get(
+          "bookingId"
+        ),
+    }
+  );
+
+  if (
+    loading
+  ) {
+    return;
+  }
+
+  const bookingId =
+  searchParams.get(
+    "bookingId"
+  );
+
+if (!bookingId) {
+  return;
+}
+
+console.log(
+  "ALL CONVERSATIONS",
+  conversations.map(
+    (c) => c.bookingId
+  )
+);
+
+const exists =
+  conversations.find(
+    (c) =>
+      c.bookingId === bookingId
+  );
+
+  if (
+    window.innerWidth >= 1024
+  ) {
+    setSelectedBookingId(
+      bookingId
+    );
+
+    setChatOpen(true);
+    if (exists) {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.bookingId === bookingId
+          ? {
+              ...c,
+              unreadCount: 0,
+            }
+          : c
+      )
+    );
+
+    api.post(
+      `/v1/chat/${bookingId}/seen`
+    );
+
+    socket.emit(
+      "chat:seen",
+      {
+        bookingId,
+      }
+    );
+  }
+}
+
+}, [
+  loading,
+  
+  searchParams,
+]);
+
+/* ======================================================
+   JOIN CONVERSATION ROOMS
+====================================================== */
+
+useEffect(() => {
+  if (conversations.length === 0) {
+    return;
+  }
+
+  conversations.forEach((c) => {
+    console.log(
+      "MESSAGES PAGE JOIN",
+      c.bookingId
+    );
+
+    socket.emit(
+      "join-booking",
+      c.bookingId
+    );
+  });
+}, [conversations.length]);
+
+
+
+/* ======================================================
+   REALTIME
+====================================================== */
+
+useEffect(() => {
+  const handleMessage = (
+    msg: any
+  ) => {
+
+    console.log(
+    "MESSAGES PAGE RECEIVED",
+    msg
+  );
+
+
+    setConversations((prev) => {
+      const index =
+        prev.findIndex(
+          (c) =>
+            c.bookingId ===
+            msg.bookingId
+        );
+
+      if (index === -1) {
+
+        console.log(
+    "CONVERSATION NOT FOUND -> REFETCH"
+  );
+
+
+  fetchConversations();
+  return prev;
+}
+
+      const updated = [...prev];
+
+      const isActiveConversation =
+        chatOpen &&
+        selectedBookingId ===
+          msg.bookingId;
+
+      updated[index] = {
+        ...updated[index],
+
+        lastMessage:
+          msg.message,
+
+        lastMessageAt:
+          msg.createdAt,
+
+        unreadCount:
+          isActiveConversation
+            ? 0
+            : updated[index]
+                .unreadCount + 1,
+      };
+
+      if (index !== 0) {
+        const [moved] =
+          updated.splice(
+            index,
+            1
           );
 
-        if (index === -1)
-          return prev;
+        updated.unshift(moved);
+      }
 
-        const updated = [
-          ...prev,
-        ];
+      return updated;
+    });
+  };
 
-        updated[index] = {
-          ...updated[index],
+  /*const handleSeen = (
+    data: {
+      bookingId: string;
+    }
+  ) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.bookingId ===
+        data.bookingId
+          ? {
+              ...c,
+              unreadCount: 0,
+            }
+          : c
+      )
+    );
+  };*/
 
-          lastMessage:
-            msg.message,
+  socket.on(
+    "chat:message",
+    handleMessage
+  );
 
-          lastMessageAt:
-            msg.createdAt,
+  //socket.on(
+  //  "chat:seen",
+   // handleSeen
+  //);
 
-          unreadCount:
-            updated[index]
-              .unreadCount + 1,
-        };
-
-        /* MOVE TO TOP ONLY IF NEEDED */
-
-        if (index !== 0) {
-          const [moved] =
-            updated.splice(
-              index,
-              1
-            );
-
-          updated.unshift(moved);
-        }
-
-        return updated;
-      });
-    };
-
-    const handleSeen = (
-      data: any
-    ) => {
-      if (!data?.bookingId)
-        return;
-
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.bookingId ===
-          data.bookingId
-            ? {
-                ...c,
-                unreadCount: 0,
-              }
-            : c
-        )
-      );
-    };
-
-    socket.on(
+  return () => {
+    socket.off(
       "chat:message",
       handleMessage
     );
 
-    socket.on(
-      "chat:seen",
-      handleSeen
-    );
+    //socket.off(
+     // "chat:seen",
+     // handleSeen
+    //);
+  };
+}, [
+  chatOpen,
+  selectedBookingId,
+]);
 
-    return () => {
-      socket.off(
-        "chat:message",
-        handleMessage
-      );
 
-      socket.off(
-        "chat:seen",
-        handleSeen
-      );
-    };
-  }, []);
+
+
 
   /* ======================================================
      HELPERS
@@ -205,6 +347,36 @@ const [
   );
 
   setChatOpen(true);
+
+  /* ==========================================
+     CLEAR UNREAD IMMEDIATELY
+  ========================================== */
+
+  setConversations((prev) =>
+    prev.map((c) =>
+      c.bookingId === bookingId
+        ? {
+            ...c,
+            unreadCount: 0,
+          }
+        : c
+    )
+  );
+
+  /* ==========================================
+     MARK AS SEEN
+  ========================================== */
+
+  api.post(
+    `/v1/chat/${bookingId}/seen`
+  );
+
+  socket.emit(
+    "chat:seen",
+    {
+      bookingId,
+    }
+  );
 };
 
 const closeChat = () => {
@@ -629,7 +801,7 @@ const closeChat = () => {
                       </div>
                     )}
 
-                    {c.unreadCount > 0 && (
+                   {c.unreadCount > 0 && (
 
                       <span
                         className="
@@ -679,6 +851,7 @@ const closeChat = () => {
                           >
                             {displayName}
                           </h2>
+                          
 
                           {isCreator && (
 
@@ -866,41 +1039,61 @@ const closeChat = () => {
                   profile?.profilePhotos?.[0] ||
                   null;
 
+                const isSelected =
+                  selectedBookingId ===
+                  c.bookingId &&
+                  chatOpen;
+
                 return (
 
                   <div
-                    key={c.bookingId}
-                    onClick={() =>
-                      openChat(
-                        c.bookingId
-                      )
-                    }
-                    className="
-                      group
-                      cursor-pointer
-                      rounded-[24px]
-                      border border-white/10
-                      bg-gradient-to-br
-                      from-white/[0.045]
-                      to-white/[0.015]
-                      backdrop-blur-xl
-                      shadow-[0_6px_22px_rgba(0,0,0,0.26)]
-                      hover:border-white/15
-                      hover:bg-white/[0.03]
-                      transition-all
-                      duration-200
-                    "
-                  >
+  key={c.bookingId}
+  onClick={() =>
+    openChat(
+      c.bookingId
+    )
+  }
+  className={`
+    relative
+    group
+    cursor-pointer
+    rounded-[24px]
+    border
+    backdrop-blur-xl
+    shadow-[0_6px_22px_rgba(0,0,0,0.26)]
+    transition-all
+    duration-200
+
+   ${
+  isSelected
+    ? `
+      border-white/25
+      bg-white/[0.09]
+      shadow-[0_0_0_1px_rgba(255,255,255,0.12)]
+      scale-[1.01]
+    `
+    : `
+      border-white/10
+      bg-gradient-to-br
+      from-white/[0.045]
+      to-white/[0.015]
+      hover:border-white/15
+      hover:bg-white/[0.03]
+    `
+}
+  `}
+>
+  
 
                     <div className="px-5 py-2.5">
 
-                <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3">
 
-                  {/* ======================================================
+                      {/* ======================================================
                       AVATAR
-                  ====================================================== */}
+                      ====================================================== */}
 
-                  <div className="relative shrink-0">
+                   <div className="relative shrink-0">
 
                     {avatarUrl ? (
 
@@ -969,13 +1162,13 @@ const closeChat = () => {
                       </span>
                     )}
 
-                  </div>
+                    </div>
 
-                  {/* ======================================================
+                    {/* ======================================================
                       CONTENT
-                  ====================================================== */}
+                     ====================================================== */}
 
-                  <div className="flex-1 min-w-0">
+                   <div className="flex-1 min-w-0">
 
                     <div className="flex items-start justify-between gap-3">
 
@@ -1040,20 +1233,26 @@ const closeChat = () => {
                           TIME
                       ====================================================== */}
 
-                      <div className="shrink-0">
+                      <div className="shrink-0 text-right">
+  <p className="text-[11px] text-white/38">
+    {formatMessageTime(c.lastMessageAt)}
+  </p>
 
-                        <p
-                          className="
-                            text-[11px]
-                            text-white/38
-                          "
-                        >
-                          {formatMessageTime(
-                            c.lastMessageAt
-                          )}
-                        </p>
-
-                      </div>
+  {isSelected && (
+    <p
+      className="
+        mt-[2px]
+        text-[9px]
+        font-semibold
+        tracking-[0.12em]
+        text-white/70
+        leading-none
+      "
+    >
+      • ACTIVE
+    </p>
+  )}
+</div>
 
                     </div>
 
@@ -1163,14 +1362,14 @@ const closeChat = () => {
       to-white/[0.015]
       backdrop-blur-xl
     "
-  >
-    {selectedBookingId && (
-      <ChatPanel
-        bookingId={selectedBookingId}
-        embedded
-        onClose={closeChat}
-      />
-    )}
+  >{chatOpen &&
+  selectedBookingId && (
+    <ChatWindow
+      bookingId={selectedBookingId}
+      embedded
+      onClose={closeChat}
+    />
+)}
   </div>
 </div>
 
