@@ -615,22 +615,33 @@ console.log(
     
 
       <div
-  className="
-    fixed
-    inset-0
-    md:left-[260px]
-    top-[56px]
-    md:top-[70px]
-    bottom-0
-    flex
-    flex-col
-    overflow-hidden
-    text-[#F8FAFC]
-    px-2
-    md:px-6
-    py-2
-    
-  "
+  className={
+    embedded
+      ? `
+        h-full
+        w-full
+        flex
+        flex-col
+        overflow-hidden
+        text-[#F8FAFC]
+        p-4
+      `
+      : `
+        fixed
+        inset-0
+        md:left-[260px]
+        top-[56px]
+        md:top-[70px]
+        bottom-0
+        flex
+        flex-col
+        overflow-hidden
+        text-[#F8FAFC]
+        px-2
+        md:px-6
+        py-2
+      `
+  }
 >
 
         {/* HEADER */}
@@ -767,27 +778,26 @@ console.log(
     handleScroll
   }
   className="
-    chat-scrollbar
-    scroll-smooth
-    contain-strict
-    flex-[0.86]
-    min-h-0
-    h-0
-    overflow-y-auto
-    overflow-x-hidden
-    overscroll-contain
-    rounded-[22px]
-    pr-1
-    [mask-image:linear-gradient(to_bottom,black,black)]
-    border border-white/10
-    bg-gradient-to-br
-    from-white/[0.045]
-    to-white/[0.015]
-    backdrop-blur-xl
-    px-3
-    md:px-5
-    py-3
-  "
+  chat-scrollbar
+  scroll-smooth
+  contain-strict
+  flex-1
+  min-h-0
+  overflow-y-auto
+  overflow-x-hidden
+  overscroll-contain
+  rounded-[22px]
+  pr-1
+  [mask-image:linear-gradient(to_bottom,black,black)]
+  border border-white/10
+  bg-gradient-to-br
+  from-white/[0.045]
+  to-white/[0.015]
+  backdrop-blur-xl
+  px-3
+  md:px-5
+  py-3
+"
 >
 
           <div

@@ -998,29 +998,40 @@ const closeChat = () => {
       {/* DESKTOP */}
 
       <div
-        className="
-          hidden
-          lg:flex
-          gap-5
-          h-[calc(100vh-240px)]
-        "
-      >
+  className="
+    hidden
+    lg:flex
+    gap-5
+    h-[calc(100vh-240px)]
+    min-h-0
+  "
+>
 
         {/* LEFT PANEL */}
 
         <div
-          className={`
-            transition-all
-            duration-300
-            ${
-              chatOpen
-                ? "w-[32%]"
-                : "w-full"
-            }
-          `}
-        >
-
-          <div className="space-y-3">
+  className={`
+    flex
+    flex-col
+    min-h-0
+    transition-all
+    duration-300
+    ${
+      chatOpen
+        ? "w-[32%]"
+        : "w-full"
+    }
+  `}
+>
+  <div
+    className="
+      flex-1
+      min-h-0
+      overflow-y-auto
+      pr-1
+    "
+  >
+    <div className="space-y-3">
 
             {sortedConversations.map(
               (c) => {
@@ -1334,7 +1345,7 @@ const closeChat = () => {
             )}
 
           </div>
-
+</div>
         </div>
 
         {/* RIGHT PANEL PLACEHOLDER */}
