@@ -26,7 +26,7 @@ import type {
 } from "../api/chat";
 
 import { socket } from "../lib/socket";
-import ChatPanel from "../components/chat/ChatWindow";
+
 import ChatWindow from "../components/chat/ChatWindow";
 
 export default function MessagesPage() {
@@ -721,9 +721,20 @@ const closeChat = () => {
     <>
       {/* MOBILE */}
 
-      <div className="lg:hidden space-y-3">
+      {/* MOBILE */}
 
-        {sortedConversations.map(
+<div
+  className="
+    lg:hidden
+    flex-1
+    min-h-0
+    overflow-y-auto
+    pr-1
+  "
+>
+  <div className="space-y-3">
+
+    {sortedConversations.map(
           (c) => {
 
             const profile =
@@ -1006,7 +1017,7 @@ const closeChat = () => {
             );
           }
         )}
-
+</div>
       </div>
 
       {/* DESKTOP */}

@@ -46,8 +46,10 @@ export default function ChatPage() {
   const navigate =
     useNavigate();
 
-  const { role } =
-    useAuth();
+  const {
+  role,
+  userId,
+} = useAuth();
 
   const Layout =
     role === "creator"
@@ -279,7 +281,7 @@ export default function ChatPage() {
   };
 
   init();
-}, [bookingId, role]);
+}, [bookingId, userId]);
 
   /* ======================================================
      SOCKET
@@ -311,17 +313,10 @@ export default function ChatPage() {
               return prev;
 
             const isMine =
-              (role ===
-                "user" &&
-                msg.senderRole ===
-                  "USER") ||
-              (role ===
-                "creator" &&
-                msg.senderRole ===
-                  "CREATOR");
+  msg.senderId === userId;
 
-            if (isMine)
-              return prev;
+if (isMine)
+  return prev;
 
             return [
               ...prev,
@@ -358,7 +353,7 @@ export default function ChatPage() {
         handleMessage
       );
     };
-  }, [bookingId, role]);
+ }, [bookingId, userId]);
 
   /* ======================================================
      SCROLL LOGIC
@@ -454,7 +449,7 @@ export default function ChatPage() {
 
           bookingId,
 
-          senderId: "temp",
+          senderId: userId ?? "temp",
 
           senderRole:
             role ===
@@ -813,14 +808,7 @@ export default function ChatPage() {
                 ) => {
 
                   const isMine =
-                    (role ===
-                      "user" &&
-                      msg.senderRole ===
-                        "USER") ||
-                    (role ===
-                      "creator" &&
-                      msg.senderRole ===
-                        "CREATOR");
+  msg.senderId === userId;
 
                   return (
 
@@ -835,12 +823,9 @@ export default function ChatPage() {
                         }
                         ${
                           index > 0 &&
-                          messages[
-                            index -
-                              1
-                          ]
-                            .senderRole ===
-                            msg.senderRole
+                          messages[index - 1]
+  .senderId ===
+msg.senderId
                             ? "mt-1"
                             : "mt-3"
                         }

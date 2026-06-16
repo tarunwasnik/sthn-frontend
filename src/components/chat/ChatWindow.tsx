@@ -45,8 +45,10 @@ export default function ChatWindow({
   onClose,
 }: ChatWindowProps){
 
-  const { role } =
-    useAuth();
+  const {
+  role,
+  userId,
+} = useAuth();
 
   
   const [
@@ -321,17 +323,10 @@ console.log(
               return prev;
 
             const isMine =
-              (role ===
-                "user" &&
-                msg.senderRole ===
-                  "USER") ||
-              (role ===
-                "creator" &&
-                msg.senderRole ===
-                  "CREATOR");
+  msg.senderId === userId;
 
-            if (isMine)
-              return prev;
+if (isMine)
+  return prev;
 
             return [
               ...prev,
@@ -369,7 +364,7 @@ console.log(
     handleMessage
   );
 };
-  }, [bookingId, role]);
+  }, [bookingId, userId]);
 
   /* ======================================================
      SCROLL LOGIC
@@ -465,7 +460,7 @@ console.log(
 
           bookingId,
 
-          senderId: "temp",
+          senderId: userId ?? "temp",
 
           senderRole:
             role ===
@@ -834,14 +829,7 @@ console.log(
                 ) => {
 
                   const isMine =
-                    (role ===
-                      "user" &&
-                      msg.senderRole ===
-                        "USER") ||
-                    (role ===
-                      "creator" &&
-                      msg.senderRole ===
-                        "CREATOR");
+  msg.senderId === userId;
 
                   return (
 

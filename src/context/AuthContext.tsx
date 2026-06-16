@@ -21,6 +21,7 @@ type CreatorStatus =
 
 interface AuthState {
   isAuthenticated: boolean;
+  userId: string | null;
   role: Role;
   creatorStatus: CreatorStatus;
   loading: boolean;
@@ -44,6 +45,9 @@ export const AuthProvider = ({
   const [isAuthenticated, setIsAuthenticated] =
     useState(false);
 
+  const [userId, setUserId] =
+    useState<string | null>(null);
+
   const [role, setRole] = useState<Role>(null);
 
   const [creatorStatus, setCreatorStatus] =
@@ -57,7 +61,11 @@ export const AuthProvider = ({
 
       const res = await api.get("/auth/entry");
 
-      const { entryType, creatorStatus } = res.data;
+      const {
+        entryType,
+        creatorStatus,
+        userId,
+      } = res.data;
 
       const normalizedRole: Role =
         entryType === "ADMIN"
@@ -70,9 +78,11 @@ export const AuthProvider = ({
 
       setIsAuthenticated(true);
       setRole(normalizedRole);
+      setUserId(userId ?? null);
       setCreatorStatus(creatorStatus ?? "none");
     } catch {
       setIsAuthenticated(false);
+      setUserId(null);
       setRole(null);
       setCreatorStatus(null);
     } finally {
@@ -93,9 +103,12 @@ export const AuthProvider = ({
   const logout = () => {
     localStorage.removeItem("accessToken");
 
-    delete api.defaults.headers.common["Authorization"];
+    delete api.defaults.headers.common[
+      "Authorization"
+    ];
 
     setIsAuthenticated(false);
+    setUserId(null);
     setRole(null);
     setCreatorStatus(null);
   };
@@ -118,6 +131,7 @@ export const AuthProvider = ({
     <AuthContext.Provider
       value={{
         isAuthenticated,
+        userId,
         role,
         creatorStatus,
         loading,
