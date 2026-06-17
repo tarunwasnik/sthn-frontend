@@ -49,6 +49,11 @@ export default function MessagesPage() {
     Conversation[]
   >([]);
 
+  const [
+  searchQuery,
+  setSearchQuery,
+] = useState("");
+
   const [loading, setLoading] =
     useState(true);
 
@@ -416,19 +421,74 @@ const closeChat = () => {
   ====================================================== */
 
   const sortedConversations =
-    useMemo(() => {
-      return [
-        ...conversations,
-      ].sort(
-        (a, b) =>
-          new Date(
-            b.lastMessageAt
-          ).getTime() -
-          new Date(
-            a.lastMessageAt
-          ).getTime()
+  useMemo(() => {
+
+    const query =
+      searchQuery
+        .trim()
+        .toLowerCase();
+
+    const filtered =
+      conversations.filter(
+        (c) => {
+
+          if (!query)
+            return true;
+
+          const profile =
+            c.otherUser
+              ?.profile;
+
+          const displayName =
+            (
+              profile
+                ?.displayName ||
+              profile
+                ?.username ||
+              ""
+            ).toLowerCase();
+
+          const serviceTitle =
+            (
+              c.service
+                ?.title ||
+              ""
+            ).toLowerCase();
+
+          const lastMessage =
+            (
+              c.lastMessage ||
+              ""
+            ).toLowerCase();
+
+          return (
+            displayName.includes(
+              query
+            ) ||
+            serviceTitle.includes(
+              query
+            ) ||
+            lastMessage.includes(
+              query
+            )
+          );
+        }
       );
-    }, [conversations]);
+
+    return filtered.sort(
+      (a, b) =>
+        new Date(
+          b.lastMessageAt
+        ).getTime() -
+        new Date(
+          a.lastMessageAt
+        ).getTime()
+    );
+
+  }, [
+    conversations,
+    searchQuery,
+  ]);
 
   /* ======================================================
      UI
@@ -463,91 +523,100 @@ const closeChat = () => {
 >
 
         {/* ======================================================
-           HEADER
-        ====================================================== */}
+   HEADER
+====================================================== */}
 
-        <div className="mb-6">
+<div className="mb-4">
 
-          <div
-            className="
-              rounded-[28px]
-              border border-white/10
-              bg-gradient-to-br
-              from-white/[0.045]
-              to-white/[0.015]
-              backdrop-blur-xl
-              shadow-[0_10px_30px_rgba(0,0,0,0.35)]
-              px-5
-              md:px-6
-              py-4
-            "
-          >
+  <div className="flex items-start justify-between gap-4">
 
-            <div className="flex items-center justify-between gap-4">
+    <div>
 
-              <div>
+      <h1
+        className="
+          text-3xl
+          font-bold
+          text-[#F8FAFC]
+        "
+      >
+        Messages
+      </h1>
 
-                <h1
-                  className="
-                    text-[22px]
-                    md:text-[22px]
-                    font-bold
-                    tracking-tight
-                    text-[#F8FAFC]
-                  "
-                >
-                  Messages
-                </h1>
+      <p
+        className="
+          mt-2
+          text-white/60
+        "
+      >
+        Manage conversations and booking chats
+      </p>
 
-                <p
-                  className="
-                    mt-2
-                    text-sm
-                    md:text-base
-                    text-white/55
-                  "
-                >
-                  Manage conversations and booking chats
-                </p>
+    </div>
 
-              </div>
+    <div
+      className="
+        hidden
+        md:flex
+        items-center
+        justify-center
+        rounded-[18px]
+        border border-white/10
+        bg-white/[0.03]
+        px-4
+        h-11
+      "
+    >
+      <span
+        className="
+          text-[15px]
+          text-white/75
+        "
+      >
+        {sortedConversations.length} Conversation
+        {sortedConversations.length !== 1
+          ? "s"
+          : ""}
+      </span>
+    </div>
 
-              <div
-                className="
-                  hidden md:flex
-                  items-center
-                  justify-center
-                  rounded-[18px]
-                  border border-white/10
-                  bg-white/[0.03]
-                  px-4
-                  h-11
-                "
-              >
+  </div>
 
-                <span
-                  className="
-                    text-[15px]
-                    text-white/75
-                  "
-                >
-                  {
-                    sortedConversations.length
-                  }{" "}
-                  Conversation
-                  {sortedConversations.length !==
-                  1
-                    ? "s"
-                    : ""}
-                </span>
+  <div
+    className="
+      hidden
+      md:block
+      mt-4
+      max-w-2xl
+    "
+  >
+    <input
+      type="text"
+      value={searchQuery}
+      onChange={(e) =>
+        setSearchQuery(
+          e.target.value
+        )
+      }
+      placeholder="Search conversations..."
+      className="
+        w-full
+        h-12
+        rounded-[20px]
+        border border-white/10
+        bg-white/[0.04]
+        px-5
+        text-sm
+        text-white
+        placeholder:text-white/35
+        focus:outline-none
+        focus:border-white/20
+        focus:bg-white/[0.06]
+        transition-all
+      "
+    />
+  </div>
 
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
+</div>
 
         {/* ======================================================
            LOADING

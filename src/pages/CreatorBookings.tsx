@@ -15,8 +15,10 @@ interface Slot {
 
 interface Booking {
   _id: string;
+
   status: string;
   paymentStatus: string;
+
   createdAt: string;
   expiresAt?: string;
 
@@ -27,15 +29,30 @@ interface Booking {
 
   service?: {
     title?: string;
+
     media?: string[];
     thumbnailUrl?: string;
     image?: string;
+
+    data?: {
+      media?: string[];
+    };
   };
 
   user?: {
     _id?: string;
     displayName?: string;
     avatarUrl?: string;
+  };
+
+  creator?: {
+    _id?: string;
+
+    profile?: {
+      slug?: string;
+      displayName?: string;
+      avatarUrl?: string | null;
+    };
   };
 
   slots: Slot[];
@@ -53,32 +70,43 @@ export default function CreatorBookings() {
   const [filter, setFilter] =
     useState("ALL");
 
+  const [bookingView, setBookingView] =
+  useState<
+    "RECEIVED" | "PURCHASED"
+  >("RECEIVED");
+
   /* ================= FETCH ================= */
 
   const fetchBookings = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      const res = await api.get(
-        "/v1/creator/bookings"
-      );
+    const res =
+      bookingView ===
+      "RECEIVED"
+        ? await api.get(
+            "/v1/creator/bookings"
+          )
+        : await api.get(
+            "/v1/bookings/user"
+          );
 
-      setBookings(
-        res.data.bookings || []
-      );
-    } catch (err) {
-      console.error(
-        "Failed to fetch creator bookings",
-        err
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setBookings(
+      res.data.bookings || []
+    );
+  } catch (err) {
+    console.error(
+      "Failed to fetch bookings",
+      err
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+ useEffect(() => {
+  fetchBookings();
+}, [bookingView]);
 
   /* ================= FILTER ================= */
 
@@ -191,14 +219,81 @@ export default function CreatorBookings() {
 
           {/* HEADER */}
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-[#F8FAFC] tracking-tight">
-              My Bookings
-            </h1>
+  <h1 className="text-2xl md:text-4xl font-bold text-[#F8FAFC] tracking-tight">
+    My Bookings
+  </h1>
 
-            <p className="text-sm md:text-base text-[rgba(255,255,255,0.55)] mt-2">
-              Manage all your bookings
-            </p>
-          </div>
+  <p className="text-sm md:text-base text-[rgba(255,255,255,0.55)] mt-2">
+    Manage all your bookings
+  </p>
+
+  <div className="flex gap-3 mt-5">
+
+    <button
+      onClick={() =>
+        setBookingView(
+          "RECEIVED"
+        )
+      }
+      className={`
+        h-11
+        px-5
+        rounded-[18px]
+        border
+        transition-all
+        ${
+          bookingView ===
+          "RECEIVED"
+            ? `
+              bg-white/[0.07]
+              text-white
+              border-white/20
+            `
+            : `
+              bg-white/[0.03]
+              text-white/70
+              border-white/10
+            `
+        }
+      `}
+    >
+      Received
+    </button>
+
+    <button
+      onClick={() =>
+        setBookingView(
+          "PURCHASED"
+        )
+      }
+      className={`
+        h-11
+        px-5
+        rounded-[18px]
+        border
+        transition-all
+        ${
+          bookingView ===
+          "PURCHASED"
+            ? `
+              bg-white/[0.07]
+              text-white
+              border-white/20
+            `
+            : `
+              bg-white/[0.03]
+              text-white/70
+              border-white/10
+            `
+        }
+      `}
+    >
+      Purchased
+    </button>
+
+  </div>
+
+</div>
 
           {/* MOBILE FILTER */}
           <div className="md:hidden">
@@ -319,19 +414,36 @@ export default function CreatorBookings() {
                 (booking) => {
 
                   const serviceTitle =
-                    booking.service
-                      ?.title ||
-                    booking
-                      .serviceTitle ||
-                    "Untitled Service";
+  booking.service?.title ||
+  booking.serviceTitle ||
+  "Untitled Service";
 
-                  const serviceMedia =
-                    booking.service
-                      ?.thumbnailUrl ||
-                    booking.service
-                      ?.image ||
-                    booking.service
-                      ?.media?.[0];
+const serviceMedia =
+  bookingView === "PURCHASED"
+    ? booking.service?.data?.media?.[0]
+    : booking.service?.thumbnailUrl ||
+      booking.service?.image ||
+      booking.service?.media?.[0];
+
+const personName =
+  bookingView === "PURCHASED"
+    ? booking.creator?.profile?.displayName
+    : booking.user?.displayName;
+
+const personAvatar =
+  bookingView === "PURCHASED"
+    ? booking.creator?.profile?.avatarUrl
+    : booking.user?.avatarUrl;
+
+const personLabel =
+  bookingView === "PURCHASED"
+    ? "Creator"
+    : "Client";
+
+const personLink =
+  bookingView === "PURCHASED"
+    ? `/creators/${booking.creator?.profile?.slug}`
+    : `/users/${booking.user?._id}`;
 
                   return (
 
@@ -372,20 +484,16 @@ export default function CreatorBookings() {
       <button
         type="button"
         onClick={() => {
-          if (booking.user?._id) {
-            navigate(
-              `/users/${booking.user._id}`
-            );
-          }
-        }}
+  if (personLink) {
+    navigate(personLink);
+  }
+}}
         className="flex items-center gap-3 mt-5"
       >
 
-        {booking.user?.avatarUrl ? (
+       {personAvatar ? (
           <img
-            src={
-              booking.user.avatarUrl
-            }
+            src={personAvatar}
             alt="avatar"
             className="
               w-11
@@ -406,22 +514,26 @@ export default function CreatorBookings() {
             justify-center
             text-white
           ">
-            {(
-              booking.user?.displayName ||
-              "U"
-            )[0]}
+            {
+  (
+    personName ||
+    "U"
+  )[0]
+}
           </div>
         )}
 
         <div className="text-left">
 
           <p className="text-xs text-[rgba(255,255,255,0.42)]">
-            Client
+            {personLabel}
           </p>
 
           <p className="text-[17px] font-semibold text-[#F8FAFC]">
-            {booking.user?.displayName ||
-              "Unknown"}
+            {
+  personName ||
+  "Unknown"
+}
           </p>
 
         </div>
@@ -568,7 +680,10 @@ export default function CreatorBookings() {
     <button
       onClick={() =>
         navigate(
-          `/dashboard/creator/bookings/${booking._id}`
+      bookingView === "PURCHASED"
+        ? `/dashboard/user/bookings/${booking._id}`
+        : `/dashboard/creator/bookings/${booking._id}`
+
         )
       }
       className="
@@ -682,12 +797,10 @@ export default function CreatorBookings() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (booking.user?._id) {
-                                navigate(
-                                  `/users/${booking.user._id}`
-                                );
-                              }
-                            }}
+  if (personLink) {
+    navigate(personLink);
+  }
+}}
                             className="
                               flex
                               items-center
@@ -696,11 +809,9 @@ export default function CreatorBookings() {
                             "
                           >
 
-                            {booking.user?.avatarUrl ? (
+                           {personAvatar ? (
                               <img
-                                src={
-                                  booking.user.avatarUrl
-                                }
+                                src={personAvatar}
                                 alt="avatar"
                                 className="
                                   w-9
@@ -724,24 +835,26 @@ export default function CreatorBookings() {
                                   text-sm
                                 "
                               >
-                                {(
-                                  booking.user
-                                    ?.displayName ||
-                                  "U"
-                                )[0]}
+                                {
+  (
+    personName ||
+    "U"
+  )[0]
+}
                               </div>
                             )}
 
                             <div className="text-left">
 
                               <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
-                                Client
+                                {personLabel}
                               </p>
 
                               <p className="text-[#F8FAFC] font-semibold text-[15px]">
-                                {booking.user
-                                  ?.displayName ||
-                                  "Unknown"}
+                                {
+  personName ||
+  "Unknown"
+}
                               </p>
 
                             </div>
@@ -877,7 +990,9 @@ border border-white/10
                             <button
                               onClick={() =>
                                 navigate(
-                                  `/dashboard/creator/bookings/${booking._id}`
+      bookingView === "PURCHASED"
+        ? `/dashboard/user/bookings/${booking._id}`
+        : `/dashboard/creator/bookings/${booking._id}`
                                 )
                               }
                               className="

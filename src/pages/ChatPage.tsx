@@ -36,6 +36,7 @@ interface ChatMessage {
   senderId: string;
   senderRole: "USER" | "CREATOR";
   message: string;
+  seenBy: string[];
   createdAt: string;
 }
 
@@ -129,12 +130,6 @@ export default function ChatPage() {
           `/v1/chat/${bookingId}/seen`
         );
 
-        socket.emit(
-          "chat:seen",
-          {
-            bookingId,
-          }
-        );
       } catch (err: any) {
         setError(
           err?.response?.data
@@ -325,22 +320,49 @@ if (isMine)
           }
         );
 
-        api.post(
+          api.post(
           `/v1/chat/${bookingId}/seen`
         );
 
-        socket.emit(
-          "chat:seen",
-          {
-            bookingId,
-          }
-        );
       };
 
     socket.on(
       "chat:message",
       handleMessage
     );
+
+    const handleSeen = (
+  data: {
+    bookingId: string;
+    seenBy: string;
+  }
+) => {
+  setMessages((prev) =>
+    prev.map((msg) => {
+      const alreadySeen =
+        msg.seenBy?.includes(
+          data.seenBy
+        );
+
+      if (alreadySeen) {
+        return msg;
+      }
+
+      return {
+        ...msg,
+        seenBy: [
+          ...(msg.seenBy || []),
+          data.seenBy,
+        ],
+      };
+    })
+  );
+};
+
+socket.on(
+  "chat:seen",
+  handleSeen
+);
 
     return () => {
       socket.emit(
@@ -349,9 +371,14 @@ if (isMine)
       );
 
       socket.off(
-        "chat:message",
-        handleMessage
-      );
+  "chat:message",
+  handleMessage
+);
+
+socket.off(
+  "chat:seen",
+  handleSeen
+);
     };
  }, [bookingId, userId]);
 
@@ -459,6 +486,11 @@ if (isMine)
 
           message:
             messageText,
+
+            seenBy: userId
+    ? [userId]
+    : [],
+
 
           createdAt:
             new Date().toISOString(),
@@ -870,33 +902,41 @@ msg.senderId
                         </p>
 
                         <div
-                          className={`
-                            mt-1
-                            text-[10px]
-                            leading-none
-                            ${
-                              isMine
-                                ? "text-white/40 text-right"
-                                : "text-white/35"
-                            }
-                          `}
-                        >
+  className={`
+    mt-1
+    text-[10px]
+    leading-none
+    ${
+      isMine
+        ? "text-white/40 text-right"
+        : "text-white/35"
+    }
+  `}
+>
 
-                          {new Date(
-                            msg.createdAt
-                          ).toLocaleTimeString(
-                            [],
-                            {
-                              hour:
-                                "2-digit",
-                              minute:
-                                "2-digit",
-                            }
-                          )}
+  {new Date(
+    msg.createdAt
+  ).toLocaleTimeString(
+    [],
+    {
+      hour:
+        "2-digit",
+      minute:
+        "2-digit",
+    }
+  )}
 
-                        </div>
+  {isMine &&
+    msg.seenBy &&
+    msg.seenBy.length > 1 && (
+      <span className="ml-2">
+        Seen
+      </span>
+    )}
 
-                      </div>
+</div>
+
+                       </div>
 
                     </div>
                   );

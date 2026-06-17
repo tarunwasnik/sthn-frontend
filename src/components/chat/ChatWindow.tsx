@@ -30,6 +30,7 @@ interface ChatMessage {
   senderId: string;
   senderRole: "USER" | "CREATOR";
   message: string;
+  seenBy: string[];
   createdAt: string;
 }
 
@@ -112,13 +113,18 @@ export default function ChatWindow({
         setError(null);
 
         const res =
-          await api.get(
-            `/v1/chat/${bookingId}/messages`
-          );
+  await api.get(
+    `/v1/chat/${bookingId}/messages`
+  );
 
-        setMessages(
-          res.data.chats || []
-        );
+console.log(
+  "CHAT HISTORY",
+  res.data.chats
+);
+
+setMessages(
+  res.data.chats || []
+);
 
         await api.post(
           `/v1/chat/${bookingId}/seen`
@@ -339,18 +345,54 @@ if (isMine)
           `/v1/chat/${bookingId}/seen`
         );
 
-        socket.emit(
-          "chat:seen",
-          {
-            bookingId,
-          }
-        );
+       
       };
 
     socket.on(
       "chat:message",
       handleMessage
     );
+
+    const handleSeen = (
+
+      
+  data: {
+    bookingId: string;
+    seenBy: string;
+  }
+) => {
+
+  console.log(
+  "CHAT SEEN EVENT",
+  data
+);
+
+  setMessages((prev) =>
+    prev.map((msg) => {
+      const alreadySeen =
+        msg.seenBy?.includes(
+          data.seenBy
+        );
+
+      if (alreadySeen) {
+        return msg;
+      }
+
+      return {
+        ...msg,
+        seenBy: [
+          ...(msg.seenBy || []),
+          data.seenBy,
+        ],
+      };
+    })
+  );
+};
+
+socket.on(
+  "chat:seen",
+  handleSeen
+);
 
     return () => {
 
@@ -362,6 +404,11 @@ if (isMine)
   socket.off(
     "chat:message",
     handleMessage
+  );
+
+  socket.off(
+    "chat:seen",
+    handleSeen
   );
 };
   }, [bookingId, userId]);
@@ -453,27 +500,31 @@ if (isMine)
         true;
 
       const tempMessage: ChatMessage =
-        {
-          _id:
-            "temp-" +
-            Date.now(),
+{
+  _id:
+    "temp-" +
+    Date.now(),
 
-          bookingId,
+  bookingId,
 
-          senderId: userId ?? "temp",
+  senderId: userId ?? "temp",
 
-          senderRole:
-            role ===
-            "creator"
-              ? "CREATOR"
-              : "USER",
+  senderRole:
+    role ===
+    "creator"
+      ? "CREATOR"
+      : "USER",
 
-          message:
-            messageText,
+  message:
+    messageText,
 
-          createdAt:
-            new Date().toISOString(),
-        };
+  seenBy: userId
+    ? [userId]
+    : [],
+
+  createdAt:
+    new Date().toISOString(),
+};
 
       setMessages(
         (prev) => [
@@ -844,12 +895,9 @@ if (isMine)
                         }
                         ${
                           index > 0 &&
-                          messages[
-                            index -
-                              1
-                          ]
-                            .senderRole ===
-                            msg.senderRole
+                          messages[index - 1]
+  .senderId ===
+msg.senderId
                             ? "mt-1"
                             : "mt-3"
                         }
@@ -894,31 +942,39 @@ if (isMine)
                         </p>
 
                         <div
-                          className={`
-                            mt-1
-                            text-[10px]
-                            leading-none
-                            ${
-                              isMine
-                                ? "text-white/40 text-right"
-                                : "text-white/35"
-                            }
-                          `}
-                        >
+  className={`
+    mt-1
+    text-[10px]
+    leading-none
+    ${
+      isMine
+        ? "text-white/40 text-right"
+        : "text-white/35"
+    }
+  `}
+>
 
-                          {new Date(
-                            msg.createdAt
-                          ).toLocaleTimeString(
-                            [],
-                            {
-                              hour:
-                                "2-digit",
-                              minute:
-                                "2-digit",
-                            }
-                          )}
+  {new Date(
+    msg.createdAt
+  ).toLocaleTimeString(
+    [],
+    {
+      hour:
+        "2-digit",
+      minute:
+        "2-digit",
+    }
+  )}
 
-                        </div>
+  {isMine &&
+    msg.seenBy &&
+    msg.seenBy.length > 1 && (
+      <span className="ml-2">
+        Seen
+      </span>
+    )}
+
+</div>
 
                       </div>
 
