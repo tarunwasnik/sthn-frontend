@@ -50,6 +50,15 @@ export default function MessagesPage() {
   >([]);
 
   const [
+  onlineUsers,
+  setOnlineUsers,
+] = useState<
+  Set<string>
+>(
+  new Set()
+);
+
+  const [
   searchQuery,
   setSearchQuery,
 ] = useState("");
@@ -66,6 +75,9 @@ const [
   chatOpen,
   setChatOpen,
 ] = useState(false);
+
+
+
 
   /* ======================================================
      FETCH
@@ -321,7 +333,91 @@ useEffect(() => {
 ]);
 
 
+/* ======================================================
+   PRESENCE
+====================================================== */
 
+useEffect(() => {
+
+  const handlePresenceInit = (
+    users: string[]
+  ) => {
+
+    console.log(
+      "PRESENCE INIT",
+      users
+    );
+
+    setOnlineUsers(
+      new Set(users)
+    );
+  };
+
+  const handlePresenceUpdate = (
+    data: {
+      userId: string;
+      online: boolean;
+    }
+  ) => {
+
+    console.log(
+      "PRESENCE UPDATE",
+      data
+    );
+
+    setOnlineUsers(
+      (prev) => {
+
+        const next =
+          new Set(prev);
+
+        if (data.online) {
+          next.add(
+            data.userId
+          );
+        } else {
+          next.delete(
+            data.userId
+          );
+        }
+
+        return next;
+      }
+    );
+  };
+
+  socket.on(
+  "presence:init",
+  handlePresenceInit
+);
+
+socket.on(
+  "presence:update",
+  handlePresenceUpdate
+);
+
+console.log(
+  "REQUESTING PRESENCE"
+);
+
+socket.emit(
+  "presence:get"
+);
+
+return () => {
+
+  socket.off(
+    "presence:init",
+    handlePresenceInit
+  );
+
+  socket.off(
+    "presence:update",
+    handlePresenceUpdate
+  );
+};
+
+}, []);
 
 
   /* ======================================================
@@ -528,30 +624,19 @@ const closeChat = () => {
 
 <div className="mb-4">
 
-  <div className="flex items-start justify-between gap-4">
+  <div>
 
-    <div>
+  <div className="flex items-center gap-3">
 
-      <h1
-        className="
-          text-3xl
-          font-bold
-          text-[#F8FAFC]
-        "
-      >
-        Messages
-      </h1>
-
-      <p
-        className="
-          mt-2
-          text-white/60
-        "
-      >
-        Manage conversations and booking chats
-      </p>
-
-    </div>
+    <h1
+      className="
+        text-3xl
+        font-bold
+        text-[#F8FAFC]
+      "
+    >
+      Messages
+    </h1>
 
     <div
       className="
@@ -559,16 +644,16 @@ const closeChat = () => {
         md:flex
         items-center
         justify-center
-        rounded-[18px]
+        rounded-[14px]
         border border-white/10
         bg-white/[0.03]
-        px-4
-        h-11
+        px-3
+        py-1
       "
     >
       <span
         className="
-          text-[15px]
+          text-[13px]
           text-white/75
         "
       >
@@ -580,6 +665,17 @@ const closeChat = () => {
     </div>
 
   </div>
+
+  <p
+    className="
+      mt-2
+      text-white/60
+    "
+  >
+    Manage conversations and booking chats
+  </p>
+
+</div>
 
   <div
     className="
@@ -820,6 +916,11 @@ const closeChat = () => {
               profile?.profilePhotos?.[0] ||
               null;
 
+              const isOnline =
+  onlineUsers.has(
+    c.otherUser._id
+  );
+
             return (
 
               <div
@@ -873,6 +974,7 @@ const closeChat = () => {
                       />
 
                     ) : (
+                      
 
                       <div
                         className="
@@ -894,6 +996,24 @@ const closeChat = () => {
 
                       </div>
                     )}
+
+                    {/* ONLINE DOT */}
+
+  {isOnline && (
+    <span
+      className="
+        absolute
+        bottom-0
+        right-0
+        w-3
+        h-3
+        rounded-full
+        bg-[#22C55E]
+        border-2
+        border-[#0F172A]
+      "
+    />
+  )}
 
                    {c.unreadCount > 0 && (
 
@@ -933,39 +1053,56 @@ const closeChat = () => {
 
                       <div className="min-w-0">
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div>
 
-                          <h2
-                            className="
-                              text-[14px]
-                              font-semibold
-                              text-[#F8FAFC]
-                              truncate
-                            "
-                          >
-                            {displayName}
-                          </h2>
-                          
+  <div className="flex items-center gap-2 flex-wrap">
 
-                          {isCreator && (
+    <h2
+      className="
+        text-[14px]
+        font-semibold
+        text-[#F8FAFC]
+        truncate
+      "
+    >
+      {displayName}
+    </h2>
 
-                            <span
-                              className="
-                                px-2
-                                py-[3px]
-                                rounded-full
-                                text-[9px]
-                                border border-white/10
-                                bg-white/[0.04]
-                                text-white/60
-                                leading-none
-                              "
-                            >
-                              Client
-                            </span>
-                          )}
+    {isCreator && (
+      <span
+        className="
+          px-2
+          py-[3px]
+          rounded-full
+          text-[9px]
+          border border-white/10
+          bg-white/[0.04]
+          text-white/60
+          leading-none
+        "
+      >
+        Client
+      </span>
+    )}
 
-                        </div>
+  </div>
+
+  {isOnline && (
+    <p
+      className="
+        text-[10px]
+        text-[#22C55E]
+        leading-none
+        mt-[2px]
+      "
+    >
+      Online
+    </p>
+  )}
+
+</div>
+
+                        
 
                         {/* ======================================================
                             SERVICE TITLE
@@ -1144,6 +1281,11 @@ const closeChat = () => {
                   profile?.profilePhotos?.[0] ||
                   null;
 
+                const isOnline =
+  onlineUsers.has(
+    c.otherUser._id
+  );
+
                 const isSelected =
                   selectedBookingId ===
                   c.bookingId &&
@@ -1241,6 +1383,24 @@ const closeChat = () => {
                       </div>
                     )}
 
+                    {/* ONLINE DOT */}
+
+  {isOnline && (
+    <span
+      className="
+        absolute
+        bottom-0
+        right-0
+        w-3
+        h-3
+        rounded-full
+        bg-[#22C55E]
+        border-2
+        border-[#0F172A]
+      "
+    />
+  )}
+
                     {c.unreadCount > 0 && (
 
                       <span
@@ -1279,38 +1439,54 @@ const closeChat = () => {
 
                       <div className="min-w-0">
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                       <div>
 
-                          <h2
-                            className="
-                              text-[14px]
-                              font-semibold
-                              text-[#F8FAFC]
-                              truncate
-                            "
-                          >
-                            {displayName}
-                          </h2>
+  <div className="flex items-center gap-2 flex-wrap">
 
-                          {isCreator && (
+    <h2
+      className="
+        text-[14px]
+        font-semibold
+        text-[#F8FAFC]
+        truncate
+      "
+    >
+      {displayName}
+    </h2>
 
-                            <span
-                              className="
-                                px-2
-                                py-[3px]
-                                rounded-full
-                                text-[9px]
-                                border border-white/10
-                                bg-white/[0.04]
-                                text-white/60
-                                leading-none
-                              "
-                            >
-                              Client
-                            </span>
-                          )}
+    {isCreator && (
+      <span
+        className="
+          px-2
+          py-[3px]
+          rounded-full
+          text-[9px]
+          border border-white/10
+          bg-white/[0.04]
+          text-white/60
+          leading-none
+        "
+      >
+        Client
+      </span>
+    )}
 
-                        </div>
+  </div>
+
+  {isOnline && (
+    <p
+      className="
+        text-[10px]
+        text-[#22C55E]
+        leading-none
+        mt-[2px]
+      "
+    >
+      Online
+    </p>
+  )}
+
+</div>
 
                         {/* ======================================================
                             SERVICE TITLE

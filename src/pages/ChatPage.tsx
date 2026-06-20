@@ -85,6 +85,9 @@ export default function ChatPage() {
   const [sending, setSending] =
     useState(false);
 
+    const [isTyping, setIsTyping] =
+  useState(false);
+
   const [
     chatClosed,
     setChatClosed,
@@ -105,6 +108,14 @@ export default function ChatPage() {
 
   const shouldAutoScrollRef =
     useRef(true);
+
+  const typingTimeoutRef =
+  useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
+
+const hasEmittedTypingRef =
+  useRef(false);
 
   /* ======================================================
      FETCH CHAT
@@ -364,6 +375,87 @@ socket.on(
   handleSeen
 );
 
+/* ======================================================
+   TYPING
+====================================================== */
+
+const handleTyping = (
+  data: {
+    bookingId: string;
+    userId: string;
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  if (
+    data.userId === userId
+  ) {
+    return;
+  }
+
+  setIsTyping(true);
+
+  if (
+    typingTimeoutRef.current
+  ) {
+    clearTimeout(
+      typingTimeoutRef.current
+    );
+  }
+
+  typingTimeoutRef.current =
+    setTimeout(() => {
+
+      setIsTyping(false);
+
+    }, 3000);
+};
+
+const handleStopTyping = (
+  data: {
+    bookingId: string;
+    userId: string;
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  if (
+    data.userId === userId
+  ) {
+    return;
+  }
+
+  setIsTyping(false);
+
+  if (
+    typingTimeoutRef.current
+  ) {
+    clearTimeout(
+      typingTimeoutRef.current
+    );
+  }
+};
+
+socket.on(
+  "chat:typing",
+  handleTyping
+);
+
+socket.on(
+  "chat:stop-typing",
+  handleStopTyping
+);
+
     return () => {
       socket.emit(
         "leave-booking",
@@ -379,6 +471,25 @@ socket.off(
   "chat:seen",
   handleSeen
 );
+
+socket.off(
+  "chat:typing",
+  handleTyping
+);
+
+socket.off(
+  "chat:stop-typing",
+  handleStopTyping
+);
+
+if (
+  typingTimeoutRef.current
+) {
+  clearTimeout(
+    typingTimeoutRef.current
+  );
+}
+
     };
  }, [bookingId, userId]);
 
@@ -460,6 +571,34 @@ socket.off(
 
       const messageText =
         input.trim();
+
+        /* ==========================================
+   STOP TYPING IMMEDIATELY
+========================================== */
+
+if (
+  hasEmittedTypingRef.current
+) {
+
+  socket.emit(
+    "chat:stop-typing",
+    {
+      bookingId,
+      userId,
+    }
+  );
+
+  hasEmittedTypingRef.current =
+    false;
+}
+
+if (
+  typingTimeoutRef.current
+) {
+  clearTimeout(
+    typingTimeoutRef.current
+  );
+}
 
       setInput("");
 
@@ -943,6 +1082,41 @@ msg.senderId
                 }
               )}
 
+  {isTyping && (
+
+  <div
+    className="
+      flex
+      justify-start
+      mt-2
+    "
+  >
+
+    <div
+      className="
+        max-w-[82%]
+        md:max-w-[68%]
+        rounded-2xl
+        rounded-bl-md
+        px-3.5
+        py-2
+        border
+        border-white/[0.05]
+        bg-white/[0.04]
+        text-white/60
+        text-[13px]
+        italic
+      "
+    >
+
+      Typing...
+
+    </div>
+
+  </div>
+
+)}            
+
             <div
               ref={bottomRef}
               className="h-4 shrink-0"
@@ -974,11 +1148,70 @@ msg.senderId
             <input
               type="text"
               value={input}
-              onChange={(e) =>
-                setInput(
-                  e.target.value
-                )
-              }
+             onChange={(e) => {
+
+  const value =
+    e.target.value;
+
+  setInput(value);
+
+  if (
+    chatClosed ||
+    !bookingId ||
+    !userId
+  ) {
+    return;
+  }
+
+  /* ==========================================
+     START TYPING
+  ========================================== */
+
+  if (
+    !hasEmittedTypingRef.current
+  ) {
+
+    socket.emit(
+      "chat:typing",
+      {
+        bookingId,
+        userId,
+      }
+    );
+
+    hasEmittedTypingRef.current =
+      true;
+  }
+
+  /* ==========================================
+     RESET INACTIVITY TIMER
+  ========================================== */
+
+  if (
+    typingTimeoutRef.current
+  ) {
+    clearTimeout(
+      typingTimeoutRef.current
+    );
+  }
+
+  typingTimeoutRef.current =
+    setTimeout(() => {
+
+      socket.emit(
+        "chat:stop-typing",
+        {
+          bookingId,
+          userId,
+        }
+      );
+
+      hasEmittedTypingRef.current =
+        false;
+
+    }, 1500);
+
+}}
               onKeyDown={
                 handleKeyDown
               }
