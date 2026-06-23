@@ -1,7 +1,7 @@
 // frontend/src/pages/ChatPage.tsx
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
-
+import MessageActions from "../components/chat/MessageActions";
 
 import {
   useEffect,
@@ -35,8 +35,16 @@ interface ChatMessage {
   bookingId: string;
   senderId: string;
   senderRole: "USER" | "CREATOR";
+
+  type?: string;
+
   message: string;
+
   seenBy: string[];
+
+  isDeleted?: boolean;
+  deletedAt?: string;
+
   createdAt: string;
 }
 
@@ -85,8 +93,28 @@ export default function ChatPage() {
   const [sending, setSending] =
     useState(false);
 
+const [
+  selectedMessageId,
+  setSelectedMessageId,
+] = useState<string | null>(
+  null
+);
+
+const [actionsOpen, setActionsOpen] =
+  useState(false);
+
+
     const [isTyping, setIsTyping] =
   useState(false);
+
+  const [
+  deliveredMessages,
+  setDeliveredMessages,
+] = useState<
+  Set<string>
+>(
+  new Set()
+);
 
   const [
     chatClosed,
@@ -321,6 +349,9 @@ const hasEmittedTypingRef =
             const isMine =
   msg.senderId === userId;
 
+
+ 
+
 if (isMine)
   return prev;
 
@@ -334,7 +365,14 @@ if (isMine)
           api.post(
           `/v1/chat/${bookingId}/seen`
         );
-
+socket.emit(
+  "chat:delivered",
+  {
+    bookingId,
+    messageId: msg._id,
+    userId,
+  }
+);
       };
 
     socket.on(
@@ -373,6 +411,88 @@ if (isMine)
 socket.on(
   "chat:seen",
   handleSeen
+);
+
+
+/* ======================================================
+   DELIVERED
+====================================================== */
+
+const handleDelivered = (
+  data: {
+    bookingId: string;
+    messageId: string;
+    userId: string;
+  }
+) => {
+
+  console.log(
+    "DELIVERED EVENT",
+    data
+  );
+
+  if (
+    data.bookingId !==
+    bookingId
+  ) {
+    return;
+  }
+
+  setDeliveredMessages(
+    (prev) => {
+
+      const next =
+        new Set(prev);
+
+      next.add(
+        data.messageId
+      );
+
+      return next;
+    }
+  );
+};
+
+socket.on(
+  "chat:delivered",
+  handleDelivered
+);
+
+/* ======================================================
+   DELETE
+====================================================== */
+
+const handleDeleted = (
+  data: {
+    messageId: string;
+    bookingId: string;
+    deletedAt: string;
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg._id === data.messageId
+        ? {
+            ...msg,
+            isDeleted: true,
+            deletedAt:
+              data.deletedAt,
+          }
+        : msg
+    )
+  );
+};
+
+socket.on(
+  "chat:deleted",
+  handleDeleted
 );
 
 /* ======================================================
@@ -470,6 +590,16 @@ socket.on(
 socket.off(
   "chat:seen",
   handleSeen
+);
+
+socket.off(
+  "chat:delivered",
+  handleDelivered
+);
+
+socket.off(
+  "chat:deleted",
+  handleDeleted
 );
 
 socket.off(
@@ -703,6 +833,35 @@ if (
       }
     };
 
+
+
+
+    /* ======================================================
+   DELETE MESSAGE
+====================================================== */
+
+const handleDeleteMessage = async (
+  messageId: string
+) => {
+  try {
+
+    await api.delete(
+      `/v1/chat/message/${messageId}`
+    );
+
+    setActionsOpen(false);
+
+    setSelectedMessageId(null);
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ||
+      "Failed to delete message"
+    );
+
+  }
+};
   /* ======================================================
      ENTER SEND
   ====================================================== */
@@ -981,6 +1140,12 @@ if (
                   const isMine =
   msg.senderId === userId;
 
+   const canDelete =
+
+  isMine &&
+
+  !msg.isDeleted;
+
                   return (
 
                     <div
@@ -1005,6 +1170,7 @@ msg.senderId
 
                       <div
                         className={`
+                          relative
                           max-w-[82%]
                           md:max-w-[68%]
                           rounded-2xl
@@ -1028,17 +1194,52 @@ msg.senderId
                           }
                         `}
                       >
+                        
 
-                        <p
-                          className="
-                            text-[14px]
-                            leading-relaxed
-                            whitespace-pre-wrap
-                            break-words
-                          "
-                        >
-                          {msg.message}
-                        </p>
+                        {canDelete && (
+  <button
+    onClick={() => {
+      setSelectedMessageId(
+        msg._id
+      );
+
+      setActionsOpen(true);
+    }}
+    className="
+      absolute
+      top-2
+      right-2
+      text-white/40
+      hover:text-white/70
+      text-sm
+    "
+  >
+    ⋮
+  </button>
+)}
+
+{msg.isDeleted ? (
+  <p
+    className="
+      text-[13px]
+      italic
+      text-white/40
+    "
+  >
+    This message was deleted
+  </p>
+) : (
+  <p
+    className="
+      text-[14px]
+      leading-relaxed
+      whitespace-pre-wrap
+      break-words
+    "
+  >
+    {msg.message}
+  </p>
+)}
 
                         <div
   className={`
@@ -1065,13 +1266,22 @@ msg.senderId
     }
   )}
 
-  {isMine &&
-    msg.seenBy &&
-    msg.seenBy.length > 1 && (
-      <span className="ml-2">
-        Seen
-      </span>
-    )}
+  {isMine && (
+
+  <span className="ml-2">
+
+    {msg.seenBy &&
+    msg.seenBy.length > 1
+      ? "Seen"
+      : deliveredMessages.has(
+          msg._id
+        )
+      ? "Delivered"
+      : "Sent"}
+
+  </span>
+
+)}
 
 </div>
 
@@ -1308,6 +1518,24 @@ msg.senderId
    </style>
 
       </div>
+
+      <MessageActions
+  isOpen={actionsOpen}
+  canDelete={
+    !!selectedMessageId
+  }
+  onDelete={() => {
+    if (selectedMessageId) {
+      handleDeleteMessage(
+        selectedMessageId
+      );
+    }
+  }}
+  onClose={() => {
+    setActionsOpen(false);
+    setSelectedMessageId(null);
+  }}
+/>
 
     </Layout>
   );

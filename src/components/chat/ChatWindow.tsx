@@ -9,6 +9,8 @@ import {
 } from "react";
 
 
+
+
 import api from "../../api/axios";
 
 import {
@@ -22,15 +24,23 @@ import type {
 import { useAuth } from "../../context/AuthContext";
 
 import { socket } from "../../lib/socket";
-
+import MessageActions from "./MessageActions";
 
 interface ChatMessage {
   _id: string;
   bookingId: string;
   senderId: string;
   senderRole: "USER" | "CREATOR";
+
+  type?: string;
+
   message: string;
+
   seenBy: string[];
+
+  isDeleted?: boolean;
+  deletedAt?: string;
+
   createdAt: string;
 }
 
@@ -80,8 +90,23 @@ export default function ChatWindow({
   const [sending, setSending] =
     useState(false);
 
+    const [selectedMessageId, setSelectedMessageId] =
+  useState<string | null>(null);
+
+const [actionsOpen, setActionsOpen] =
+  useState(false);
+
     const [isTyping, setIsTyping] =
   useState(false);
+
+  const [
+  deliveredMessages,
+  setDeliveredMessages,
+] = useState<
+  Set<string>
+>(
+  new Set()
+);
 
   const [
     chatClosed,
@@ -358,6 +383,15 @@ useEffect(() => {
     api.post(
       `/v1/chat/${bookingId}/seen`
     );
+
+    socket.emit(
+  "chat:delivered",
+  {
+    bookingId,
+    messageId: msg._id,
+    userId,
+  }
+);
   };
 
   socket.on(
@@ -408,6 +442,89 @@ useEffect(() => {
     "chat:seen",
     handleSeen
   );
+
+
+  /* ======================================================
+   DELIVERED
+====================================================== */
+
+const handleDelivered = (
+  data: {
+    bookingId: string;
+    messageId: string;
+    userId: string;
+  }
+) => {
+  console.log(
+    "DELIVERED EVENT",
+    data
+  );
+
+  if (
+    data.bookingId !==
+    bookingId
+  ) {
+    return;
+  }
+
+  setDeliveredMessages(
+    (prev) => {
+
+      const next =
+        new Set(prev);
+
+      next.add(
+        data.messageId
+      );
+
+      return next;
+    }
+  );
+};
+
+socket.on(
+  "chat:delivered",
+  handleDelivered
+);
+
+
+ /* ======================================================
+     DELETE
+  ====================================================== */
+
+const handleDeleted = (
+  data: {
+    messageId: string;
+    bookingId: string;
+    deletedAt: string;
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg._id === data.messageId
+        ? {
+            ...msg,
+            isDeleted: true,
+            deletedAt:
+              data.deletedAt,
+          }
+        : msg
+    )
+  );
+};
+
+socket.on(
+  "chat:deleted",
+  handleDeleted
+);
+
 
   /* ======================================================
      TYPING
@@ -521,6 +638,16 @@ useEffect(() => {
       handleStopTyping
     );
 
+    socket.off(
+  "chat:delivered",
+  handleDelivered
+);
+
+socket.off(
+  "chat:deleted",
+  handleDeleted
+);
+
     if (
       typingTimeoutRef.current
     ) {
@@ -531,6 +658,9 @@ useEffect(() => {
   };
 
 }, [bookingId, userId]);
+
+
+
 
   /* ======================================================
      SCROLL LOGIC
@@ -610,6 +740,8 @@ useEffect(() => {
 
       const messageText =
   input.trim();
+
+
 
 /* ==========================================
    STOP TYPING IMMEDIATELY
@@ -740,6 +872,34 @@ if (
         setSending(false);
       }
     };
+
+
+/* ======================================================
+   DELETE MESSAGE
+====================================================== */
+
+const handleDeleteMessage = async (
+  messageId: string
+) => {
+  try {
+
+    await api.delete(
+      `/v1/chat/message/${messageId}`
+    );
+
+    setActionsOpen(false);
+
+    setSelectedMessageId(null);
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ||
+      "Failed to delete message"
+    );
+
+  }
+};
 
   /* ======================================================
      ENTER SEND
@@ -1029,6 +1189,12 @@ if (
                   const isMine =
   msg.senderId === userId;
 
+const canDelete =
+  isMine &&
+  !msg.isDeleted;
+
+
+
                   return (
 
                     <div
@@ -1053,6 +1219,7 @@ msg.senderId
 
                       <div
                         className={`
+                          relative
                           max-w-[82%]
                           md:max-w-[68%]
                           rounded-2xl
@@ -1077,16 +1244,37 @@ msg.senderId
                         `}
                       >
 
+{canDelete && (
+  <button
+    onClick={() => {
+      setSelectedMessageId(msg._id);
+      setActionsOpen(true);
+    }}
+    className="
+      absolute
+      top-2
+      right-2
+      text-white/40
+      hover:text-white/70
+      text-sm
+    "
+  >
+    ⋮
+  </button>
+)}
+
                         <p
-                          className="
-                            text-[14px]
-                            leading-relaxed
-                            whitespace-pre-wrap
-                            break-words
-                          "
-                        >
-                          {msg.message}
-                        </p>
+  className="
+    text-[14px]
+    leading-relaxed
+    whitespace-pre-wrap
+    break-words
+  "
+>
+  {msg.isDeleted
+    ? "This message was deleted"
+    : msg.message}
+</p>
 
                         <div
   className={`
@@ -1113,21 +1301,35 @@ msg.senderId
     }
   )}
 
-  {isMine &&
-    msg.seenBy &&
-    msg.seenBy.length > 1 && (
-      <span className="ml-2">
-        Seen
-      </span>
-    )}
+  {isMine && (
+
+  <span className="ml-2">
+
+    {msg.seenBy &&
+    msg.seenBy.length > 1
+      ? "Seen"
+      : deliveredMessages.has(
+          msg._id
+        )
+      ? "Delivered"
+      : "Sent"}
+
+  </span>
+
+)}
 
 </div>
+
+
 
                       </div>
 
                     </div>
                   );
                 }
+
+
+                
               )}
 
               {isTyping && (
@@ -1354,6 +1556,25 @@ msg.senderId
     }
   `}
    </style>
+
+<MessageActions
+  isOpen={actionsOpen}
+  canDelete={
+    !!selectedMessageId
+  }
+  onDelete={() => {
+    if (selectedMessageId) {
+      handleDeleteMessage(
+        selectedMessageId
+      );
+    }
+  }}
+  onClose={() => {
+    setActionsOpen(false);
+    setSelectedMessageId(null);
+  }}
+/>
+
 
       </div>
 
