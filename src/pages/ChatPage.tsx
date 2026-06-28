@@ -3,6 +3,8 @@ import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
 import MessageActions from "../components/chat/MessageActions";
 
+import MobileMessageList from "../components/chat/MobileMessageList";
+import ChatComposer from "../components/chat/ChatComposer";
 import {
   useEffect,
   useRef,
@@ -27,6 +29,10 @@ import type {
 import { useAuth } from "../context/AuthContext";
 
 import { socket } from "../lib/socket";
+import ChatHeader from "../components/chat/ChatHeader";
+
+import LocationPickerModal from "../components/chat/LocationPickerModal";
+import MapPickerModal from "../components/chat/MapPickerModal";
 
 
 
@@ -44,6 +50,11 @@ interface ChatMessage {
 
   isDeleted?: boolean;
   deletedAt?: string;
+
+  reactions?: {
+  userId: string;
+  emoji: string;
+}[];
 
   createdAt: string;
 }
@@ -100,8 +111,33 @@ const [
   null
 );
 
+
+const [
+  showLocationPicker,
+  setShowLocationPicker,
+] = useState(false);
+
+const [
+  mapPickerOpen,
+  setMapPickerOpen,
+] = useState(false);
+
+const [
+  selectedMapLocation,
+  setSelectedMapLocation,
+] = useState<{
+  latitude: number;
+  longitude: number;
+} | null>(null);
+
+
 const [actionsOpen, setActionsOpen] =
   useState(false);
+
+  const longPressTimerRef =
+  useRef<
+    ReturnType<typeof setTimeout> | null
+  >(null);
 
 
     const [isTyping, setIsTyping] =
@@ -496,6 +532,46 @@ socket.on(
 );
 
 /* ======================================================
+   REACTIONS
+====================================================== */
+
+const handleReaction = (
+  data: {
+    bookingId: string;
+    messageId: string;
+    reactions: {
+      userId: string;
+      emoji: string;
+    }[];
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg._id === data.messageId
+        ? {
+            ...msg,
+            reactions:
+              data.reactions,
+          }
+        : msg
+    )
+  );
+};
+
+socket.on(
+  "chat:reaction",
+  handleReaction
+);
+
+
+/* ======================================================
    TYPING
 ====================================================== */
 
@@ -603,6 +679,11 @@ socket.off(
 );
 
 socket.off(
+  "chat:reaction",
+  handleReaction
+);
+
+socket.off(
   "chat:typing",
   handleTyping
 );
@@ -683,6 +764,70 @@ if (
       }
     );
   }, []);
+
+
+
+
+const handleSendLocation = async (
+  location: {
+    latitude: number;
+    longitude: number;
+    name: string;
+    address: string;
+    placeId?: string;
+  }
+) => {
+  if (
+    !bookingId ||
+    sending ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  try {
+    setSending(true);
+
+    const { data } = await api.post(
+      `/v1/chat/${bookingId}/messages`,
+      {
+        type: "location",
+        location,
+      }
+    );
+
+    setMessages((prev) => [
+      ...prev,
+      data.chat,
+    ]);
+
+    setShowLocationPicker(false);
+
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+
+  } catch (err: any) {
+
+    console.error(
+      "Failed to send location",
+      err
+    );
+
+    alert(
+      err?.response?.data?.message ||
+      "Failed to send location"
+    );
+
+  } finally {
+
+    setSending(false);
+
+  }
+};
+
+
+
 
   /* ======================================================
      SEND
@@ -862,6 +1007,82 @@ const handleDeleteMessage = async (
 
   }
 };
+
+
+
+/* ======================================================
+   REACT TO MESSAGE
+====================================================== */
+
+const handleReactToMessage = async (
+  messageId: string,
+  emoji: string
+) => {
+  try {
+
+    await api.post(
+      `/v1/chat/message/${messageId}/react`,
+      {
+        emoji,
+      }
+    );
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ||
+      "Failed to react"
+    );
+
+  }
+};
+
+
+/* ======================================================
+   LONG PRESS
+====================================================== */
+
+const startLongPress = (
+  messageId: string,
+  canDelete: boolean
+) => {
+
+  if (!canDelete) {
+    return;
+  }
+
+  longPressTimerRef.current =
+    setTimeout(() => {
+
+      setSelectedMessageId(
+        messageId
+      );
+
+      setActionsOpen(true);
+
+    }, 500);
+};
+
+
+/* ======================================================
+   END LONG PRESS
+====================================================== */
+
+const endLongPress = () => {
+
+  if (
+    longPressTimerRef.current
+  ) {
+    clearTimeout(
+      longPressTimerRef.current
+    );
+
+    longPressTimerRef.current =
+      null;
+  }
+};
+
+
   /* ======================================================
      ENTER SEND
   ====================================================== */
@@ -921,6 +1142,73 @@ const handleDeleteMessage = async (
       ?.title ||
     "Service";
 
+
+
+
+
+
+
+
+
+const handleInputChange = (
+  value: string
+) => {
+  setInput(value);
+
+  if (
+    chatClosed ||
+    !bookingId ||
+    !userId
+  ) {
+    return;
+  }
+
+  if (
+    !hasEmittedTypingRef.current
+  ) {
+    socket.emit(
+      "chat:typing",
+      {
+        bookingId,
+        userId,
+      }
+    );
+
+    hasEmittedTypingRef.current =
+      true;
+  }
+
+  if (
+    typingTimeoutRef.current
+  ) {
+    clearTimeout(
+      typingTimeoutRef.current
+    );
+  }
+
+  typingTimeoutRef.current =
+    setTimeout(() => {
+
+      socket.emit(
+        "chat:stop-typing",
+        {
+          bookingId,
+          userId,
+        }
+      );
+
+      hasEmittedTypingRef.current =
+        false;
+
+    }, 1500);
+};
+
+
+
+
+
+
+
   /* ======================================================
      UI
   ====================================================== */
@@ -947,129 +1235,15 @@ const handleDeleteMessage = async (
   "
 >
 
-        {/* HEADER */}
-
-        <div
-          className="
-            shrink-0
-            rounded-[24px]
-            border border-white/10
-            bg-gradient-to-br
-            from-white/[0.045]
-            to-white/[0.015]
-            backdrop-blur-xl
-            px-3 sm:px-5
-            py-2
-            mb-2
-          "
-        >
-
-          <div className="flex items-center gap-3 min-w-0">
-
-            <button
-              onClick={() =>
-                navigate(-1)
-              }
-              className="
-                shrink-0
-                text-white/80
-                hover:text-white
-                transition-colors
-              "
-            >
-              ←
-            </button>
-
-            {/* AVATAR */}
-
-            <div className="relative shrink-0">
-
-              {avatarUrl ? (
-
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="
-                    w-9
-                    h-9
-                    rounded-full
-                    object-cover
-                    border border-white/10
-                  "
-                />
-
-              ) : (
-
-                <div
-                  className="
-                    w-9
-                    h-9
-                    rounded-full
-                    bg-white/[0.06]
-                    border border-white/10
-                    flex items-center justify-center
-                    text-sm font-semibold
-                  "
-                >
-
-                  {getInitials(
-                    displayName
-                  )}
-
-                </div>
-              )}
-
-            </div>
-
-            {/* CONTENT */}
-
-            <div className="min-w-0">
-
-              <h2
-                className="
-                  text-[15px]
-                  sm:text-[16px]
-                  font-semibold
-                  truncate
-                "
-              >
-                {displayName}
-              </h2>
-
-              <div className="mt-[2px] space-y-[2px]">
-
-                <p
-                  className="
-                    text-[10px]
-                    text-white/40
-                    truncate
-                    leading-none
-                  "
-                >
-                  {serviceTitle}
-                </p>
-
-                <p
-                  className="
-                    text-[11px]
-                    sm:text-xs
-                    text-white/50
-                    truncate
-                  "
-                >
-                  {chatClosed
-                    ? "Chat closed"
-                    : slotText ||
-                      "Booking active"}
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
+        <ChatHeader
+  displayName={displayName}
+  avatarUrl={avatarUrl}
+  serviceTitle={serviceTitle}
+  slotText={slotText}
+  chatClosed={chatClosed}
+  onClose={() => navigate(-1)}
+  getInitials={getInitials}
+/>
 
         {/* CHAT BODY */}
 
@@ -1113,378 +1287,58 @@ const handleDeleteMessage = async (
             "
           >
 
-            {loading && (
+            <MobileMessageList
+  loading={loading}
+  error={error}
+  messages={messages}
+  userId={userId}
+  deliveredMessages={
+    deliveredMessages
+  }
+  handleReactToMessage={
+    handleReactToMessage
+  }
+  setSelectedMessageId={
+    setSelectedMessageId
+  }
+  setActionsOpen={
+    setActionsOpen
+  }
+  startLongPress={
+    startLongPress
+  }
+  endLongPress={
+    endLongPress
+  }
+ isTyping={isTyping}
+ bottomRef={bottomRef}
 
-              <p className="text-sm text-white/50">
-                Loading chat...
-              </p>
+  setMapPickerOpen={
+    setMapPickerOpen
+  }
+  setSelectedMapLocation={
+    setSelectedMapLocation
+  }
 
-            )}
-
-            {error && (
-
-              <p className="text-sm text-red-400">
-                {error}
-              </p>
-
-            )}
-
-            {!loading &&
-              !error &&
-              messages.map(
-                (
-                  msg,
-                  index
-                ) => {
-
-                  const isMine =
-  msg.senderId === userId;
-
-   const canDelete =
-
-  isMine &&
-
-  !msg.isDeleted;
-
-                  return (
-
-                    <div
-                      key={msg._id}
-                      className={`
-                        flex
-                        ${
-                          isMine
-                            ? "justify-end"
-                            : "justify-start"
-                        }
-                        ${
-                          index > 0 &&
-                          messages[index - 1]
-  .senderId ===
-msg.senderId
-                            ? "mt-1"
-                            : "mt-3"
-                        }
-                      `}
-                    >
-
-                      <div
-                        className={`
-                          relative
-                          max-w-[82%]
-                          md:max-w-[68%]
-                          rounded-2xl
-                          px-3.5
-                          py-2
-                          border
-                          ${
-                            isMine
-                              ? `
-                                bg-white/[0.075]
-                                border-white/[0.08]
-                                text-white
-                                rounded-br-md
-                              `
-                              : `
-                                bg-white/[0.04]
-                                border-white/[0.05]
-                                text-white/90
-                                rounded-bl-md
-                              `
-                          }
-                        `}
-                      >
-                        
-
-                        {canDelete && (
-  <button
-    onClick={() => {
-      setSelectedMessageId(
-        msg._id
-      );
-
-      setActionsOpen(true);
-    }}
-    className="
-      absolute
-      top-2
-      right-2
-      text-white/40
-      hover:text-white/70
-      text-sm
-    "
-  >
-    ⋮
-  </button>
-)}
-
-{msg.isDeleted ? (
-  <p
-    className="
-      text-[13px]
-      italic
-      text-white/40
-    "
-  >
-    This message was deleted
-  </p>
-) : (
-  <p
-    className="
-      text-[14px]
-      leading-relaxed
-      whitespace-pre-wrap
-      break-words
-    "
-  >
-    {msg.message}
-  </p>
-)}
-
-                        <div
-  className={`
-    mt-1
-    text-[10px]
-    leading-none
-    ${
-      isMine
-        ? "text-white/40 text-right"
-        : "text-white/35"
-    }
-  `}
->
-
-  {new Date(
-    msg.createdAt
-  ).toLocaleTimeString(
-    [],
-    {
-      hour:
-        "2-digit",
-      minute:
-        "2-digit",
-    }
-  )}
-
-  {isMine && (
-
-  <span className="ml-2">
-
-    {msg.seenBy &&
-    msg.seenBy.length > 1
-      ? "Seen"
-      : deliveredMessages.has(
-          msg._id
-        )
-      ? "Delivered"
-      : "Sent"}
-
-  </span>
-
-)}
-
-</div>
-
-                       </div>
-
-                    </div>
-                  );
-                }
-              )}
-
-  {isTyping && (
-
-  <div
-    className="
-      flex
-      justify-start
-      mt-2
-    "
-  >
-
-    <div
-      className="
-        max-w-[82%]
-        md:max-w-[68%]
-        rounded-2xl
-        rounded-bl-md
-        px-3.5
-        py-2
-        border
-        border-white/[0.05]
-        bg-white/[0.04]
-        text-white/60
-        text-[13px]
-        italic
-      "
-    >
-
-      Typing...
-
-    </div>
-
-  </div>
-
-)}            
-
-            <div
-              ref={bottomRef}
-              className="h-4 shrink-0"
-            />
+/>
 
           </div>
 
         </div>
 
-        {/* INPUT */}
+        <ChatComposer
+  input={input}
+  handleInputChange={handleInputChange}
+  handleKeyDown={handleKeyDown}
+  handleSend={handleSend}
+  sending={sending}
+  chatClosed={chatClosed}
+  showLocationButton={true}
 
-        <div
-          className="
-            mt-2
-            shrink-0
-            rounded-[20px]
-            border border-white/10
-            bg-gradient-to-br
-            from-white/[0.045]
-            to-white/[0.015]
-            backdrop-blur-xl
-            px-2
-            py-1.5
-          "
-        >
-
-          <div className="flex items-end gap-2">
-
-            <input
-              type="text"
-              value={input}
-             onChange={(e) => {
-
-  const value =
-    e.target.value;
-
-  setInput(value);
-
-  if (
-    chatClosed ||
-    !bookingId ||
-    !userId
-  ) {
-    return;
-  }
-
-  /* ==========================================
-     START TYPING
-  ========================================== */
-
-  if (
-    !hasEmittedTypingRef.current
-  ) {
-
-    socket.emit(
-      "chat:typing",
-      {
-        bookingId,
-        userId,
-      }
-    );
-
-    hasEmittedTypingRef.current =
-      true;
-  }
-
-  /* ==========================================
-     RESET INACTIVITY TIMER
-  ========================================== */
-
-  if (
-    typingTimeoutRef.current
-  ) {
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-  }
-
-  typingTimeoutRef.current =
-    setTimeout(() => {
-
-      socket.emit(
-        "chat:stop-typing",
-        {
-          bookingId,
-          userId,
-        }
-      );
-
-      hasEmittedTypingRef.current =
-        false;
-
-    }, 1500);
-
-}}
-              onKeyDown={
-                handleKeyDown
-              }
-              disabled={
-                chatClosed
-              }
-              placeholder={
-                chatClosed
-                  ? "Chat closed"
-                  : "Type a message..."
-              }
-              className="
-                flex-1
-                min-w-0
-                bg-white/[0.04]
-                border border-white/10
-                rounded-[18px]
-                px-4
-                py-2.5
-                text-[14px]
-                text-white
-                placeholder:text-white/35
-                focus:outline-none
-                focus:border-white/15
-                transition-all
-                disabled:opacity-50
-              "
-            />
-
-            <button
-              onClick={
-                handleSend
-              }
-              disabled={
-                sending ||
-                !input.trim() ||
-                chatClosed
-              }
-              className="
-                h-[40px]
-                px-4
-                shrink-0
-                rounded-[18px]
-                border border-white/10
-                bg-white/[0.07]
-                hover:bg-white/[0.1]
-                active:scale-[0.98]
-                transition-all
-                disabled:opacity-40
-                text-[13px]
-                font-medium
-              "
-            >
-
-              {sending
-                ? "Sending..."
-                : "Send"}
-
-            </button>
-
-          </div>
-
-        </div>
+onLocationClick={() =>
+  setShowLocationPicker(true)
+}
+/>
 
         {/* SCROLLBAR */}
 
@@ -1535,6 +1389,32 @@ msg.senderId
     setActionsOpen(false);
     setSelectedMessageId(null);
   }}
+/>
+
+<LocationPickerModal
+  open={showLocationPicker}
+  onClose={() =>
+    setShowLocationPicker(false)
+  }
+  onConfirm={
+    handleSendLocation
+  }
+/>
+
+<MapPickerModal
+  open={
+    mapPickerOpen &&
+    selectedMapLocation !== null
+  }
+  latitude={
+    selectedMapLocation?.latitude ?? 0
+  }
+  longitude={
+    selectedMapLocation?.longitude ?? 0
+  }
+  onClose={() =>
+    setMapPickerOpen(false)
+  }
 />
 
     </Layout>

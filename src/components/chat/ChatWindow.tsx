@@ -1,7 +1,6 @@
 //frontend/src/components/chat/ChatWindow.tsx
 
 
-
 import {
   useEffect,
   useRef,
@@ -9,8 +8,9 @@ import {
 } from "react";
 
 
-
-
+import MessageList from "./MessageList";
+import ChatComposer from "./ChatComposer";
+import ChatHeader from "./ChatHeader";
 import api from "../../api/axios";
 
 import {
@@ -24,7 +24,13 @@ import type {
 import { useAuth } from "../../context/AuthContext";
 
 import { socket } from "../../lib/socket";
+
+import MapPickerModal from "./MapPickerModal";
 import MessageActions from "./MessageActions";
+import LocationPickerModal from "./LocationPickerModal";
+
+
+import "leaflet/dist/leaflet.css";
 
 interface ChatMessage {
   _id: string;
@@ -34,12 +40,26 @@ interface ChatMessage {
 
   type?: string;
 
+  location?: {
+  latitude: number;
+  longitude: number;
+
+  name: string;
+  address: string;
+
+  placeId?: string;
+};
+
   message: string;
 
   seenBy: string[];
 
   isDeleted?: boolean;
   deletedAt?: string;
+  reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
 
   createdAt: string;
 }
@@ -69,6 +89,19 @@ export default function ChatWindow({
     ChatMessage[]
   >([]);
 
+
+
+const [mapPickerOpen, setMapPickerOpen] =
+  useState(false);
+
+const [selectedMapLocation, setSelectedMapLocation] =
+  useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+
+const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [
     conversation,
     setConversation,
@@ -526,6 +559,47 @@ socket.on(
 );
 
 
+
+/* ======================================================
+   REACTIONS
+====================================================== */
+
+const handleReaction = (
+  data: {
+    bookingId: string;
+    messageId: string;
+    reactions: {
+      userId: string;
+      emoji: string;
+    }[];
+  }
+) => {
+
+  if (
+    data.bookingId !== bookingId
+  ) {
+    return;
+  }
+
+  setMessages((prev) =>
+    prev.map((msg) =>
+      msg._id === data.messageId
+        ? {
+            ...msg,
+            reactions:
+              data.reactions,
+          }
+        : msg
+    )
+  );
+};
+
+socket.on(
+  "chat:reaction",
+  handleReaction
+);
+
+
   /* ======================================================
      TYPING
   ====================================================== */
@@ -646,6 +720,11 @@ socket.on(
 socket.off(
   "chat:deleted",
   handleDeleted
+);
+
+socket.off(
+  "chat:reaction",
+  handleReaction
 );
 
     if (
@@ -874,6 +953,44 @@ if (
     };
 
 
+
+
+const handleSendLocation = async (location: {
+  latitude: number;
+  longitude: number;
+  name: string;
+  address: string;
+  placeId?: string;
+}) => {
+  if (!bookingId || sending) return;
+
+  try {
+    setSending(true);
+
+    const { data } = await api.post(
+      `/v1/chat/${bookingId}/messages`,
+      {
+        type: "location",
+        location,
+      }
+    );
+
+    setMessages((prev) => [...prev, data.chat]);
+
+    setShowLocationPicker(false);
+
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({
+        behavior: "smooth",
+      });
+    }
+  } catch (err) {
+    console.error("Failed to send location", err);
+  } finally {
+    setSending(false);
+  }
+};
+
 /* ======================================================
    DELETE MESSAGE
 ====================================================== */
@@ -896,6 +1013,34 @@ const handleDeleteMessage = async (
     alert(
       err?.response?.data?.message ||
       "Failed to delete message"
+    );
+
+  }
+};
+
+
+/* ======================================================
+   REACT TO MESSAGE
+====================================================== */
+
+const handleReactToMessage = async (
+  messageId: string,
+  emoji: string
+) => {
+  try {
+
+    await api.post(
+      `/v1/chat/message/${messageId}/react`,
+      {
+        emoji,
+      }
+    );
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ||
+      "Failed to react"
     );
 
   }
@@ -960,6 +1105,53 @@ const handleDeleteMessage = async (
       ?.title ||
     "Service";
 
+
+
+
+
+
+
+
+const handleInputChange = (
+  value: string
+) => {
+  setInput(value);
+
+  if (
+    chatClosed ||
+    !bookingId ||
+    !userId
+  ) {
+    return;
+  }
+
+  if (!hasEmittedTypingRef.current) {
+    socket.emit("chat:typing", {
+      bookingId,
+      userId,
+    });
+
+    hasEmittedTypingRef.current = true;
+  }
+
+  if (typingTimeoutRef.current) {
+    clearTimeout(typingTimeoutRef.current);
+  }
+
+  typingTimeoutRef.current = setTimeout(() => {
+    socket.emit("chat:stop-typing", {
+      bookingId,
+      userId,
+    });
+
+    hasEmittedTypingRef.current = false;
+  }, 1500);
+};
+
+
+
+
+
   /* ======================================================
      UI
   ====================================================== */
@@ -999,127 +1191,15 @@ const handleDeleteMessage = async (
 
         {/* HEADER */}
 
-        <div
-          className="
-            shrink-0
-            rounded-[24px]
-            border border-white/10
-            bg-gradient-to-br
-            from-white/[0.045]
-            to-white/[0.015]
-            backdrop-blur-xl
-            px-3 sm:px-5
-            py-2
-            mb-2
-          "
-        >
-
-          <div className="flex items-center gap-3 min-w-0">
-
-            {onClose && (
-  <button
-    onClick={onClose}
-    className="
-      shrink-0
-      text-white/80
-      hover:text-white
-      transition-colors
-    "
-  >
-    ←
-  </button>
-)}
-
-            {/* AVATAR */}
-
-            <div className="relative shrink-0">
-
-              {avatarUrl ? (
-
-                <img
-                  src={avatarUrl}
-                  alt="avatar"
-                  className="
-                    w-9
-                    h-9
-                    rounded-full
-                    object-cover
-                    border border-white/10
-                  "
-                />
-
-              ) : (
-
-                <div
-                  className="
-                    w-9
-                    h-9
-                    rounded-full
-                    bg-white/[0.06]
-                    border border-white/10
-                    flex items-center justify-center
-                    text-sm font-semibold
-                  "
-                >
-
-                  {getInitials(
-                    displayName
-                  )}
-
-                </div>
-              )}
-
-            </div>
-
-            {/* CONTENT */}
-
-            <div className="min-w-0">
-
-              <h2
-                className="
-                  text-[15px]
-                  sm:text-[16px]
-                  font-semibold
-                  truncate
-                "
-              >
-                {displayName}
-              </h2>
-
-              <div className="mt-[2px] space-y-[2px]">
-
-                <p
-                  className="
-                    text-[10px]
-                    text-white/40
-                    truncate
-                    leading-none
-                  "
-                >
-                  {serviceTitle}
-                </p>
-
-                <p
-                  className="
-                    text-[11px]
-                    sm:text-xs
-                    text-white/50
-                    truncate
-                  "
-                >
-                  {chatClosed
-                    ? "Chat closed"
-                    : slotText ||
-                      "Booking active"}
-                </p>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
+        <ChatHeader
+  displayName={displayName}
+  avatarUrl={avatarUrl}
+  serviceTitle={serviceTitle}
+  slotText={slotText}
+  chatClosed={chatClosed}
+  onClose={onClose}
+  getInitials={getInitials}
+/>
 
         {/* CHAT BODY */}
 
@@ -1162,215 +1242,30 @@ const handleDeleteMessage = async (
             "
           >
 
-            {loading && (
-
-              <p className="text-sm text-white/50">
-                Loading chat...
-              </p>
-
-            )}
-
-            {error && (
-
-              <p className="text-sm text-red-400">
-                {error}
-              </p>
-
-            )}
-
-            {!loading &&
-              !error &&
-              messages.map(
-                (
-                  msg,
-                  index
-                ) => {
-
-                  const isMine =
-  msg.senderId === userId;
-
-const canDelete =
-  isMine &&
-  !msg.isDeleted;
-
-
-
-                  return (
-
-                    <div
-                      key={msg._id}
-                      className={`
-                        flex
-                        ${
-                          isMine
-                            ? "justify-end"
-                            : "justify-start"
-                        }
-                        ${
-                          index > 0 &&
-                          messages[index - 1]
-  .senderId ===
-msg.senderId
-                            ? "mt-1"
-                            : "mt-3"
-                        }
-                      `}
-                    >
-
-                      <div
-                        className={`
-                          relative
-                          max-w-[82%]
-                          md:max-w-[68%]
-                          rounded-2xl
-                          px-3.5
-                          py-2
-                          border
-                          ${
-                            isMine
-                              ? `
-                                bg-white/[0.075]
-                                border-white/[0.08]
-                                text-white
-                                rounded-br-md
-                              `
-                              : `
-                                bg-white/[0.04]
-                                border-white/[0.05]
-                                text-white/90
-                                rounded-bl-md
-                              `
-                          }
-                        `}
-                      >
-
-{canDelete && (
-  <button
-    onClick={() => {
-      setSelectedMessageId(msg._id);
-      setActionsOpen(true);
-    }}
-    className="
-      absolute
-      top-2
-      right-2
-      text-white/40
-      hover:text-white/70
-      text-sm
-    "
-  >
-    ⋮
-  </button>
-)}
-
-                        <p
-  className="
-    text-[14px]
-    leading-relaxed
-    whitespace-pre-wrap
-    break-words
-  "
->
-  {msg.isDeleted
-    ? "This message was deleted"
-    : msg.message}
-</p>
-
-                        <div
-  className={`
-    mt-1
-    text-[10px]
-    leading-none
-    ${
-      isMine
-        ? "text-white/40 text-right"
-        : "text-white/35"
-    }
-  `}
->
-
-  {new Date(
-    msg.createdAt
-  ).toLocaleTimeString(
-    [],
-    {
-      hour:
-        "2-digit",
-      minute:
-        "2-digit",
-    }
-  )}
-
-  {isMine && (
-
-  <span className="ml-2">
-
-    {msg.seenBy &&
-    msg.seenBy.length > 1
-      ? "Seen"
-      : deliveredMessages.has(
-          msg._id
-        )
-      ? "Delivered"
-      : "Sent"}
-
-  </span>
-
-)}
-
-</div>
-
-
-
-                      </div>
-
-                    </div>
-                  );
-                }
-
-
-                
-              )}
-
-              {isTyping && (
-
-  <div
-    className="
-      flex
-      justify-start
-      mt-2
-    "
-  >
-
-    <div
-      className="
-        max-w-[82%]
-        md:max-w-[68%]
-        rounded-2xl
-        rounded-bl-md
-        px-3.5
-        py-2
-        border
-        border-white/[0.05]
-        bg-white/[0.04]
-        text-white/60
-        text-[13px]
-        italic
-      "
-    >
-
-      Typing...
-
-    </div>
-
-  </div>
-
-)}
-
-            <div
-              ref={bottomRef}
-              className="h-4 shrink-0"
-            />
+            <MessageList
+  loading={loading}
+  error={error}
+  messages={messages}
+  userId={userId}
+  deliveredMessages={deliveredMessages}
+  handleReactToMessage={
+    handleReactToMessage
+  }
+  setSelectedMessageId={
+    setSelectedMessageId
+  }
+  setActionsOpen={
+    setActionsOpen
+  }
+  isTyping={isTyping}
+  bottomRef={bottomRef}
+  setMapPickerOpen={
+    setMapPickerOpen
+  }
+  setSelectedMapLocation={
+    setSelectedMapLocation
+  }
+/>
 
           </div>
 
@@ -1378,153 +1273,18 @@ msg.senderId
 
         {/* INPUT */}
 
-        <div
-          className="
-            mt-2
-            shrink-0
-            rounded-[20px]
-            border border-white/10
-            bg-gradient-to-br
-            from-white/[0.045]
-            to-white/[0.015]
-            backdrop-blur-xl
-            px-2
-            py-1.5
-          "
-        >
-
-          <div className="flex items-end gap-2">
-
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => {
-
-  const value =
-    e.target.value;
-
-  setInput(value);
-
-  if (
-    chatClosed ||
-    !bookingId ||
-    !userId
-  ) {
-    return;
+        <ChatComposer
+  input={input}
+  handleInputChange={handleInputChange}
+  handleKeyDown={handleKeyDown}
+  handleSend={handleSend}
+  sending={sending}
+  chatClosed={chatClosed}
+  showLocationButton={true}
+  onLocationClick={() =>
+    setShowLocationPicker(true)
   }
-
-  /* ==========================================
-     START TYPING
-  ========================================== */
-
-  if (
-    !hasEmittedTypingRef.current
-  ) {
-
-    socket.emit(
-      "chat:typing",
-      {
-        bookingId,
-        userId,
-      }
-    );
-
-    hasEmittedTypingRef.current =
-      true;
-  }
-
-  /* ==========================================
-     RESET INACTIVITY TIMER
-  ========================================== */
-
-  if (
-    typingTimeoutRef.current
-  ) {
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-  }
-
-  typingTimeoutRef.current =
-    setTimeout(() => {
-
-      socket.emit(
-        "chat:stop-typing",
-        {
-          bookingId,
-          userId,
-        }
-      );
-
-      hasEmittedTypingRef.current =
-        false;
-
-    }, 1500);
-
-}}
-              onKeyDown={
-                handleKeyDown
-              }
-              disabled={
-                chatClosed
-              }
-              placeholder={
-                chatClosed
-                  ? "Chat closed"
-                  : "Type a message..."
-              }
-              className="
-                flex-1
-                min-w-0
-                bg-white/[0.04]
-                border border-white/10
-                rounded-[18px]
-                px-4
-                py-2.5
-                text-[14px]
-                text-white
-                placeholder:text-white/35
-                focus:outline-none
-                focus:border-white/15
-                transition-all
-                disabled:opacity-50
-              "
-            />
-
-            <button
-              onClick={
-                handleSend
-              }
-              disabled={
-                sending ||
-                !input.trim() ||
-                chatClosed
-              }
-              className="
-                h-[40px]
-                px-4
-                shrink-0
-                rounded-[18px]
-                border border-white/10
-                bg-white/[0.07]
-                hover:bg-white/[0.1]
-                active:scale-[0.98]
-                transition-all
-                disabled:opacity-40
-                text-[13px]
-                font-medium
-              "
-            >
-
-              {sending
-                ? "Sending..."
-                : "Send"}
-
-            </button>
-
-          </div>
-
-        </div>
+/>
 
         {/* SCROLLBAR */}
 
@@ -1575,9 +1335,26 @@ msg.senderId
   }}
 />
 
+<LocationPickerModal
+  open={showLocationPicker}
+  onClose={() =>
+    setShowLocationPicker(false)
+  }
+  onConfirm={handleSendLocation}
+/>
 
-      </div>
+<MapPickerModal
+  open={mapPickerOpen}
+  onClose={() => setMapPickerOpen(false)}
+  latitude={
+    selectedMapLocation?.latitude ?? 0
+  }
+  longitude={
+    selectedMapLocation?.longitude ?? 0
+  }
+/>
 
-    
-  );
+</div>
+
+);
 }
