@@ -24,7 +24,7 @@ import type {
 import { useAuth } from "../../context/AuthContext";
 
 import { socket } from "../../lib/socket";
-
+import ImageViewerModal from "./ImageViewerModal";
 import MapPickerModal from "./MapPickerModal";
 import MessageActions from "./MessageActions";
 import LocationPickerModal from "./LocationPickerModal";
@@ -44,10 +44,21 @@ interface ChatMessage {
   latitude: number;
   longitude: number;
 
+ 
+
   name: string;
   address: string;
 
   placeId?: string;
+};
+ attachment?: {
+  url: string;
+  publicId: string;
+  fileName: string;
+  originalFileName: string;
+  mimeType: string;
+  fileSize: number;
+  resourceType: string;
 };
 
   message: string;
@@ -89,7 +100,14 @@ export default function ChatWindow({
     ChatMessage[]
   >([]);
 
+const [imageViewerOpen, setImageViewerOpen] =
+  useState(false);
 
+const [selectedImageUrl, setSelectedImageUrl] =
+  useState("");
+
+const [selectedImageName, setSelectedImageName] =
+  useState("");
 
 const [mapPickerOpen, setMapPickerOpen] =
   useState(false);
@@ -953,7 +971,9 @@ if (
     };
 
 
-
+/* ======================================================
+   Location Sending
+====================================================== */
 
 const handleSendLocation = async (location: {
   latitude: number;
@@ -988,6 +1008,126 @@ const handleSendLocation = async (location: {
     console.error("Failed to send location", err);
   } finally {
     setSending(false);
+  }
+};
+
+/* ======================================================
+  Document Sending
+====================================================== */
+const handleSendDocument = async (
+  file: File
+) => {
+  if (
+    !bookingId ||
+    sending ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  try {
+    setSending(true);
+
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const { data } =
+      await api.post(
+        `/v1/chat/${bookingId}/documents`,
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    setMessages((prev) => [
+      ...prev,
+      data.chat,
+    ]);
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    });
+  } catch (err: any) {
+    alert(
+      err?.response?.data?.message ??
+        "Failed to upload document"
+    );
+  } finally {
+    setSending(false);
+  }
+};
+
+
+/* ======================================================
+   IMAGE SENDING
+====================================================== */
+
+const handleSendImage = async (
+  file: File
+) => {
+  if (
+    !bookingId ||
+    sending ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  try {
+    setSending(true);
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const { data } =
+      await api.post(
+        `/v1/chat/${bookingId}/images`,
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    setMessages((prev) => [
+      ...prev,
+      data.chat,
+    ]);
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    });
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ??
+      "Failed to upload image"
+    );
+
+  } finally {
+
+    setSending(false);
+
   }
 };
 
@@ -1213,7 +1353,6 @@ const handleInputChange = (
   className="
   chat-scrollbar
   scroll-smooth
-  contain-strict
   flex-1
   min-h-0
   overflow-y-auto
@@ -1221,7 +1360,7 @@ const handleInputChange = (
   overscroll-contain
   rounded-[22px]
   pr-1
-  [mask-image:linear-gradient(to_bottom,black,black)]
+  
   border border-white/10
   bg-gradient-to-br
   from-white/[0.045]
@@ -1265,6 +1404,18 @@ const handleInputChange = (
   setSelectedMapLocation={
     setSelectedMapLocation
   }
+
+  setImageViewerOpen={
+  setImageViewerOpen
+}
+
+setSelectedImageUrl={
+  setSelectedImageUrl
+}
+
+setSelectedImageName={
+  setSelectedImageName
+}
 />
 
           </div>
@@ -1282,8 +1433,14 @@ const handleInputChange = (
   chatClosed={chatClosed}
   showLocationButton={true}
   onLocationClick={() =>
-    setShowLocationPicker(true)
-  }
+  setShowLocationPicker(true)
+}
+onDocumentSelect={
+  handleSendDocument
+}
+onImageSelect={
+  handleSendImage
+}
 />
 
         {/* SCROLLBAR */}
@@ -1352,6 +1509,12 @@ const handleInputChange = (
   longitude={
     selectedMapLocation?.longitude ?? 0
   }
+/>
+<ImageViewerModal
+  open={imageViewerOpen}
+  imageUrl={selectedImageUrl}
+  fileName={selectedImageName}
+  onClose={() => setImageViewerOpen(false)}
 />
 
 </div>

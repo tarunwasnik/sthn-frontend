@@ -50,6 +50,19 @@ interface MobileMessageListProps {
       longitude: number;
     }
   ) => void;
+
+
+  setImageViewerOpen: (
+  open: boolean
+) => void;
+
+setSelectedImageUrl: (
+  url: string
+) => void;
+
+setSelectedImageName: (
+  name: string
+) => void;
 }
 
 export default function MobileMessageList({
@@ -67,6 +80,10 @@ export default function MobileMessageList({
   bottomRef,
  setMapPickerOpen,
   setSelectedMapLocation,
+
+  setImageViewerOpen,
+setSelectedImageUrl,
+setSelectedImageName,
 }: MobileMessageListProps) {
   return (
   <>
@@ -109,6 +126,18 @@ export default function MobileMessageList({
           setSelectedMapLocation={
             setSelectedMapLocation
           }
+          setImageViewerOpen={
+  setImageViewerOpen
+}
+
+setSelectedImageUrl={
+  setSelectedImageUrl
+}
+
+setSelectedImageName={
+  setSelectedImageName
+}
+
           onTouchStart={() =>
             startLongPress(
               msg._id,

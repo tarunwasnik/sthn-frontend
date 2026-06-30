@@ -1623,7 +1623,7 @@ const closeChat = () => {
         <div
   className={`
     overflow-hidden
-    transition-all
+    transition-opacity
     duration-300
     ease-in-out
     ${

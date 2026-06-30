@@ -31,6 +31,19 @@ interface MessageListProps {
       longitude: number;
     }
   ) => void;
+
+
+  setImageViewerOpen: (
+  open: boolean
+) => void;
+
+setSelectedImageUrl: (
+  url: string
+) => void;
+
+setSelectedImageName: (
+  name: string
+) => void;
 }
 
 export default function MessageList({
@@ -46,6 +59,9 @@ export default function MessageList({
   bottomRef,
   setMapPickerOpen,
   setSelectedMapLocation,
+  setImageViewerOpen,
+setSelectedImageUrl,
+setSelectedImageName,
 }: MessageListProps) {
   return (
     <>
@@ -86,6 +102,19 @@ export default function MessageList({
   setSelectedMapLocation={
     setSelectedMapLocation
   }
+
+  setImageViewerOpen={
+  setImageViewerOpen
+}
+
+setSelectedImageUrl={
+  setSelectedImageUrl
+}
+
+setSelectedImageName={
+  setSelectedImageName
+}
+
   onContextMenu={(e) => {
 
     const canDelete =

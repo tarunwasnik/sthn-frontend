@@ -2,6 +2,7 @@
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
 import MessageActions from "../components/chat/MessageActions";
+import ImageViewerModal from "../components/chat/ImageViewerModal";
 
 import MobileMessageList from "../components/chat/MobileMessageList";
 import ChatComposer from "../components/chat/ChatComposer";
@@ -129,6 +130,16 @@ const [
   latitude: number;
   longitude: number;
 } | null>(null);
+
+
+const [imageViewerOpen, setImageViewerOpen] =
+  useState(false);
+
+const [selectedImageUrl, setSelectedImageUrl] =
+  useState("");
+
+const [selectedImageName, setSelectedImageName] =
+  useState("");
 
 
 const [actionsOpen, setActionsOpen] =
@@ -827,7 +838,131 @@ const handleSendLocation = async (
 };
 
 
+/* ======================================================
+   DOCUMENT SENDING
+====================================================== */
 
+const handleSendDocument = async (
+  file: File
+) => {
+  if (
+    !bookingId ||
+    sending ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  try {
+    setSending(true);
+
+    const formData = new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const { data } =
+      await api.post(
+        `/v1/chat/${bookingId}/documents`,
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    setMessages((prev) => [
+      ...prev,
+      data.chat,
+    ]);
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    });
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ??
+      "Failed to upload document"
+    );
+
+  } finally {
+
+    setSending(false);
+
+  }
+};
+
+
+/* ======================================================
+   IMAGE SENDING
+====================================================== */
+
+const handleSendImage = async (
+  file: File
+) => {
+  if (
+    !bookingId ||
+    sending ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  try {
+    setSending(true);
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "file",
+      file
+    );
+
+    const { data } =
+      await api.post(
+        `/v1/chat/${bookingId}/images`,
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    setMessages((prev) => [
+      ...prev,
+      data.chat,
+    ]);
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    });
+
+  } catch (err: any) {
+
+    alert(
+      err?.response?.data?.message ??
+      "Failed to upload image"
+    );
+
+  } finally {
+
+    setSending(false);
+
+  }
+};
 
   /* ======================================================
      SEND
@@ -1257,7 +1392,7 @@ const handleInputChange = (
   className="
     chat-scrollbar
     scroll-smooth
-    contain-strict
+    
     flex-[0.86]
     min-h-0
     h-0
@@ -1320,6 +1455,18 @@ const handleInputChange = (
     setSelectedMapLocation
   }
 
+  setImageViewerOpen={
+  setImageViewerOpen
+}
+
+setSelectedImageUrl={
+  setSelectedImageUrl
+}
+
+setSelectedImageName={
+  setSelectedImageName
+}
+
 />
 
           </div>
@@ -1334,10 +1481,15 @@ const handleInputChange = (
   sending={sending}
   chatClosed={chatClosed}
   showLocationButton={true}
-
-onLocationClick={() =>
-  setShowLocationPicker(true)
+  onLocationClick={() =>
+    setShowLocationPicker(true)
 }
+  onDocumentSelect={
+    handleSendDocument
+  }
+  onImageSelect={
+    handleSendImage
+  }
 />
 
         {/* SCROLLBAR */}
@@ -1414,6 +1566,15 @@ onLocationClick={() =>
   }
   onClose={() =>
     setMapPickerOpen(false)
+  }
+/>
+
+<ImageViewerModal
+  open={imageViewerOpen}
+  imageUrl={selectedImageUrl}
+  fileName={selectedImageName}
+  onClose={() =>
+    setImageViewerOpen(false)
   }
 />
 
