@@ -193,8 +193,8 @@ const hasEmittedTypingRef =
 const [imagePreviewOpen, setImagePreviewOpen] =
   useState(false);
 
-const [selectedImageFile, setSelectedImageFile] =
-  useState<File | null>(null);
+const [selectedImageFiles, setSelectedImageFiles] =
+  useState<File[]>([]);
 
 
   /* ======================================================
@@ -1450,8 +1450,8 @@ setSelectedImageName={
 onDocumentSelect={
   handleSendDocument
 }
-onImageSelect={(file) => {
-  setSelectedImageFile(file);
+onImageSelect={(files) => {
+  setSelectedImageFiles(files);
   setImagePreviewOpen(true);
 }}
 />
@@ -1532,20 +1532,27 @@ onImageSelect={(file) => {
 
 <ImagePreviewModal
   open={imagePreviewOpen}
-  file={selectedImageFile}
+  files={selectedImageFiles}
   sending={sending}
   onCancel={() => {
-    setImagePreviewOpen(false);
-    setSelectedImageFile(null);
-  }}
-  onSend={async () => {
-    if (!selectedImageFile) return;
+  setImagePreviewOpen(false);
+  setSelectedImageFiles([]);
+}}
+  onSend={async (files) => {
+  if (!files.length) return;
 
-    await handleSendImage(selectedImageFile);
+  try {
+    for (const file of files) {
+      await handleSendImage(file);
+    }
 
     setImagePreviewOpen(false);
-    setSelectedImageFile(null);
-  }}
+    setSelectedImageFiles([]);
+
+  } catch {
+    // Keep preview open if any upload fails.
+  }
+}}
 />
 
 </div>

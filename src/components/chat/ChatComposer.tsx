@@ -30,9 +30,9 @@ interface ChatComposerProps {
     file: File
   ) => void;
 
-  onImageSelect?: (
-    file: File
-  ) => void;
+onImageSelect?: (
+  files: File[]
+) => void;
 }
 
 export default function ChatComposer({
@@ -77,6 +77,7 @@ export default function ChatComposer({
         ref={fileInputRef}
         type="file"
         hidden
+        multiple
         capture={undefined}
         accept="
 .pdf,
@@ -122,6 +123,7 @@ application/x-rar-compressed
         ref={imageInputRef}
         type="file"
         hidden
+        multiple
        accept="
 image/*,
 .jpg,
@@ -134,18 +136,19 @@ image/*,
 "
         capture={undefined}
         onChange={(e) => {
-          const file =
-            e.target.files?.[0];
+  const files = Array.from(
+    e.target.files ?? []
+  );
 
-          if (
-            file &&
-            onImageSelect
-          ) {
-            onImageSelect(file);
-          }
+  if (
+    files.length > 0 &&
+    onImageSelect
+  ) {
+    onImageSelect(files);
+  }
 
-          e.currentTarget.value = "";
-        }}
+  e.currentTarget.value = "";
+}}
       />
 
       <div className="flex items-end gap-2">

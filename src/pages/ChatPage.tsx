@@ -144,8 +144,8 @@ const [selectedImageName, setSelectedImageName] =
 const [imagePreviewOpen, setImagePreviewOpen] =
   useState(false);
 
-const [selectedImageFile, setSelectedImageFile] =
-  useState<File | null>(null);
+const [selectedImageFiles, setSelectedImageFiles] =
+  useState<File[]>([]);
 
 
 const [actionsOpen, setActionsOpen] =
@@ -1495,8 +1495,8 @@ setSelectedImageName={
   onDocumentSelect={
     handleSendDocument
   }
-  onImageSelect={(file) => {
-  setSelectedImageFile(file);
+  onImageSelect={(files) => {
+  setSelectedImageFiles(files);
   setImagePreviewOpen(true);
 }}
 />
@@ -1589,23 +1589,25 @@ setSelectedImageName={
 
 <ImagePreviewModal
   open={imagePreviewOpen}
-  file={selectedImageFile}
+  files={selectedImageFiles}
   sending={sending}
   onCancel={() => {
     setImagePreviewOpen(false);
-    setSelectedImageFile(null);
+    setSelectedImageFiles([]);
   }}
-  onSend={async () => {
-    if (!selectedImageFile) return;
+  onSend={async (files) => {
+    if (!files.length) return;
 
     try {
-      await handleSendImage(selectedImageFile);
+      for (const file of files) {
+        await handleSendImage(file);
+      }
 
       setImagePreviewOpen(false);
-      setSelectedImageFile(null);
+      setSelectedImageFiles([]);
 
     } catch {
-      // Keep preview open on failure.
+      // Keep preview open if any upload fails.
     }
   }}
 />
