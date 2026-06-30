@@ -34,7 +34,7 @@ import ChatHeader from "../components/chat/ChatHeader";
 
 import LocationPickerModal from "../components/chat/LocationPickerModal";
 import MapPickerModal from "../components/chat/MapPickerModal";
-
+import ImagePreviewModal from "../components/chat/ImagePreviewModal";
 
 
 interface ChatMessage {
@@ -140,6 +140,12 @@ const [selectedImageUrl, setSelectedImageUrl] =
 
 const [selectedImageName, setSelectedImageName] =
   useState("");
+
+const [imagePreviewOpen, setImagePreviewOpen] =
+  useState(false);
+
+const [selectedImageFile, setSelectedImageFile] =
+  useState<File | null>(null);
 
 
 const [actionsOpen, setActionsOpen] =
@@ -950,18 +956,20 @@ const handleSendImage = async (
       });
     });
 
-  } catch (err: any) {
+ } catch (err: any) {
 
-    alert(
-      err?.response?.data?.message ??
-      "Failed to upload image"
-    );
+  alert(
+    err?.response?.data?.message ??
+    "Failed to upload image"
+  );
 
-  } finally {
+  throw err;
 
-    setSending(false);
+} finally {
 
-  }
+  setSending(false);
+
+}
 };
 
   /* ======================================================
@@ -1487,9 +1495,10 @@ setSelectedImageName={
   onDocumentSelect={
     handleSendDocument
   }
-  onImageSelect={
-    handleSendImage
-  }
+  onImageSelect={(file) => {
+  setSelectedImageFile(file);
+  setImagePreviewOpen(true);
+}}
 />
 
         {/* SCROLLBAR */}
@@ -1576,6 +1585,29 @@ setSelectedImageName={
   onClose={() =>
     setImageViewerOpen(false)
   }
+/>
+
+<ImagePreviewModal
+  open={imagePreviewOpen}
+  file={selectedImageFile}
+  sending={sending}
+  onCancel={() => {
+    setImagePreviewOpen(false);
+    setSelectedImageFile(null);
+  }}
+  onSend={async () => {
+    if (!selectedImageFile) return;
+
+    try {
+      await handleSendImage(selectedImageFile);
+
+      setImagePreviewOpen(false);
+      setSelectedImageFile(null);
+
+    } catch {
+      // Keep preview open on failure.
+    }
+  }}
 />
 
     </Layout>

@@ -28,6 +28,7 @@ import ImageViewerModal from "./ImageViewerModal";
 import MapPickerModal from "./MapPickerModal";
 import MessageActions from "./MessageActions";
 import LocationPickerModal from "./LocationPickerModal";
+import ImagePreviewModal from "./ImagePreviewModal";
 
 
 import "leaflet/dist/leaflet.css";
@@ -187,6 +188,13 @@ const typingTimeoutRef =
 
 const hasEmittedTypingRef =
   useRef(false);
+
+
+const [imagePreviewOpen, setImagePreviewOpen] =
+  useState(false);
+
+const [selectedImageFile, setSelectedImageFile] =
+  useState<File | null>(null);
 
 
   /* ======================================================
@@ -1117,12 +1125,16 @@ const handleSendImage = async (
       });
     });
 
+    return data.chat;
+
   } catch (err: any) {
 
     alert(
       err?.response?.data?.message ??
       "Failed to upload image"
     );
+
+    throw err;
 
   } finally {
 
@@ -1438,9 +1450,10 @@ setSelectedImageName={
 onDocumentSelect={
   handleSendDocument
 }
-onImageSelect={
-  handleSendImage
-}
+onImageSelect={(file) => {
+  setSelectedImageFile(file);
+  setImagePreviewOpen(true);
+}}
 />
 
         {/* SCROLLBAR */}
@@ -1515,6 +1528,24 @@ onImageSelect={
   imageUrl={selectedImageUrl}
   fileName={selectedImageName}
   onClose={() => setImageViewerOpen(false)}
+/>
+
+<ImagePreviewModal
+  open={imagePreviewOpen}
+  file={selectedImageFile}
+  sending={sending}
+  onCancel={() => {
+    setImagePreviewOpen(false);
+    setSelectedImageFile(null);
+  }}
+  onSend={async () => {
+    if (!selectedImageFile) return;
+
+    await handleSendImage(selectedImageFile);
+
+    setImagePreviewOpen(false);
+    setSelectedImageFile(null);
+  }}
 />
 
 </div>
