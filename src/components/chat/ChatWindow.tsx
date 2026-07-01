@@ -33,6 +33,8 @@ import ImagePreviewModal from "./ImagePreviewModal";
 
 import "leaflet/dist/leaflet.css";
 
+
+
 interface ChatMessage {
   _id: string;
   bookingId: string;
@@ -42,25 +44,22 @@ interface ChatMessage {
   type?: string;
 
   location?: {
-  latitude: number;
-  longitude: number;
+    latitude: number;
+    longitude: number;
+    name: string;
+    address: string;
+    placeId?: string;
+  };
 
- 
-
-  name: string;
-  address: string;
-
-  placeId?: string;
-};
- attachment?: {
-  url: string;
-  publicId: string;
-  fileName: string;
-  originalFileName: string;
-  mimeType: string;
-  fileSize: number;
-  resourceType: string;
-};
+  attachment?: {
+    url: string;
+    publicId: string;
+    fileName: string;
+    originalFileName: string;
+    mimeType: string;
+    fileSize: number;
+    resourceType: string;
+  };
 
   message: string;
 
@@ -68,14 +67,24 @@ interface ChatMessage {
 
   isDeleted?: boolean;
   deletedAt?: string;
+
   reactions?: {
     userId: string;
     emoji: string;
   }[];
 
+  /* Optimistic Upload */
+
+  isUploading?: boolean;
+
+  uploadProgress?: number;
+
+  uploadFailed?: boolean;
+
+  tempPreviewUrl?: string;
+
   createdAt: string;
 }
-
 interface ChatWindowProps {
   bookingId: string;
   embedded?: boolean;
@@ -408,56 +417,86 @@ useEffect(() => {
     bookingId
   );
 
-  const handleMessage = (
-    msg: ChatMessage
-  ) => {
+ const handleMessage = (
+  msg: ChatMessage
+) => {
 
-    setMessages(
-      (prev) => {
+  const addMessage = () => {
+    setMessages((prev) => {
 
-        const exists =
-          prev.find(
-            (m) =>
-              m._id ===
-              msg._id
-          );
+      const exists =
+        prev.find(
+          (m) =>
+            m._id ===
+            msg._id
+        );
 
-        if (exists)
-          return prev;
-
-        const isMine =
-          msg.senderId ===
-          userId;
-
-        if (isMine)
-          return prev;
-
-        return [
-          ...prev,
-          msg,
-        ];
+      if (exists) {
+        return prev;
       }
-    );
 
-    api.post(
-      `/v1/chat/${bookingId}/seen`
-    );
+      const isMine =
+        msg.senderId ===
+        userId;
 
-    socket.emit(
-  "chat:delivered",
-  {
-    bookingId,
-    messageId: msg._id,
-    userId,
-  }
-);
+      if (isMine) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        msg,
+      ];
+    });
   };
 
-  socket.on(
-    "chat:message",
-    handleMessage
+  if (
+    (
+      msg.type === "IMAGE" ||
+      msg.type === "image"
+    ) &&
+    msg.attachment?.url
+  ) {
+
+    const image =
+      new Image();
+
+    image.src =
+      msg.attachment.url;
+
+    image.onload = () => {
+      addMessage();
+    };
+
+    image.onerror = () => {
+      // Don't lose the message if preloading fails.
+      addMessage();
+    };
+
+  } else {
+
+    addMessage();
+
+  }
+
+  api.post(
+    `/v1/chat/${bookingId}/seen`
   );
 
+  socket.emit(
+    "chat:delivered",
+    {
+      bookingId,
+      messageId: msg._id,
+      userId,
+    }
+  );
+};
+
+socket.on(
+  "chat:message",
+  handleMessage
+);
   /* ======================================================
      SEEN
   ====================================================== */
@@ -1081,19 +1120,21 @@ const handleSendDocument = async (
 ====================================================== */
 
 const handleSendImage = async (
-  file: File
+  file: File,
+  tempId: string
 ) => {
   if (
     !bookingId ||
-    sending ||
     chatClosed
   ) {
     return;
   }
 
-  try {
-    setSending(true);
+  if (!userId) {
+    return;
+  }
 
+  try {
     const formData =
       new FormData();
 
@@ -1103,45 +1144,208 @@ const handleSendImage = async (
     );
 
     const { data } =
-      await api.post(
-        `/v1/chat/${bookingId}/images`,
-        formData,
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
+  await api.post(
+    `/v1/chat/${bookingId}/images`,
+    formData,
+    {
+      headers: {
+        "Content-Type":
+          "multipart/form-data",
+      },
+
+      onUploadProgress: (
+        progressEvent
+      ) => {
+
+        if (!progressEvent.total) {
+          return;
         }
-      );
 
-    setMessages((prev) => [
-      ...prev,
-      data.chat,
-    ]);
+        const progress =
+          Math.round(
+            (progressEvent.loaded * 100) /
+              progressEvent.total
+          );
 
-    requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({
-        behavior: "smooth",
-      });
-    });
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === tempId
+              ? {
+                  ...msg,
+                  uploadProgress:
+                    progress,
+                }
+              : msg
+          )
+        );
+      },
+    }
+  );
+
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg._id !== tempId) {
+          return msg;
+        }
+
+        return {
+          ...msg,
+
+          _id: data.chat._id,
+
+          bookingId:
+            data.chat.bookingId,
+
+          senderId:
+            data.chat.senderId,
+
+          senderRole:
+            data.chat.senderRole,
+
+          type:
+            data.chat.type,
+
+          message:
+            data.chat.message,
+
+          attachment:
+            data.chat.attachment,
+
+          location:
+            data.chat.location,
+
+          reactions:
+            data.chat.reactions ?? [],
+
+          seenBy:
+            data.chat.seenBy ?? [],
+
+          createdAt:
+            data.chat.createdAt,
+
+          isUploading: false,
+
+          uploadProgress: 100,
+
+          uploadFailed: false,
+        };
+      })
+    );
 
     return data.chat;
 
-  } catch (err: any) {
+  } catch (err) {
 
-    alert(
-      err?.response?.data?.message ??
-      "Failed to upload image"
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg._id === tempId
+          ? {
+              ...msg,
+
+              isUploading: false,
+
+              uploadFailed: true,
+            }
+          : msg
+      )
     );
 
     throw err;
-
-  } finally {
-
-    setSending(false);
-
   }
 };
+
+
+
+const handleSendImages = (
+  files: File[]
+) => {
+
+  if (
+    !bookingId ||
+    !userId ||
+    chatClosed
+  ) {
+    return;
+  }
+
+  const uploadQueue = files.map((file) => {
+  const tempId =
+    `temp-${crypto.randomUUID()}`;
+
+  const previewUrl =
+    URL.createObjectURL(file);
+
+  return {
+    file,
+    tempId,
+    previewUrl,
+    message: {
+      _id: tempId,
+
+      bookingId,
+
+      senderId: userId,
+
+      senderRole:
+        role === "creator"
+          ? "CREATOR"
+          : "USER",
+
+      type: "image",
+
+      message: "",
+
+      seenBy: [],
+
+      attachment: {
+        url: previewUrl,
+        publicId: "",
+        fileName: file.name,
+        originalFileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size,
+        resourceType: "image",
+      },
+
+      tempPreviewUrl:
+        previewUrl,
+
+      isUploading: true,
+
+      uploadProgress: 0,
+
+      createdAt:
+        new Date().toISOString(),
+    } satisfies ChatMessage,
+  };
+});
+
+      
+
+ setMessages((prev) => [
+  ...prev,
+  ...uploadQueue.map(
+    (item) => item.message
+  ),
+]);
+
+  requestAnimationFrame(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  });
+
+ uploadQueue.forEach(
+  ({ file, tempId }) => {
+    handleSendImage(
+      file,
+      tempId
+    ).catch(console.error);
+  }
+);
+};
+
+
 
 /* ======================================================
    DELETE MESSAGE
@@ -1538,20 +1742,15 @@ onImageSelect={(files) => {
   setImagePreviewOpen(false);
   setSelectedImageFiles([]);
 }}
-  onSend={async (files) => {
+  onSend={(files) => {
   if (!files.length) return;
 
-  try {
-    for (const file of files) {
-      await handleSendImage(file);
-    }
+  // Close preview immediately
+  setImagePreviewOpen(false);
+  setSelectedImageFiles([]);
 
-    setImagePreviewOpen(false);
-    setSelectedImageFiles([]);
-
-  } catch {
-    // Keep preview open if any upload fails.
-  }
+  // Start uploads in background
+  handleSendImages(files);
 }}
 />
 

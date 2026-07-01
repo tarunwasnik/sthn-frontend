@@ -9,7 +9,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import type { MouseEvent } from "react";
 import api from "../../api/axios";
-
+import ChatImage from "./ChatImage";
 
 
 interface MessageBubbleProps {
@@ -570,69 +570,26 @@ const openDocument = async () => {
 
   </div>
 
-  ) : msg.type === "image" && msg.attachment ? (
+ ) : (
+  msg.type === "image" ||
+  msg.type === "IMAGE"
+) && msg.attachment ? (
 
-  <div className="space-y-2">
+  <ChatImage
+    msg={msg}
+    onOpen={() => {
+      setSelectedImageUrl?.(
+        msg.attachment.url
+      );
 
-    <button
-      type="button"
-    onClick={() => {
-  setSelectedImageUrl?.(msg.attachment.url);
-
-  setSelectedImageName?.(
-    msg.attachment.originalFileName ?? "Image"
-  );
-
-  setImageViewerOpen?.(true);
-}}
-      className="
-        block
-        overflow-hidden
-        rounded-xl
-        border
-        border-white/10
-        hover:border-white/20
-        transition
-      "
-    >
-      <img
-        src={msg.attachment.url}
-        alt={
-          msg.attachment.originalFileName ||
+      setSelectedImageName?.(
+        msg.attachment.originalFileName ??
           "Image"
-        }
-        loading="lazy"
-        className="
-          max-h-[360px]
-          w-full
-          object-cover
-        "
-      />
-    </button>
+      );
 
-    <div
-      className="
-        flex
-        items-center
-        justify-between
-        text-xs
-        text-white/60
-      "
-    >
-      <span className="truncate">
-        {msg.attachment.originalFileName}
-      </span>
-
-      {msg.attachment.fileSize && (
-        <span className="ml-3 shrink-0">
-          {formatFileSize(
-            msg.attachment.fileSize
-          )}
-        </span>
-      )}
-    </div>
-
-  </div>
+      setImageViewerOpen?.(true);
+    }}
+  />
 
 ) : (
 
