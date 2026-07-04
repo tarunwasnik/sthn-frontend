@@ -1,6 +1,7 @@
 // frontend/src/components/chat/MobileMessageList.tsx
 
 import MessageBubble from "./MessageBubble";
+import ChatImageGroup from "./ChatImageGroup";
 
 interface MobileMessageListProps {
   loading: boolean;
@@ -13,56 +14,35 @@ interface MobileMessageListProps {
 
   deliveredMessages: Set<string>;
 
-  handleReactToMessage: (
-    messageId: string,
-    emoji: string
-  ) => void;
+  handleReactToMessage: (messageId: string, emoji: string) => void;
 
-  setSelectedMessageId: (
-    id: string | null
-  ) => void;
+  setSelectedMessageId: (id: string | null) => void;
 
-  setActionsOpen: (
-    open: boolean
-  ) => void;
+  setActionsOpen: (open: boolean) => void;
 
-  startLongPress: (
-    messageId: string,
-    canDelete: boolean
-  ) => void;
+  startLongPress: (messageId: string, canDelete: boolean) => void;
 
   endLongPress: () => void;
 
   isTyping: boolean;
 
-  bottomRef: React.RefObject<HTMLDivElement|null>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
 
   // We'll need these later when ChatPage gets
   // location support.
 
-  setMapPickerOpen: (
-    open: boolean
-  ) => void;
+  setMapPickerOpen: (open: boolean) => void;
 
-  setSelectedMapLocation: (
-    location: {
-      latitude: number;
-      longitude: number;
-    }
-  ) => void;
+  setSelectedMapLocation: (location: {
+    latitude: number;
+    longitude: number;
+  }) => void;
 
+  setImageViewerOpen: (open: boolean) => void;
 
-  setImageViewerOpen: (
-  open: boolean
-) => void;
+  setSelectedImages: (images: any[]) => void;
 
-setSelectedImageUrl: (
-  url: string
-) => void;
-
-setSelectedImageName: (
-  name: string
-) => void;
+  setSelectedImageIndex: (index: number) => void;
 }
 
 export default function MobileMessageList({
@@ -78,93 +58,151 @@ export default function MobileMessageList({
   endLongPress,
   isTyping,
   bottomRef,
- setMapPickerOpen,
+  setMapPickerOpen,
   setSelectedMapLocation,
 
   setImageViewerOpen,
-setSelectedImageUrl,
-setSelectedImageName,
+  setSelectedImages,
+  setSelectedImageIndex,
 }: MobileMessageListProps) {
+  /* ======================================================
+   BUILD RENDER ITEMS
+====================================================== */
+
+  const renderItems: Array<
+    | {
+        type: "message";
+        message: any;
+        index: number;
+      }
+    | {
+        type: "image-group";
+        groupId: string;
+        messages: any[];
+        startIndex: number;
+      }
+  > = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const current = messages[i];
+
+    const isImage =
+      (current.type === "image" || current.type === "IMAGE") && current.groupId;
+
+    if (!isImage) {
+      renderItems.push({
+        type: "message",
+        message: current,
+        index: i,
+      });
+
+      continue;
+    }
+
+    const group = [current];
+
+    let j = i + 1;
+
+    while (j < messages.length) {
+      const next = messages[j];
+
+      const sameGroup =
+        (next.type === "image" || next.type === "IMAGE") &&
+        next.groupId === current.groupId;
+
+      if (!sameGroup) {
+        break;
+      }
+
+      group.push(next);
+
+      j++;
+    }
+
+    if (group.length === 1) {
+      renderItems.push({
+        type: "message",
+        message: current,
+        index: i,
+      });
+    } else {
+      renderItems.push({
+        type: "image-group",
+        groupId: current.groupId,
+        messages: group,
+        startIndex: i,
+      });
+    }
+
+    i = j - 1;
+  }
   return (
-  <>
-    {loading && (
-      <p className="text-sm text-white/50">
-        Loading chat...
-      </p>
-    )}
+    <>
+      {loading && <p className="text-sm text-white/50">Loading chat...</p>}
 
-    {error && (
-      <p className="text-sm text-red-400">
-        {error}
-      </p>
-    )}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
-    {!loading &&
-      !error &&
-      messages.map((msg, index) => (
-        <MessageBubble
-          key={msg._id}
-          msg={msg}
-          index={index}
-          messages={messages}
-          userId={userId}
-          deliveredMessages={
-            deliveredMessages
-          }
-          handleReactToMessage={
-            handleReactToMessage
-          }
-          setSelectedMessageId={
-            setSelectedMessageId
-          }
-          setActionsOpen={
-            setActionsOpen
-          }
-          setMapPickerOpen={
-            setMapPickerOpen
-          }
-          setSelectedMapLocation={
-            setSelectedMapLocation
-          }
-          setImageViewerOpen={
-  setImageViewerOpen
-}
+      {!loading &&
+        !error &&
+        renderItems.map((item) => {
+          if (item.type === "message") {
+            const msg = item.message;
 
-setSelectedImageUrl={
-  setSelectedImageUrl
-}
+            const index = item.index;
 
-setSelectedImageName={
-  setSelectedImageName
-}
+            return (
+              <MessageBubble
+                key={msg._id}
+                msg={msg}
+                index={index}
+                messages={messages}
+                userId={userId}
+                deliveredMessages={deliveredMessages}
+                handleReactToMessage={handleReactToMessage}
+                setSelectedMessageId={setSelectedMessageId}
+                setActionsOpen={setActionsOpen}
+                setMapPickerOpen={setMapPickerOpen}
+                setSelectedMapLocation={setSelectedMapLocation}
+                setImageViewerOpen={setImageViewerOpen}
+                setSelectedImages={setSelectedImages}
+                setSelectedImageIndex={setSelectedImageIndex}
+                onTouchStart={() =>
+                  startLongPress(
+                    msg._id,
+                    msg.senderId === userId && !msg.isDeleted,
+                  )
+                }
+                onTouchEnd={endLongPress}
+                onTouchCancel={endLongPress}
+              />
+            );
+          }
 
-          onTouchStart={() =>
-            startLongPress(
-              msg._id,
-              msg.senderId ===
-                userId &&
-                !msg.isDeleted
-            )
-          }
-          onTouchEnd={
-            endLongPress
-          }
-          onTouchCancel={
-            endLongPress
-          }
-        />
-      ))}
+          return (
+            <ChatImageGroup
+              key={`group-${item.groupId}`}
+              messages={item.messages}
+              onOpenImage={(messages, index) => {
+                setSelectedImages(messages);
 
-    {isTyping && (
-      <div
-        className="
+                setSelectedImageIndex(index);
+
+                setImageViewerOpen(true);
+              }}
+            />
+          );
+        })}
+
+      {isTyping && (
+        <div
+          className="
           flex
           justify-start
           mt-2
         "
-      >
-        <div
-          className="
+        >
+          <div
+            className="
             max-w-[82%]
             md:max-w-[68%]
             rounded-2xl
@@ -178,16 +216,13 @@ setSelectedImageName={
             text-[13px]
             italic
           "
-        >
-          Typing...
+          >
+            Typing...
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
-    <div
-      ref={bottomRef}
-      className="h-4 shrink-0"
-    />
-  </>
-);
+      <div ref={bottomRef} className="h-4 shrink-0" />
+    </>
+  );
 }

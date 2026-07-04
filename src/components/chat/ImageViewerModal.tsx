@@ -3,50 +3,67 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
+interface ChatImage {
+  attachment?: {
+    url: string;
+    originalFileName?: string;
+  };
+}
+
 interface ImageViewerModalProps {
   open: boolean;
-  imageUrl: string;
-  fileName?: string;
+
+  images: ChatImage[];
+
+  currentIndex: number;
+
+  onIndexChange: (index: number) => void;
+
   onClose: () => void;
 }
 
 export default function ImageViewerModal({
   open,
-  imageUrl,
-  fileName,
+  images,
+  currentIndex,
+  onIndexChange,
   onClose,
 }: ImageViewerModalProps) {
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
-    const handleKeyDown = (
-      e: KeyboardEvent
-    ) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
       }
+
+      if (e.key === "ArrowLeft" && currentIndex > 0) {
+        onIndexChange(currentIndex - 1);
+      }
+
+      if (e.key === "ArrowRight" && currentIndex < images.length - 1) {
+        onIndexChange(currentIndex + 1);
+      }
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     document.body.style.overflow = "hidden";
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
+      window.removeEventListener("keydown", handleKeyDown);
 
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+  }, [open, currentIndex, images.length, onClose, onIndexChange]);
 
-  if (!open) {
+  if (!open || !images.length) {
     return null;
   }
+
+  const image = images[currentIndex];
 
   return createPortal(
     <div
@@ -82,13 +99,31 @@ export default function ImageViewerModal({
         ✕
       </button>
 
+      {currentIndex > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+
+            onIndexChange(currentIndex - 1);
+          }}
+          className="
+            absolute
+            left-5
+            text-5xl
+            text-white/80
+            hover:text-white
+          "
+        >
+          ‹
+        </button>
+      )}
+
       <img
-        src={imageUrl}
-        alt={fileName ?? "Image"}
-        onClick={(e) =>
-          e.stopPropagation()
-        }
+        src={image.attachment?.url}
+        alt={image.attachment?.originalFileName ?? "Image"}
         draggable={false}
+        onClick={(e) => e.stopPropagation()}
         className="
           max-w-[95vw]
           max-h-[95vh]
@@ -96,7 +131,46 @@ export default function ImageViewerModal({
           select-none
         "
       />
+
+      {currentIndex < images.length - 1 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+
+            onIndexChange(currentIndex + 1);
+          }}
+          className="
+            absolute
+            right-5
+            text-5xl
+            text-white/80
+            hover:text-white
+          "
+        >
+          ›
+        </button>
+      )}
+
+      <div
+        className="
+          absolute
+          bottom-6
+          left-1/2
+          -translate-x-1/2
+          rounded-full
+          bg-black/40
+          px-4
+          py-2
+          text-sm
+          text-white
+        "
+      >
+        {currentIndex + 1}
+        {" / "}
+        {images.length}
+      </div>
     </div>,
-    document.body
+    document.body,
   );
 }

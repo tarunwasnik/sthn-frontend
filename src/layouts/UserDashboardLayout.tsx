@@ -1,3 +1,4 @@
+// frontend/src/layouts/UserDashboardLayout.tsx
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -20,39 +21,25 @@ type Profile = {
   profilePhotos?: string[];
 };
 
-export default function UserDashboardLayout({
-  children,
-}: Props) {
+export default function UserDashboardLayout({ children }: Props) {
   const navigate = useNavigate();
 
-  const [profile, setProfile] =
-    useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
-  const [showMore, setShowMore] =
-    useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const authRes =
-          await api.get("/auth/me");
+        const authRes = await api.get("/auth/me");
 
-        const userId =
-          authRes.data.id;
+        const userId = authRes.data.id;
 
-        const profileRes =
-          await api.get(
-            `/v1/users/${userId}`
-          );
+        const profileRes = await api.get(`/v1/users/${userId}`);
 
-        setProfile(
-          profileRes.data.profile
-        );
+        setProfile(profileRes.data.profile);
       } catch (err) {
-        console.error(
-          "Failed to load profile",
-          err
-        );
+        console.error("Failed to load profile", err);
       }
     };
 
@@ -61,29 +48,21 @@ export default function UserDashboardLayout({
 
   useEffect(() => {
     if (showMore) {
-      document.body.style.overflow =
-        "hidden";
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.style.overflow =
-        "";
+      document.body.style.overflow = "";
     }
 
     return () => {
-      document.body.style.overflow =
-        "";
+      document.body.style.overflow = "";
     };
   }, [showMore]);
 
-  const avatar =
-    profile?.profilePhotos?.[0];
+  const avatar = profile?.profilePhotos?.[0];
 
-  const displayName =
-    profile?.username || "User";
+  const displayName = profile?.username || "User";
 
-  const initials =
-    displayName
-      .charAt(0)
-      .toUpperCase();
+  const initials = displayName.charAt(0).toUpperCase();
 
   return (
     <div
@@ -143,9 +122,7 @@ export default function UserDashboardLayout({
           <nav className="p-4 space-y-2">
             <SidebarItem
               to="/dashboard/user"
-              icon={
-                <LayoutDashboard size={18} />
-              }
+              icon={<LayoutDashboard size={18} />}
               label="Dashboard"
               end
             />
@@ -164,9 +141,7 @@ export default function UserDashboardLayout({
 
             <SidebarItem
               to="/dashboard/user/messages"
-              icon={
-                <MessageCircle size={18} />
-              }
+              icon={<MessageCircle size={18} />}
               label="Messages"
             />
 
@@ -222,9 +197,7 @@ export default function UserDashboardLayout({
           </h2>
 
           <div
-            onClick={() =>
-              navigate("/profile")
-            }
+            onClick={() => navigate("/profile")}
             className="
               w-9
               h-9
@@ -311,9 +284,7 @@ export default function UserDashboardLayout({
         >
           <BottomNavItem
             to="/dashboard/user"
-            icon={
-              <LayoutDashboard size={20} />
-            }
+            icon={<LayoutDashboard size={20} />}
             label="Home"
             end
           />
@@ -332,16 +303,12 @@ export default function UserDashboardLayout({
 
           <BottomNavItem
             to="/dashboard/user/messages"
-            icon={
-              <MessageCircle size={20} />
-            }
+            icon={<MessageCircle size={20} />}
             label="Messages"
           />
 
           <button
-            onClick={() =>
-              setShowMore(true)
-            }
+            onClick={() => setShowMore(true)}
             className="
               flex
               flex-col
@@ -350,9 +317,7 @@ export default function UserDashboardLayout({
               text-[rgba(255,255,255,0.50)]
             "
           >
-            <span className="text-lg">
-              ⋯
-            </span>
+            <span className="text-lg">⋯</span>
             <span>More</span>
           </button>
         </nav>
@@ -361,9 +326,7 @@ export default function UserDashboardLayout({
         {showMore && (
           <>
             <div
-              onClick={() =>
-                setShowMore(false)
-              }
+              onClick={() => setShowMore(false)}
               className="
                 fixed
                 inset-0
@@ -403,16 +366,12 @@ export default function UserDashboardLayout({
                     to="/dashboard/user/settings"
                     icon={<Settings size={18} />}
                     label="Settings"
-                    close={() =>
-                      setShowMore(false)
-                    }
+                    close={() => setShowMore(false)}
                   />
                 </div>
 
                 <button
-                  onClick={() =>
-                    setShowMore(false)
-                  }
+                  onClick={() => setShowMore(false)}
                   className="
                     absolute
                     bottom-4
@@ -444,12 +403,7 @@ export default function UserDashboardLayout({
 
 /* SIDEBAR ITEM */
 
-function SidebarItem({
-  to,
-  icon,
-  label,
-  end = false,
-}: any) {
+function SidebarItem({ to, icon, label, end = false }: any) {
   return (
     <NavLink
       to={to}
@@ -482,19 +436,12 @@ function SidebarItem({
       }
     >
       {icon}
-      <span className="text-sm">
-        {label}
-      </span>
+      <span className="text-sm">{label}</span>
     </NavLink>
   );
 }
 
-function BottomNavItem({
-  to,
-  icon,
-  label,
-  end = false,
-}: any) {
+function BottomNavItem({ to, icon, label, end = false }: any) {
   return (
     <NavLink
       to={to}
@@ -505,29 +452,18 @@ function BottomNavItem({
         flex-col
         items-center
         justify-center
-        ${
-          isActive
-            ? "text-white"
-            : "text-[rgba(255,255,255,0.50)]"
-        }
+        ${isActive ? "text-white" : "text-[rgba(255,255,255,0.50)]"}
       `
       }
     >
-      <div className="mb-0.5">
-        {icon}
-      </div>
+      <div className="mb-0.5">{icon}</div>
 
       <span>{label}</span>
     </NavLink>
   );
 }
 
-function SheetItem({
-  to,
-  icon,
-  label,
-  close,
-}: any) {
+function SheetItem({ to, icon, label, close }: any) {
   const navigate = useNavigate();
 
   return (
@@ -552,13 +488,9 @@ function SheetItem({
         transition
       "
     >
-      <div className="text-[rgba(255,255,255,0.70)]">
-        {icon}
-      </div>
+      <div className="text-[rgba(255,255,255,0.70)]">{icon}</div>
 
-      <span className="text-[#F8FAFC]">
-        {label}
-      </span>
+      <span className="text-[#F8FAFC]">{label}</span>
     </button>
   );
 }

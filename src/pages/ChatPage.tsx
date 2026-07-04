@@ -6,26 +6,15 @@ import ImageViewerModal from "../components/chat/ImageViewerModal";
 
 import MobileMessageList from "../components/chat/MobileMessageList";
 import ChatComposer from "../components/chat/ChatComposer";
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
-import {
-  useParams,
-  useNavigate,
-} from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 import api from "../api/axios";
 
-import {
-  getConversations,
-} from "../api/chat";
+import { getConversations } from "../api/chat";
 
-import type {
-  Conversation,
-} from "../api/chat";
+import type { Conversation } from "../api/chat";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -36,7 +25,6 @@ import LocationPickerModal from "../components/chat/LocationPickerModal";
 import MapPickerModal from "../components/chat/MapPickerModal";
 import ImagePreviewModal from "../components/chat/ImagePreviewModal";
 
-
 interface ChatMessage {
   _id: string;
   bookingId: string;
@@ -44,6 +32,25 @@ interface ChatMessage {
   senderRole: "USER" | "CREATOR";
 
   type?: string;
+  groupId?: string;
+
+  location?: {
+    latitude: number;
+    longitude: number;
+    name: string;
+    address: string;
+    placeId?: string;
+  };
+
+  attachment?: {
+    url: string;
+    publicId: string;
+    fileName: string;
+    originalFileName: string;
+    mimeType: string;
+    fileSize: number;
+    resourceType: string;
+  };
 
   message: string;
 
@@ -53,302 +60,176 @@ interface ChatMessage {
   deletedAt?: string;
 
   reactions?: {
-  userId: string;
-  emoji: string;
-}[];
+    userId: string;
+    emoji: string;
+  }[];
+
+  /* Optimistic Upload */
+
+  isUploading?: boolean;
+
+  uploadProgress?: number;
+
+  uploadFailed?: boolean;
+
+  tempPreviewUrl?: string;
 
   createdAt: string;
 }
 
 export default function ChatPage() {
-  const { bookingId } =
-    useParams();
+  const { bookingId } = useParams();
 
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
-  const {
-  role,
-  userId,
-} = useAuth();
+  const { role, userId } = useAuth();
 
-  const Layout =
-    role === "creator"
-      ? DashboardLayout
-      : UserDashboardLayout;
+  const Layout = role === "creator" ? DashboardLayout : UserDashboardLayout;
 
-  const [
-    messages,
-    setMessages,
-  ] = useState<
-    ChatMessage[]
-  >([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  const [
-    conversation,
-    setConversation,
-  ] = useState<Conversation | null>(
-    null
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const [input, setInput] = useState("");
+
+  const [sending, setSending] = useState(false);
+
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
+    null,
   );
 
-  const [loading, setLoading] =
-    useState(true);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
-  const [error, setError] =
-    useState<string | null>(
-      null
-    );
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
 
-  const [input, setInput] =
-    useState("");
+  const [selectedMapLocation, setSelectedMapLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
-  const [sending, setSending] =
-    useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
-const [
-  selectedMessageId,
-  setSelectedMessageId,
-] = useState<string | null>(
-  null
-);
+  const [selectedImages, setSelectedImages] = useState<ChatMessage[]>([]);
 
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-const [
-  showLocationPicker,
-  setShowLocationPicker,
-] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
 
-const [
-  mapPickerOpen,
-  setMapPickerOpen,
-] = useState(false);
+  const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
 
-const [
-  selectedMapLocation,
-  setSelectedMapLocation,
-] = useState<{
-  latitude: number;
-  longitude: number;
-} | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-const [imageViewerOpen, setImageViewerOpen] =
-  useState(false);
+  const [isTyping, setIsTyping] = useState(false);
 
-const [selectedImageUrl, setSelectedImageUrl] =
-  useState("");
+  const [deliveredMessages, setDeliveredMessages] = useState<Set<string>>(
+    new Set(),
+  );
 
-const [selectedImageName, setSelectedImageName] =
-  useState("");
+  const [chatClosed, setChatClosed] = useState(false);
 
-const [imagePreviewOpen, setImagePreviewOpen] =
-  useState(false);
+  const [slotText, setSlotText] = useState("");
 
-const [selectedImageFiles, setSelectedImageFiles] =
-  useState<File[]>([]);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
-const [actionsOpen, setActionsOpen] =
-  useState(false);
+  const shouldAutoScrollRef = useRef(true);
 
-  const longPressTimerRef =
-  useRef<
-    ReturnType<typeof setTimeout> | null
-  >(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
-    const [isTyping, setIsTyping] =
-  useState(false);
-
-  const [
-  deliveredMessages,
-  setDeliveredMessages,
-] = useState<
-  Set<string>
->(
-  new Set()
-);
-
-  const [
-    chatClosed,
-    setChatClosed,
-  ] = useState(false);
-
-  const [slotText, setSlotText] =
-    useState("");
-
-  const bottomRef =
-    useRef<HTMLDivElement | null>(
-      null
-    );
-
-  const messagesContainerRef =
-    useRef<HTMLDivElement | null>(
-      null
-    );
-
-  const shouldAutoScrollRef =
-    useRef(true);
-
-  const typingTimeoutRef =
-  useRef<
-    ReturnType<typeof setTimeout> | null
-  >(null);
-
-const hasEmittedTypingRef =
-  useRef(false);
+  const hasEmittedTypingRef = useRef(false);
 
   /* ======================================================
      FETCH CHAT
   ====================================================== */
 
-  const fetchChats =
-    async () => {
-      try {
-        setLoading(true);
+  const fetchChats = async () => {
+    try {
+      setLoading(true);
 
-        setError(null);
+      setError(null);
 
-        const res =
-          await api.get(
-            `/v1/chat/${bookingId}/messages`
-          );
+      const res = await api.get(`/v1/chat/${bookingId}/messages`);
 
-        setMessages(
-          res.data.chats || []
-        );
+      setMessages(res.data.chats || []);
 
-        await api.post(
-          `/v1/chat/${bookingId}/seen`
-        );
-
-      } catch (err: any) {
-        setError(
-          err?.response?.data
-            ?.message ||
-            "Failed to load chat"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+      await api.post(`/v1/chat/${bookingId}/seen`);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to load chat");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /* ======================================================
      FETCH CONVERSATION
   ====================================================== */
 
-  const fetchConversation =
-    async () => {
-      try {
-        const conversations =
-          await getConversations();
+  const fetchConversation = async () => {
+    try {
+      const conversations = await getConversations();
 
-        const matched =
-          conversations.find(
-            (c) =>
-              c.bookingId ===
-              bookingId
-          ) || null;
+      const matched =
+        conversations.find((c) => c.bookingId === bookingId) || null;
 
-        setConversation(
-          matched
-        );
-      } catch (err) {
-        console.error(
-          "Failed to fetch conversation"
-        );
-      }
-    };
+      setConversation(matched);
+    } catch (err) {
+      console.error("Failed to fetch conversation");
+    }
+  };
 
   /* ======================================================
      FETCH BOOKING DETAILS
   ====================================================== */
 
-  const fetchBookingDetails =
-  async () => {
+  const fetchBookingDetails = async () => {
     try {
       let booking = null;
 
       if (role === "user") {
-        const res =
-          await api.get(
-            "/v1/bookings/user"
-          );
+        const res = await api.get("/v1/bookings/user");
 
-        booking =
-          res.data.bookings.find(
-            (b: any) =>
-              b._id === bookingId
-          );
+        booking = res.data.bookings.find((b: any) => b._id === bookingId);
       } else {
-        const res =
-          await api.get(
-            "/v1/creator/bookings"
-          );
+        const res = await api.get("/v1/creator/bookings");
 
-        booking =
-          res.data.bookings.find(
-            (b: any) =>
-              b._id === bookingId
-          );
+        booking = res.data.bookings.find((b: any) => b._id === bookingId);
       }
 
       if (!booking) return;
 
-      const slots =
-        booking.slots || [];
+      const slots = booking.slots || [];
 
       if (slots.length > 0) {
-        const start =
-          new Date(
-            slots[0].startTime
-          );
+        const start = new Date(slots[0].startTime);
 
-        const end =
-          new Date(
-            slots[
-              slots.length - 1
-            ].endTime
-          );
+        const end = new Date(slots[slots.length - 1].endTime);
 
-        const formatted = `${start.toLocaleDateString(
-          [],
-          {
-            day: "2-digit",
-            month: "short",
-          }
-        )} • ${start.toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )} - ${end.toLocaleTimeString(
-          [],
-          {
-            hour: "2-digit",
-            minute: "2-digit",
-          }
-        )}`;
+        const formatted = `${start.toLocaleDateString([], {
+          day: "2-digit",
+          month: "short",
+        })} • ${start.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })} - ${end.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`;
 
-        setSlotText(
-          formatted
-        );
+        setSlotText(formatted);
 
-        if (
-          Date.now() >
-          end.getTime()
-        ) {
-          setChatClosed(
-            true
-          );
+        if (Date.now() > end.getTime()) {
+          setChatClosed(true);
         }
       }
     } catch (err) {
-      console.error(
-        "Failed to fetch booking details",
-        err
-      );
+      console.error("Failed to fetch booking details", err);
     }
   };
 
@@ -357,533 +238,428 @@ const hasEmittedTypingRef =
   ====================================================== */
 
   useEffect(() => {
-  if (!bookingId) return;
+    if (!bookingId) return;
 
-  const init = async () => {
-    await Promise.all([
-      fetchChats(),
-      fetchBookingDetails(),
-      fetchConversation(),
-    ]);
-  };
+    const init = async () => {
+      await Promise.all([
+        fetchChats(),
+        fetchBookingDetails(),
+        fetchConversation(),
+      ]);
+    };
 
-  init();
-}, [bookingId, userId]);
+    init();
+  }, [bookingId, userId]);
 
   /* ======================================================
      SOCKET
   ====================================================== */
 
   useEffect(() => {
-    if (!bookingId)
-      return;
+    if (!bookingId) return;
 
-    socket.emit(
-      "join-booking",
-      bookingId
-    );
+    socket.emit("join-booking", bookingId);
 
-    const handleMessage =
-      (
-        msg: ChatMessage
-      ) => {
-        setMessages(
-          (prev) => {
-            const exists =
-              prev.find(
-                (m) =>
-                  m._id ===
-                  msg._id
-              );
+    const handleMessage = (msg: ChatMessage) => {
+      const addMessage = () => {
+        setMessages((prev) => {
+          const exists = prev.find((m) => m._id === msg._id);
 
-            if (exists)
-              return prev;
-
-            const isMine =
-  msg.senderId === userId;
-
-
- 
-
-if (isMine)
-  return prev;
-
-            return [
-              ...prev,
-              msg,
-            ];
+          if (exists) {
+            return prev;
           }
-        );
 
-          api.post(
-          `/v1/chat/${bookingId}/seen`
-        );
-socket.emit(
-  "chat:delivered",
-  {
-    bookingId,
-    messageId: msg._id,
-    userId,
-  }
-);
+          const isMine = msg.senderId === userId;
+
+          if (isMine) {
+            return prev;
+          }
+
+          return [...prev, msg];
+        });
       };
 
-    socket.on(
-      "chat:message",
-      handleMessage
-    );
+      if (
+        (msg.type === "IMAGE" || msg.type === "image") &&
+        msg.attachment?.url
+      ) {
+        const image = new Image();
 
-    const handleSeen = (
-  data: {
-    bookingId: string;
-    seenBy: string;
-  }
-) => {
-  setMessages((prev) =>
-    prev.map((msg) => {
-      const alreadySeen =
-        msg.seenBy?.includes(
-          data.seenBy
-        );
+        image.src = msg.attachment.url;
 
-      if (alreadySeen) {
-        return msg;
+        image.onload = () => {
+          addMessage();
+        };
+
+        image.onerror = () => {
+          addMessage();
+        };
+      } else {
+        addMessage();
       }
 
-      return {
-        ...msg,
-        seenBy: [
-          ...(msg.seenBy || []),
-          data.seenBy,
-        ],
-      };
-    })
-  );
-};
+      api.post(`/v1/chat/${bookingId}/seen`);
 
-socket.on(
-  "chat:seen",
-  handleSeen
-);
+      socket.emit("chat:delivered", {
+        bookingId,
+        messageId: msg._id,
+        userId,
+      });
+    };
 
+    socket.on("chat:message", handleMessage);
 
-/* ======================================================
+    const handleSeen = (data: { bookingId: string; seenBy: string }) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const alreadySeen = msg.seenBy?.includes(data.seenBy);
+
+          if (alreadySeen) {
+            return msg;
+          }
+
+          return {
+            ...msg,
+            seenBy: [...(msg.seenBy || []), data.seenBy],
+          };
+        }),
+      );
+    };
+
+    socket.on("chat:seen", handleSeen);
+
+    /* ======================================================
    DELIVERED
 ====================================================== */
 
-const handleDelivered = (
-  data: {
-    bookingId: string;
-    messageId: string;
-    userId: string;
-  }
-) => {
+    const handleDelivered = (data: {
+      bookingId: string;
+      messageId: string;
+      userId: string;
+    }) => {
+      console.log("DELIVERED EVENT", data);
 
-  console.log(
-    "DELIVERED EVENT",
-    data
-  );
+      if (data.bookingId !== bookingId) {
+        return;
+      }
 
-  if (
-    data.bookingId !==
-    bookingId
-  ) {
-    return;
-  }
+      setDeliveredMessages((prev) => {
+        const next = new Set(prev);
 
-  setDeliveredMessages(
-    (prev) => {
+        next.add(data.messageId);
 
-      const next =
-        new Set(prev);
+        return next;
+      });
+    };
 
-      next.add(
-        data.messageId
-      );
+    socket.on("chat:delivered", handleDelivered);
 
-      return next;
-    }
-  );
-};
-
-socket.on(
-  "chat:delivered",
-  handleDelivered
-);
-
-/* ======================================================
+    /* ======================================================
    DELETE
 ====================================================== */
 
-const handleDeleted = (
-  data: {
-    messageId: string;
-    bookingId: string;
-    deletedAt: string;
-  }
-) => {
+    const handleDeleted = (data: {
+      messageId: string;
+      bookingId: string;
+      deletedAt: string;
+    }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
 
-  if (
-    data.bookingId !== bookingId
-  ) {
-    return;
-  }
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === data.messageId
+            ? {
+                ...msg,
+                isDeleted: true,
+                deletedAt: data.deletedAt,
+              }
+            : msg,
+        ),
+      );
+    };
 
-  setMessages((prev) =>
-    prev.map((msg) =>
-      msg._id === data.messageId
-        ? {
-            ...msg,
-            isDeleted: true,
-            deletedAt:
-              data.deletedAt,
-          }
-        : msg
-    )
-  );
-};
+    socket.on("chat:deleted", handleDeleted);
 
-socket.on(
-  "chat:deleted",
-  handleDeleted
-);
-
-/* ======================================================
+    /* ======================================================
    REACTIONS
 ====================================================== */
 
-const handleReaction = (
-  data: {
-    bookingId: string;
-    messageId: string;
-    reactions: {
-      userId: string;
-      emoji: string;
-    }[];
-  }
-) => {
+    const handleReaction = (data: {
+      bookingId: string;
+      messageId: string;
+      reactions: {
+        userId: string;
+        emoji: string;
+      }[];
+    }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
 
-  if (
-    data.bookingId !== bookingId
-  ) {
-    return;
-  }
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === data.messageId
+            ? {
+                ...msg,
+                reactions: data.reactions,
+              }
+            : msg,
+        ),
+      );
+    };
 
-  setMessages((prev) =>
-    prev.map((msg) =>
-      msg._id === data.messageId
-        ? {
-            ...msg,
-            reactions:
-              data.reactions,
-          }
-        : msg
-    )
-  );
-};
+    socket.on("chat:reaction", handleReaction);
 
-socket.on(
-  "chat:reaction",
-  handleReaction
-);
-
-
-/* ======================================================
+    /* ======================================================
    TYPING
 ====================================================== */
 
-const handleTyping = (
-  data: {
-    bookingId: string;
-    userId: string;
-  }
-) => {
+    const handleTyping = (data: { bookingId: string; userId: string }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
 
-  if (
-    data.bookingId !== bookingId
-  ) {
-    return;
-  }
+      if (data.userId === userId) {
+        return;
+      }
 
-  if (
-    data.userId === userId
-  ) {
-    return;
-  }
+      setIsTyping(true);
 
-  setIsTyping(true);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
 
-  if (
-    typingTimeoutRef.current
-  ) {
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-  }
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+      }, 3000);
+    };
 
-  typingTimeoutRef.current =
-    setTimeout(() => {
+    const handleStopTyping = (data: { bookingId: string; userId: string }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
+
+      if (data.userId === userId) {
+        return;
+      }
 
       setIsTyping(false);
 
-    }, 3000);
-};
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
 
-const handleStopTyping = (
-  data: {
-    bookingId: string;
-    userId: string;
-  }
-) => {
+    socket.on("chat:typing", handleTyping);
 
-  if (
-    data.bookingId !== bookingId
-  ) {
-    return;
-  }
-
-  if (
-    data.userId === userId
-  ) {
-    return;
-  }
-
-  setIsTyping(false);
-
-  if (
-    typingTimeoutRef.current
-  ) {
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-  }
-};
-
-socket.on(
-  "chat:typing",
-  handleTyping
-);
-
-socket.on(
-  "chat:stop-typing",
-  handleStopTyping
-);
+    socket.on("chat:stop-typing", handleStopTyping);
 
     return () => {
-      socket.emit(
-        "leave-booking",
-        bookingId
-      );
+      socket.emit("leave-booking", bookingId);
 
-      socket.off(
-  "chat:message",
-  handleMessage
-);
+      socket.off("chat:message", handleMessage);
 
-socket.off(
-  "chat:seen",
-  handleSeen
-);
+      socket.off("chat:seen", handleSeen);
 
-socket.off(
-  "chat:delivered",
-  handleDelivered
-);
+      socket.off("chat:delivered", handleDelivered);
 
-socket.off(
-  "chat:deleted",
-  handleDeleted
-);
+      socket.off("chat:deleted", handleDeleted);
 
-socket.off(
-  "chat:reaction",
-  handleReaction
-);
+      socket.off("chat:reaction", handleReaction);
 
-socket.off(
-  "chat:typing",
-  handleTyping
-);
+      socket.off("chat:typing", handleTyping);
 
-socket.off(
-  "chat:stop-typing",
-  handleStopTyping
-);
+      socket.off("chat:stop-typing", handleStopTyping);
 
-if (
-  typingTimeoutRef.current
-) {
-  clearTimeout(
-    typingTimeoutRef.current
-  );
-}
-
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
- }, [bookingId, userId]);
+  }, [bookingId, userId]);
 
   /* ======================================================
      SCROLL LOGIC
   ====================================================== */
 
-  const scrollToBottom =
-    (
-      behavior:
-        | ScrollBehavior
-        | undefined = "smooth"
-    ) => {
-      bottomRef.current?.scrollIntoView(
-        {
-          behavior,
-        }
-      );
-    };
+  const scrollToBottom = (behavior: ScrollBehavior | undefined = "smooth") => {
+    bottomRef.current?.scrollIntoView({
+      behavior,
+    });
+  };
 
-  const handleScroll =
-    () => {
-      const container =
-        messagesContainerRef.current;
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
 
-      if (!container)
-        return;
+    if (!container) return;
 
-      const threshold = 120;
+    const threshold = 120;
 
-      const isNearBottom =
-        container.scrollHeight -
-          container.scrollTop -
-          container.clientHeight <
-        threshold;
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      threshold;
 
-      shouldAutoScrollRef.current =
-        isNearBottom;
-    };
+    shouldAutoScrollRef.current = isNearBottom;
+  };
 
   useEffect(() => {
-    if (
-      shouldAutoScrollRef.current
-    ) {
-      requestAnimationFrame(
-        () => {
-          scrollToBottom(
-            "smooth"
-          );
-        }
-      );
+    if (shouldAutoScrollRef.current) {
+      requestAnimationFrame(() => {
+        scrollToBottom("smooth");
+      });
     }
   }, [messages]);
 
   useEffect(() => {
-    requestAnimationFrame(
-      () => {
-        scrollToBottom(
-          "auto"
-        );
-      }
-    );
+    requestAnimationFrame(() => {
+      scrollToBottom("auto");
+    });
   }, []);
 
-
-
-
-const handleSendLocation = async (
-  location: {
+  const handleSendLocation = async (location: {
     latitude: number;
     longitude: number;
     name: string;
     address: string;
     placeId?: string;
-  }
-) => {
-  if (
-    !bookingId ||
-    sending ||
-    chatClosed
-  ) {
-    return;
-  }
+  }) => {
+    if (!bookingId || sending || chatClosed) {
+      return;
+    }
 
-  try {
-    setSending(true);
+    try {
+      setSending(true);
 
-    const { data } = await api.post(
-      `/v1/chat/${bookingId}/messages`,
-      {
+      const { data } = await api.post(`/v1/chat/${bookingId}/messages`, {
         type: "location",
         location,
-      }
-    );
+      });
 
-    setMessages((prev) => [
-      ...prev,
-      data.chat,
-    ]);
+      setMessages((prev) => [...prev, data.chat]);
 
-    setShowLocationPicker(false);
+      setShowLocationPicker(false);
 
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
+      bottomRef.current?.scrollIntoView({
+        behavior: "smooth",
+      });
+    } catch (err: any) {
+      console.error("Failed to send location", err);
 
-  } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to send location");
+    } finally {
+      setSending(false);
+    }
+  };
 
-    console.error(
-      "Failed to send location",
-      err
-    );
-
-    alert(
-      err?.response?.data?.message ||
-      "Failed to send location"
-    );
-
-  } finally {
-
-    setSending(false);
-
-  }
-};
-
-
-/* ======================================================
+  /* ======================================================
    DOCUMENT SENDING
 ====================================================== */
 
-const handleSendDocument = async (
-  file: File
-) => {
-  if (
-    !bookingId ||
-    sending ||
-    chatClosed
-  ) {
-    return;
-  }
+  const handleSendDocument = async (file: File) => {
+    if (!bookingId || sending || chatClosed) {
+      return;
+    }
 
-  try {
-    setSending(true);
+    try {
+      setSending(true);
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    formData.append(
-      "file",
-      file
-    );
+      formData.append("files", file);
 
-    const { data } =
-      await api.post(
+      const { data } = await api.post(
         `/v1/chat/${bookingId}/documents`,
         formData,
         {
           headers: {
-            "Content-Type":
-              "multipart/form-data",
+            "Content-Type": "multipart/form-data",
           },
-        }
+        },
       );
+
+      setMessages((prev) => [...prev, data.chat]);
+
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({
+          behavior: "smooth",
+        });
+      });
+    } catch (err: any) {
+      alert(err?.response?.data?.message ?? "Failed to upload document");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /* ====================================================== 
+                  IMAGE SENDING
+ ====================================================== */
+  const handleSendImages = async (files: File[]) => {
+    if (!bookingId || !userId || chatClosed) {
+      return;
+    }
+
+    const uploadQueue = files.map((file) => {
+      const tempId = `temp-${crypto.randomUUID()}`;
+
+      const previewUrl = URL.createObjectURL(file);
+
+      return {
+        file,
+
+        tempId,
+
+        previewUrl,
+
+        message: {
+          _id: tempId,
+
+          bookingId,
+
+          senderId: userId,
+
+          senderRole: role === "creator" ? "CREATOR" : "USER",
+
+          type: "image",
+
+          message: "",
+
+          groupId: undefined,
+
+          seenBy: [],
+
+          attachment: {
+            url: previewUrl,
+
+            publicId: "",
+
+            fileName: file.name,
+
+            originalFileName: file.name,
+
+            mimeType: file.type,
+
+            fileSize: file.size,
+
+            resourceType: "image",
+          },
+
+          tempPreviewUrl: previewUrl,
+
+          isUploading: true,
+
+          uploadProgress: 0,
+
+          createdAt: new Date().toISOString(),
+        } satisfies ChatMessage,
+      };
+    });
 
     setMessages((prev) => [
       ...prev,
-      data.chat,
+
+      ...uploadQueue.map((item) => item.message),
     ]);
 
     requestAnimationFrame(() => {
@@ -892,465 +668,330 @@ const handleSendDocument = async (
       });
     });
 
-  } catch (err: any) {
+    const formData = new FormData();
 
-    alert(
-      err?.response?.data?.message ??
-      "Failed to upload document"
-    );
+    uploadQueue.forEach(({ file }) => {
+      formData.append("files", file);
+    });
 
-  } finally {
-
-    setSending(false);
-
-  }
-};
-
-
-/* ======================================================
-   IMAGE SENDING
-====================================================== */
-
-const handleSendImage = async (
-  file: File
-) => {
-  if (
-    !bookingId ||
-    sending ||
-    chatClosed
-  ) {
-    return;
-  }
-
-  try {
-    setSending(true);
-
-    const formData =
-      new FormData();
-
-    formData.append(
-      "file",
-      file
-    );
-
-    const { data } =
-      await api.post(
+    try {
+      const { data } = await api.post(
         `/v1/chat/${bookingId}/images`,
         formData,
         {
           headers: {
-            "Content-Type":
-              "multipart/form-data",
+            "Content-Type": "multipart/form-data",
           },
-        }
+
+          onUploadProgress: (progressEvent) => {
+            if (!progressEvent.total) {
+              return;
+            }
+
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total,
+            );
+
+            setMessages((prev) =>
+              prev.map((msg) => {
+                const uploading = uploadQueue.find(
+                  (item) => item.tempId === msg._id,
+                );
+
+                if (!uploading) {
+                  return msg;
+                }
+
+                return {
+                  ...msg,
+                  uploadProgress: progress,
+                };
+              }),
+            );
+          },
+        },
       );
 
-    setMessages((prev) => [
-      ...prev,
-      data.chat,
-    ]);
+      const chats = data.messages as ChatMessage[];
 
-    requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({
-        behavior: "smooth",
+      setMessages((prev) => {
+        const next = [...prev];
+
+        uploadQueue.forEach((upload, index) => {
+          const chat = chats[index];
+
+          if (!chat) {
+            return;
+          }
+
+          const messageIndex = next.findIndex((m) => m._id === upload.tempId);
+
+          if (messageIndex === -1) {
+            return;
+          }
+
+          next[messageIndex] = {
+            ...next[messageIndex],
+
+            _id: chat._id,
+
+            bookingId: chat.bookingId,
+
+            senderId: chat.senderId,
+
+            senderRole: chat.senderRole,
+
+            type: chat.type,
+
+            message: chat.message,
+
+            groupId: chat.groupId,
+
+            attachment: chat.attachment,
+
+            location: chat.location,
+
+            reactions: chat.reactions ?? [],
+
+            seenBy: chat.seenBy ?? [],
+
+            createdAt: chat.createdAt,
+            isUploading: false,
+
+            uploadProgress: 100,
+
+            uploadFailed: false,
+          };
+        });
+
+        return next;
       });
-    });
+    } catch (err) {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          const uploading = uploadQueue.find((item) => item.tempId === msg._id);
 
- } catch (err: any) {
+          if (!uploading) {
+            return msg;
+          }
 
-  alert(
-    err?.response?.data?.message ??
-    "Failed to upload image"
-  );
+          return {
+            ...msg,
 
-  throw err;
+            isUploading: false,
 
-} finally {
+            uploadFailed: true,
+          };
+        }),
+      );
 
-  setSending(false);
-
-}
-};
+      console.error(err);
+    }
+  };
 
   /* ======================================================
      SEND
   ====================================================== */
 
-  const handleSend =
-    async () => {
-      if (
-        !input.trim() ||
-        !bookingId ||
-        sending ||
-        chatClosed
-      ) {
-        return;
-      }
+  const handleSend = async () => {
+    if (!input.trim() || !bookingId || sending || chatClosed) {
+      return;
+    }
 
-      const messageText =
-        input.trim();
+    const messageText = input.trim();
 
-        /* ==========================================
+    /* ==========================================
    STOP TYPING IMMEDIATELY
 ========================================== */
 
-if (
-  hasEmittedTypingRef.current
-) {
+    if (hasEmittedTypingRef.current) {
+      socket.emit("chat:stop-typing", {
+        bookingId,
+        userId,
+      });
 
-  socket.emit(
-    "chat:stop-typing",
-    {
-      bookingId,
-      userId,
+      hasEmittedTypingRef.current = false;
     }
-  );
 
-  hasEmittedTypingRef.current =
-    false;
-}
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
-if (
-  typingTimeoutRef.current
-) {
-  clearTimeout(
-    typingTimeoutRef.current
-  );
-}
+    setInput("");
 
-      setInput("");
+    setSending(true);
 
-      setSending(true);
+    shouldAutoScrollRef.current = true;
 
-      shouldAutoScrollRef.current =
-        true;
+    const tempMessage: ChatMessage = {
+      _id: "temp-" + Date.now(),
 
-      const tempMessage: ChatMessage =
-        {
-          _id:
-            "temp-" +
-            Date.now(),
+      bookingId,
 
-          bookingId,
+      senderId: userId ?? "temp",
 
-          senderId: userId ?? "temp",
+      senderRole: role === "creator" ? "CREATOR" : "USER",
 
-          senderRole:
-            role ===
-            "creator"
-              ? "CREATOR"
-              : "USER",
+      message: messageText,
 
-          message:
-            messageText,
+      seenBy: userId ? [userId] : [],
 
-            seenBy: userId
-    ? [userId]
-    : [],
-
-
-          createdAt:
-            new Date().toISOString(),
-        };
-
-      setMessages(
-        (prev) => [
-          ...prev,
-          tempMessage,
-        ]
-      );
-
-      try {
-        const res =
-          await api.post(
-            `/v1/chat/${bookingId}/messages`,
-            {
-              message:
-                messageText,
-            }
-          );
-
-        const saved =
-          res.data.chat;
-
-        setMessages(
-          (prev) =>
-            prev.map(
-              (msg) =>
-                msg._id ===
-                tempMessage._id
-                  ? saved
-                  : msg
-            )
-        );
-      } catch (err: any) {
-        setMessages(
-          (prev) =>
-            prev.filter(
-              (m) =>
-                m._id !==
-                tempMessage._id
-            )
-        );
-
-        const msg =
-          err?.response?.data
-            ?.message ||
-          "Failed to send message";
-
-        if (
-          msg
-            .toLowerCase()
-            .includes(
-              "chat is closed"
-            ) ||
-          msg
-            .toLowerCase()
-            .includes(
-              "booking time has ended"
-            )
-        ) {
-          setChatClosed(
-            true
-          );
-        }
-
-        alert(msg);
-      } finally {
-        setSending(false);
-      }
+      createdAt: new Date().toISOString(),
     };
 
+    setMessages((prev) => [...prev, tempMessage]);
 
+    try {
+      const res = await api.post(`/v1/chat/${bookingId}/messages`, {
+        message: messageText,
+      });
 
+      const saved = res.data.chat;
 
-    /* ======================================================
+      setMessages((prev) =>
+        prev.map((msg) => (msg._id === tempMessage._id ? saved : msg)),
+      );
+    } catch (err: any) {
+      setMessages((prev) => prev.filter((m) => m._id !== tempMessage._id));
+
+      const msg = err?.response?.data?.message || "Failed to send message";
+
+      if (
+        msg.toLowerCase().includes("chat is closed") ||
+        msg.toLowerCase().includes("booking time has ended")
+      ) {
+        setChatClosed(true);
+      }
+
+      alert(msg);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /* ======================================================
    DELETE MESSAGE
 ====================================================== */
 
-const handleDeleteMessage = async (
-  messageId: string
-) => {
-  try {
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await api.delete(`/v1/chat/message/${messageId}`);
 
-    await api.delete(
-      `/v1/chat/message/${messageId}`
-    );
+      setActionsOpen(false);
 
-    setActionsOpen(false);
+      setSelectedMessageId(null);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete message");
+    }
+  };
 
-    setSelectedMessageId(null);
-
-  } catch (err: any) {
-
-    alert(
-      err?.response?.data?.message ||
-      "Failed to delete message"
-    );
-
-  }
-};
-
-
-
-/* ======================================================
+  /* ======================================================
    REACT TO MESSAGE
 ====================================================== */
 
-const handleReactToMessage = async (
-  messageId: string,
-  emoji: string
-) => {
-  try {
-
-    await api.post(
-      `/v1/chat/message/${messageId}/react`,
-      {
+  const handleReactToMessage = async (messageId: string, emoji: string) => {
+    try {
+      await api.post(`/v1/chat/message/${messageId}/react`, {
         emoji,
-      }
-    );
+      });
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to react");
+    }
+  };
 
-  } catch (err: any) {
-
-    alert(
-      err?.response?.data?.message ||
-      "Failed to react"
-    );
-
-  }
-};
-
-
-/* ======================================================
+  /* ======================================================
    LONG PRESS
 ====================================================== */
 
-const startLongPress = (
-  messageId: string,
-  canDelete: boolean
-) => {
+  const startLongPress = (messageId: string, canDelete: boolean) => {
+    if (!canDelete) {
+      return;
+    }
 
-  if (!canDelete) {
-    return;
-  }
-
-  longPressTimerRef.current =
-    setTimeout(() => {
-
-      setSelectedMessageId(
-        messageId
-      );
+    longPressTimerRef.current = setTimeout(() => {
+      setSelectedMessageId(messageId);
 
       setActionsOpen(true);
-
     }, 500);
-};
+  };
 
-
-/* ======================================================
+  /* ======================================================
    END LONG PRESS
 ====================================================== */
 
-const endLongPress = () => {
+  const endLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
 
-  if (
-    longPressTimerRef.current
-  ) {
-    clearTimeout(
-      longPressTimerRef.current
-    );
-
-    longPressTimerRef.current =
-      null;
-  }
-};
-
+      longPressTimerRef.current = null;
+    }
+  };
 
   /* ======================================================
      ENTER SEND
   ====================================================== */
 
-  const handleKeyDown =
-    (
-      e: React.KeyboardEvent<HTMLInputElement>
-    ) => {
-      if (
-        e.key ===
-          "Enter" &&
-        !sending
-      ) {
-        handleSend();
-      }
-    };
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !sending) {
+      handleSend();
+    }
+  };
 
   /* ======================================================
      HELPERS
   ====================================================== */
 
-  const getInitials =
-    (name: string) => {
-      if (!name)
-        return "U";
+  const getInitials = (name: string) => {
+    if (!name) return "U";
 
-      const parts = name
-        .trim()
-        .split(" ");
+    const parts = name.trim().split(" ");
 
-      return parts.length === 1
-        ? parts[0][0].toUpperCase()
-        : (
-            parts[0][0] +
-            parts[1][0]
-          ).toUpperCase();
-    };
+    return parts.length === 1
+      ? parts[0][0].toUpperCase()
+      : (parts[0][0] + parts[1][0]).toUpperCase();
+  };
 
-  const profile =
-    conversation?.otherUser
-      ?.profile;
+  const profile = conversation?.otherUser?.profile;
 
-  const displayName =
-    profile?.displayName ||
-    profile?.username ||
-    "User";
+  const displayName = profile?.displayName || profile?.username || "User";
 
   const avatarUrl =
     profile?.avatarUrl ||
     profile?.avatar ||
-    profile
-      ?.profilePhotos?.[0] ||
+    profile?.profilePhotos?.[0] ||
     null;
 
-  const serviceTitle =
-    conversation?.service
-      ?.title ||
-    "Service";
+  const serviceTitle = conversation?.service?.title || "Service";
 
+  const handleInputChange = (value: string) => {
+    setInput(value);
 
+    if (chatClosed || !bookingId || !userId) {
+      return;
+    }
 
-
-
-
-
-
-
-const handleInputChange = (
-  value: string
-) => {
-  setInput(value);
-
-  if (
-    chatClosed ||
-    !bookingId ||
-    !userId
-  ) {
-    return;
-  }
-
-  if (
-    !hasEmittedTypingRef.current
-  ) {
-    socket.emit(
-      "chat:typing",
-      {
+    if (!hasEmittedTypingRef.current) {
+      socket.emit("chat:typing", {
         bookingId,
         userId,
-      }
-    );
+      });
 
-    hasEmittedTypingRef.current =
-      true;
-  }
+      hasEmittedTypingRef.current = true;
+    }
 
-  if (
-    typingTimeoutRef.current
-  ) {
-    clearTimeout(
-      typingTimeoutRef.current
-    );
-  }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
-  typingTimeoutRef.current =
-    setTimeout(() => {
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("chat:stop-typing", {
+        bookingId,
+        userId,
+      });
 
-      socket.emit(
-        "chat:stop-typing",
-        {
-          bookingId,
-          userId,
-        }
-      );
-
-      hasEmittedTypingRef.current =
-        false;
-
+      hasEmittedTypingRef.current = false;
     }, 1500);
-};
-
-
-
-
-
-
+  };
 
   /* ======================================================
      UI
@@ -1358,9 +999,8 @@ const handleInputChange = (
 
   return (
     <Layout>
-
       <div
-  className="
+        className="
     fixed
     inset-0
     md:left-[260px]
@@ -1376,28 +1016,23 @@ const handleInputChange = (
     py-2
     
   "
->
-
+      >
         <ChatHeader
-  displayName={displayName}
-  avatarUrl={avatarUrl}
-  serviceTitle={serviceTitle}
-  slotText={slotText}
-  chatClosed={chatClosed}
-  onClose={() => navigate(-1)}
-  getInitials={getInitials}
-/>
+          displayName={displayName}
+          avatarUrl={avatarUrl}
+          serviceTitle={serviceTitle}
+          slotText={slotText}
+          chatClosed={chatClosed}
+          onClose={() => navigate(-1)}
+          getInitials={getInitials}
+        />
 
         {/* CHAT BODY */}
 
-<div
-  ref={
-    messagesContainerRef
-  }
-  onScroll={
-    handleScroll
-  }
-  className="
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="
     chat-scrollbar
     scroll-smooth
     
@@ -1419,8 +1054,7 @@ const handleInputChange = (
     md:px-5
     py-3
   "
->
-
+        >
           <div
             className="
               flex
@@ -1429,84 +1063,50 @@ const handleInputChange = (
               min-h-full
             "
           >
-
             <MobileMessageList
-  loading={loading}
-  error={error}
-  messages={messages}
-  userId={userId}
-  deliveredMessages={
-    deliveredMessages
-  }
-  handleReactToMessage={
-    handleReactToMessage
-  }
-  setSelectedMessageId={
-    setSelectedMessageId
-  }
-  setActionsOpen={
-    setActionsOpen
-  }
-  startLongPress={
-    startLongPress
-  }
-  endLongPress={
-    endLongPress
-  }
- isTyping={isTyping}
- bottomRef={bottomRef}
-
-  setMapPickerOpen={
-    setMapPickerOpen
-  }
-  setSelectedMapLocation={
-    setSelectedMapLocation
-  }
-
-  setImageViewerOpen={
-  setImageViewerOpen
-}
-
-setSelectedImageUrl={
-  setSelectedImageUrl
-}
-
-setSelectedImageName={
-  setSelectedImageName
-}
-
-/>
-
+              loading={loading}
+              error={error}
+              messages={messages}
+              userId={userId}
+              deliveredMessages={deliveredMessages}
+              handleReactToMessage={handleReactToMessage}
+              setSelectedMessageId={setSelectedMessageId}
+              setActionsOpen={setActionsOpen}
+              startLongPress={startLongPress}
+              endLongPress={endLongPress}
+              isTyping={isTyping}
+              bottomRef={bottomRef}
+              setMapPickerOpen={setMapPickerOpen}
+              setSelectedMapLocation={setSelectedMapLocation}
+              setImageViewerOpen={setImageViewerOpen}
+              setSelectedImages={setSelectedImages}
+              setSelectedImageIndex={setSelectedImageIndex}
+            />
           </div>
-
         </div>
 
         <ChatComposer
-  input={input}
-  handleInputChange={handleInputChange}
-  handleKeyDown={handleKeyDown}
-  handleSend={handleSend}
-  sending={sending}
-  chatClosed={chatClosed}
-  showLocationButton={true}
-  onLocationClick={() =>
-    setShowLocationPicker(true)
-}
-  onDocumentSelect={
-    handleSendDocument
-  }
-  onImageSelect={(files) => {
-  setSelectedImageFiles(files);
-  setImagePreviewOpen(true);
-}}
-/>
+          input={input}
+          handleInputChange={handleInputChange}
+          handleKeyDown={handleKeyDown}
+          handleSend={handleSend}
+          sending={sending}
+          chatClosed={chatClosed}
+          showLocationButton={true}
+          onLocationClick={() => setShowLocationPicker(true)}
+          onDocumentSelect={handleSendDocument}
+          onImageSelect={(files) => {
+            setSelectedImageFiles(files);
+            setImagePreviewOpen(true);
+          }}
+        />
 
         {/* SCROLLBAR */}
 
         {/* SCROLLBAR */}
 
-<style>
-  {`
+        <style>
+          {`
     .chat-scrollbar {
       scrollbar-width: thin;
       scrollbar-color: rgba(255,255,255,0.10) transparent;
@@ -1530,88 +1130,63 @@ setSelectedImageName={
       background: rgba(255,255,255,0.16);
     }
   `}
-   </style>
-
+        </style>
       </div>
 
       <MessageActions
-  isOpen={actionsOpen}
-  canDelete={
-    !!selectedMessageId
-  }
-  onDelete={() => {
-    if (selectedMessageId) {
-      handleDeleteMessage(
-        selectedMessageId
-      );
-    }
-  }}
-  onClose={() => {
-    setActionsOpen(false);
-    setSelectedMessageId(null);
-  }}
-/>
+        isOpen={actionsOpen}
+        canDelete={!!selectedMessageId}
+        onDelete={() => {
+          if (selectedMessageId) {
+            handleDeleteMessage(selectedMessageId);
+          }
+        }}
+        onClose={() => {
+          setActionsOpen(false);
+          setSelectedMessageId(null);
+        }}
+      />
 
-<LocationPickerModal
-  open={showLocationPicker}
-  onClose={() =>
-    setShowLocationPicker(false)
-  }
-  onConfirm={
-    handleSendLocation
-  }
-/>
+      <LocationPickerModal
+        open={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onConfirm={handleSendLocation}
+      />
 
-<MapPickerModal
-  open={
-    mapPickerOpen &&
-    selectedMapLocation !== null
-  }
-  latitude={
-    selectedMapLocation?.latitude ?? 0
-  }
-  longitude={
-    selectedMapLocation?.longitude ?? 0
-  }
-  onClose={() =>
-    setMapPickerOpen(false)
-  }
-/>
+      <MapPickerModal
+        open={mapPickerOpen && selectedMapLocation !== null}
+        latitude={selectedMapLocation?.latitude ?? 0}
+        longitude={selectedMapLocation?.longitude ?? 0}
+        onClose={() => setMapPickerOpen(false)}
+      />
 
-<ImageViewerModal
-  open={imageViewerOpen}
-  imageUrl={selectedImageUrl}
-  fileName={selectedImageName}
-  onClose={() =>
-    setImageViewerOpen(false)
-  }
-/>
+      <ImageViewerModal
+        open={imageViewerOpen}
+        images={selectedImages}
+        currentIndex={selectedImageIndex}
+        onIndexChange={setSelectedImageIndex}
+        onClose={() => setImageViewerOpen(false)}
+      />
 
-<ImagePreviewModal
-  open={imagePreviewOpen}
-  files={selectedImageFiles}
-  sending={sending}
-  onCancel={() => {
-    setImagePreviewOpen(false);
-    setSelectedImageFiles([]);
-  }}
-  onSend={async (files) => {
-    if (!files.length) return;
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        files={selectedImageFiles}
+        sending={sending}
+        onCancel={() => {
+          setImagePreviewOpen(false);
+          setSelectedImageFiles([]);
+        }}
+        onSend={async (files) => {
+          if (!files.length) {
+            return;
+          }
 
-    try {
-      for (const file of files) {
-        await handleSendImage(file);
-      }
+          handleSendImages(files);
 
-      setImagePreviewOpen(false);
-      setSelectedImageFiles([]);
-
-    } catch {
-      // Keep preview open if any upload fails.
-    }
-  }}
-/>
-
+          setImagePreviewOpen(false);
+          setSelectedImageFiles([]);
+        }}
+      />
     </Layout>
   );
 }

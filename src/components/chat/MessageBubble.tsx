@@ -1,16 +1,11 @@
 //frontend/src/components/chat/MessageBubble.tsx
 
-import {
-  MapContainer,
-  Marker,
-  TileLayer,
-} from "react-leaflet";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 
 import "leaflet/dist/leaflet.css";
 import type { MouseEvent } from "react";
 import api from "../../api/axios";
 import ChatImage from "./ChatImage";
-
 
 interface MessageBubbleProps {
   msg: any;
@@ -23,33 +18,20 @@ interface MessageBubbleProps {
 
   deliveredMessages: Set<string>;
 
-  handleReactToMessage: (
-    messageId: string,
-    emoji: string
-  ) => void;
+  handleReactToMessage: (messageId: string, emoji: string) => void;
 
-  setSelectedMessageId: (
-    id: string | null
-  ) => void;
+  setSelectedMessageId: (id: string | null) => void;
 
-  setActionsOpen: (
-    open: boolean
-  ) => void;
+  setActionsOpen: (open: boolean) => void;
 
-  setMapPickerOpen?: (
-    open: boolean
-  ) => void;
+  setMapPickerOpen?: (open: boolean) => void;
 
-  setSelectedMapLocation?: (
-    location: {
-      latitude: number;
-      longitude: number;
-    }
-  ) => void;
+  setSelectedMapLocation?: (location: {
+    latitude: number;
+    longitude: number;
+  }) => void;
 
-  onContextMenu?: (
-    e: MouseEvent<HTMLDivElement>
-  ) => void;
+  onContextMenu?: (e: MouseEvent<HTMLDivElement>) => void;
 
   onTouchStart?: () => void;
 
@@ -57,20 +39,11 @@ interface MessageBubbleProps {
 
   onTouchCancel?: () => void;
 
+  setImageViewerOpen: (open: boolean) => void;
 
-setImageViewerOpen: (
-  open: boolean
-) => void;
+  setSelectedImages: (images: any[]) => void;
 
-setSelectedImageUrl: (
-  url: string
-) => void;
-
-setSelectedImageName: (
-  name: string
-) => void;
-
-  
+  setSelectedImageIndex: (index: number) => void;
 }
 
 export default function MessageBubble({
@@ -80,12 +53,9 @@ export default function MessageBubble({
   userId,
   deliveredMessages,
   handleReactToMessage,
-  setSelectedMessageId,
-  setActionsOpen,
- 
-setImageViewerOpen,
-setSelectedImageUrl,
-setSelectedImageName,
+  setImageViewerOpen,
+  setSelectedImages,
+  setSelectedImageIndex,
   setMapPickerOpen,
   setSelectedMapLocation,
   onContextMenu,
@@ -93,249 +63,200 @@ setSelectedImageName,
   onTouchEnd,
   onTouchCancel,
 }: MessageBubbleProps) {
-
-  const isMine =
-    msg.senderId === userId;
-
-
-
+  const isMine = msg.senderId === userId;
 
   const formatFileSize = (bytes?: number) => {
-  if (!bytes) return "";
+    if (!bytes) return "";
 
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024)
-    return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
+  const getDocumentType = (fileName?: string) => {
+    const extension = fileName?.split(".").pop()?.toLowerCase();
 
-const getDocumentType = (
-  fileName?: string
-) => {
+    switch (extension) {
+      case "pdf":
+        return "PDF Document";
 
-  const extension =
-    fileName
-      ?.split(".")
-      .pop()
-      ?.toLowerCase();
+      case "doc":
+      case "docx":
+        return "Word Document";
 
-  switch (extension) {
+      case "xls":
+      case "xlsx":
+      case "csv":
+        return "Excel Spreadsheet";
 
-    case "pdf":
-      return "PDF Document";
+      case "ppt":
+      case "pptx":
+        return "PowerPoint Presentation";
 
-    case "doc":
-    case "docx":
-      return "Word Document";
+      case "txt":
+        return "Text Document";
 
-    case "xls":
-    case "xlsx":
-    case "csv":
-      return "Excel Spreadsheet";
+      case "zip":
+      case "rar":
+      case "7z":
+        return "Compressed Archive";
 
-    case "ppt":
-    case "pptx":
-      return "PowerPoint Presentation";
+      case "json":
+        return "JSON File";
 
-    case "txt":
-      return "Text Document";
+      case "xml":
+        return "XML File";
 
-    case "zip":
-    case "rar":
-    case "7z":
-      return "Compressed Archive";
+      case "html":
+        return "HTML File";
 
-    case "json":
-      return "JSON File";
+      case "css":
+        return "CSS File";
 
-    case "xml":
-      return "XML File";
+      case "js":
+        return "JavaScript File";
 
-    case "html":
-      return "HTML File";
+      case "ts":
+        return "TypeScript File";
 
-    case "css":
-      return "CSS File";
+      case "py":
+        return "Python File";
 
-    case "js":
-      return "JavaScript File";
+      case "php":
+        return "PHP File";
 
-    case "ts":
-      return "TypeScript File";
+      default:
+        return "Document";
+    }
+  };
 
-    case "py":
-      return "Python File";
+  const getDocumentIcon = (fileName?: string) => {
+    const extension = fileName?.split(".").pop()?.toLowerCase();
 
-    case "php":
-      return "PHP File";
+    switch (extension) {
+      case "pdf":
+        return "📕";
 
-    default:
-      return "Document";
-  }
+      case "doc":
+      case "docx":
+        return "📘";
 
-};
+      case "xls":
+      case "xlsx":
+      case "csv":
+        return "📗";
 
-const getDocumentIcon = (
-  fileName?: string
-) => {
+      case "ppt":
+      case "pptx":
+        return "📙";
 
-  const extension =
-    fileName
-      ?.split(".")
-      .pop()
-      ?.toLowerCase();
+      case "txt":
+        return "📝";
 
-  switch (extension) {
+      case "zip":
+      case "rar":
+      case "7z":
+        return "🗜️";
 
-    case "pdf":
-      return "📕";
+      case "json":
+        return "{}";
 
-    case "doc":
-    case "docx":
-      return "📘";
+      case "xml":
+        return "📰";
 
-    case "xls":
-    case "xlsx":
-    case "csv":
-      return "📗";
+      case "html":
+        return "🌐";
 
-    case "ppt":
-    case "pptx":
-      return "📙";
+      case "css":
+        return "🎨";
 
-    case "txt":
-      return "📝";
+      case "js":
+        return "⚡";
 
-    case "zip":
-    case "rar":
-    case "7z":
-      return "🗜️";
+      case "ts":
+        return "🔷";
 
-    case "json":
-      return "{}";
+      case "py":
+        return "🐍";
 
-    case "xml":
-      return "📰";
+      case "php":
+        return "🐘";
 
-    case "html":
-      return "🌐";
+      default:
+        return "📄";
+    }
+  };
 
-    case "css":
-      return "🎨";
-
-    case "js":
-      return "⚡";
-
-    case "ts":
-      return "🔷";
-
-    case "py":
-      return "🐍";
-
-    case "php":
-      return "🐘";
-
-    default:
-      return "📄";
-  }
-
-};
-
-
-const downloadDocument = async () => {
-  try {
-    const response = await api.get(
-      `/v1/chat/document/${msg._id}/download`,
-      {
+  const downloadDocument = async () => {
+    try {
+      const response = await api.get(`/v1/chat/document/${msg._id}/download`, {
         responseType: "blob",
-      }
-    );
+      });
 
-    const blob = new Blob([response.data]);
+      const blob = new Blob([response.data]);
 
-    const url =
-      window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
 
-    const link =
-      document.createElement("a");
+      const link = document.createElement("a");
 
-    link.href = url;
+      link.href = url;
 
-    link.download =
-      msg.attachment.originalFileName ||
-      msg.message;
+      link.download = msg.attachment.originalFileName || msg.message;
 
-    document.body.appendChild(link);
+      document.body.appendChild(link);
 
-    link.click();
+      link.click();
 
-    link.remove();
+      link.remove();
 
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to download document");
-  }
-};
-
-const openDocument = async () => {
-  try {
-    const response = await api.get(
-      `/v1/chat/document/${msg._id}/download`,
-      {
-        responseType: "blob",
-      }
-    );
-
-    const blob = new Blob([response.data]);
-
-    const url =
-      window.URL.createObjectURL(blob);
-
-    window.open(url, "_blank");
-
-    setTimeout(() => {
       window.URL.revokeObjectURL(url);
-    }, 10000);
-  } catch (err) {
-    console.error(err);
-    alert("Failed to open document");
-  }
-};
+    } catch (err) {
+      console.error(err);
+      alert("Failed to download document");
+    }
+  };
 
+  const openDocument = async () => {
+    try {
+      const response = await api.get(`/v1/chat/document/${msg._id}/download`, {
+        responseType: "blob",
+      });
 
+      const blob = new Blob([response.data]);
+
+      const url = window.URL.createObjectURL(blob);
+
+      window.open(url, "_blank");
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 10000);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to open document");
+    }
+  };
 
   return (
     <>
-
-    <div
-  
-  onContextMenu={onContextMenu}
-  onTouchStart={onTouchStart}
-  onTouchEnd={onTouchEnd}
-  onTouchCancel={onTouchCancel}
-  className={`
+      <div
+        onContextMenu={onContextMenu}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
+        className={`
     flex
+    ${isMine ? "justify-end" : "justify-start"}
     ${
-      isMine
-        ? "justify-end"
-        : "justify-start"
-    }
-    ${
-      index > 0 &&
-      messages[index - 1]
-        .senderId ===
-      msg.senderId
+      index > 0 && messages[index - 1].senderId === msg.senderId
         ? "mt-1"
         : "mt-3"
     }
   `}
->
-
-                      <div
-                        className={`
+      >
+        <div
+          className={`
                           relative
                           max-w-[82%]
                           md:max-w-[68%]
@@ -359,35 +280,30 @@ const openDocument = async () => {
                               `
                           }
                         `}
-                      >
-
- {msg.isDeleted ? (
-
-  <p
-    className="
+        >
+          {msg.isDeleted ? (
+            <p
+              className="
       text-[14px]
       italic
       text-white/50
     "
-  >
-    This message was deleted
-  </p>
+            >
+              This message was deleted
+            </p>
+          ) : msg.type === "location" && msg.location ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedMapLocation?.({
+                    latitude: msg.location!.latitude,
+                    longitude: msg.location!.longitude,
+                  });
 
-) : msg.type === "location" && msg.location ? (
-
-  <div className="space-y-3">
-
-    <button
-  type="button"
-  onClick={() => {
-    setSelectedMapLocation?.({
-      latitude: msg.location!.latitude,
-      longitude: msg.location!.longitude,
-    });
-
-    setMapPickerOpen?.(true);
-  }}
-  className="
+                  setMapPickerOpen?.(true);
+                }}
+                className="
     block
     w-full
     overflow-hidden
@@ -397,72 +313,58 @@ const openDocument = async () => {
     transition
     hover:border-blue-400/40
   "
->
+              >
+                <MapContainer
+                  center={[msg.location.latitude, msg.location.longitude]}
+                  zoom={15}
+                  zoomControl={false}
+                  dragging={false}
+                  scrollWheelZoom={false}
+                  doubleClickZoom={false}
+                  touchZoom={false}
+                  boxZoom={false}
+                  keyboard={false}
+                  attributionControl={false}
+                  style={{
+                    height: "180px",
+                    width: "100%",
+                  }}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      <MapContainer
-        center={[
-          msg.location.latitude,
-          msg.location.longitude,
-        ]}
-        zoom={15}
-        zoomControl={false}
-        dragging={false}
-        scrollWheelZoom={false}
-        doubleClickZoom={false}
-        touchZoom={false}
-        boxZoom={false}
-        keyboard={false}
-        attributionControl={false}
-        style={{
-          height: "180px",
-          width: "100%",
-        }}
-      >
+                  <Marker
+                    position={[msg.location.latitude, msg.location.longitude]}
+                  />
+                </MapContainer>
+              </button>
 
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+              <div>
+                <p className="text-[15px] font-semibold">
+                  📍 {msg.location.name}
+                </p>
 
-        <Marker
-          position={[
-            msg.location.latitude,
-            msg.location.longitude,
-          ]}
-        />
-
-      </MapContainer>
-
-    </button>
-
-    <div>
-
-      <p className="text-[15px] font-semibold">
-        📍 {msg.location.name}
-      </p>
-
-      <p
-        className="
+                <p
+                  className="
           mt-1
           text-[13px]
           text-white/70
           break-words
         "
-      >
-        {msg.location.address}
-      </p>
+                >
+                  {msg.location.address}
+                </p>
+              </div>
 
-    </div>
+              <button
+                onClick={() => {
+                  setSelectedMapLocation?.({
+                    latitude: msg.location!.latitude,
+                    longitude: msg.location!.longitude,
+                  });
 
-    <button
-  onClick={() => {
-    setSelectedMapLocation?.({
-      latitude: msg.location!.latitude,
-      longitude: msg.location!.longitude,
-    });
-
-    setMapPickerOpen?.(true);
-  }}
-  className="
+                  setMapPickerOpen?.(true);
+                }}
+                className="
     inline-flex
     items-center
     text-blue-400
@@ -470,73 +372,57 @@ const openDocument = async () => {
     text-sm
     font-medium
   "
->
-  Open in Maps →
-</button>
-
-  </div>
-
-) : msg.type === "document" && msg.attachment ? (
-
-  <div className="space-y-3">
-
-    <div
-      className="
+              >
+                Open in Maps →
+              </button>
+            </div>
+          ) : msg.type === "document" && msg.attachment ? (
+            <div className="space-y-3">
+              <div
+                className="
         rounded-xl
         border
         border-white/10
         bg-white/[0.05]
         p-3
       "
-    >
-      <div className="flex items-start gap-3">
+              >
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">
+                    {getDocumentIcon(msg.attachment.originalFileName)}
+                  </div>
 
-  <div className="text-3xl">
-    {getDocumentIcon(
-      msg.attachment.originalFileName
-    )}
-  </div>
-
-  <div className="min-w-0 flex-1">
-
-    <p
-      className="
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="
         text-sm
         font-medium
         break-all
       "
-    >
-      {msg.attachment.originalFileName ??
-        msg.message}
-    </p>
+                    >
+                      {msg.attachment.originalFileName ?? msg.message}
+                    </p>
 
-    <p
-      className="
+                    <p
+                      className="
         mt-1
         text-xs
         text-white/60
       "
-    >
-      {getDocumentType(
-        msg.attachment.originalFileName
-      )}
+                    >
+                      {getDocumentType(msg.attachment.originalFileName)}
 
-      {msg.attachment.fileSize
-        ? ` • ${formatFileSize(
-            msg.attachment.fileSize
-          )}`
-        : ""}
-    </p>
+                      {msg.attachment.fileSize
+                        ? ` • ${formatFileSize(msg.attachment.fileSize)}`
+                        : ""}
+                    </p>
+                  </div>
+                </div>
 
-  </div>
-
-</div>
-
-      <div className="mt-3 flex gap-2">
-
-        <button
-  onClick={openDocument}
-  className="
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={openDocument}
+                    className="
     rounded-lg
     bg-white/10
     px-3
@@ -545,13 +431,13 @@ const openDocument = async () => {
     hover:bg-white/20
     transition
   "
->
-  Open
-</button>
+                  >
+                    Open
+                  </button>
 
-<button
-  onClick={downloadDocument}
-  className="
+                  <button
+                    onClick={downloadDocument}
+                    className="
     rounded-lg
     bg-white/10
     px-3
@@ -560,159 +446,108 @@ const openDocument = async () => {
     hover:bg-white/20
     transition
   "
->
-  Download
-</button>
+                  >
+                    Download
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (msg.type === "image" || msg.type === "IMAGE") &&
+            msg.attachment ? (
+            <ChatImage
+              variant="single"
+              msg={msg}
+              onOpen={() => {
+                setSelectedImages?.([msg]);
 
-      </div>
+                setSelectedImageIndex?.(0);
 
-    </div>
-
-  </div>
-
- ) : (
-  msg.type === "image" ||
-  msg.type === "IMAGE"
-) && msg.attachment ? (
-
-  <ChatImage
-    msg={msg}
-    onOpen={() => {
-      setSelectedImageUrl?.(
-        msg.attachment.url
-      );
-
-      setSelectedImageName?.(
-        msg.attachment.originalFileName ??
-          "Image"
-      );
-
-      setImageViewerOpen?.(true);
-    }}
-  />
-
-) : (
-
-  <p
-    className="
+                setImageViewerOpen?.(true);
+              }}
+            />
+          ) : (
+            <p
+              className="
       text-[14px]
       leading-relaxed
       whitespace-pre-wrap
       break-words
     "
-  >
-    {msg.message}
-  </p>
+            >
+              {msg.message}
+            </p>
+          )}
 
-)
-
-}
-
-                        <div
-  className={`
+          <div
+            className={`
     mt-1
     text-[10px]
     leading-none
-    ${
-      isMine
-        ? "text-white/40 text-right"
-        : "text-white/35"
-    }
+    ${isMine ? "text-white/40 text-right" : "text-white/35"}
   `}
->
+          >
+            {new Date(msg.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
 
-  {new Date(
-    msg.createdAt
-  ).toLocaleTimeString(
-    [],
-    {
-      hour:
-        "2-digit",
-      minute:
-        "2-digit",
-    }
-  )}
+            {isMine && (
+              <span className="ml-2">
+                {msg.seenBy && msg.seenBy.length > 1
+                  ? "Seen"
+                  : deliveredMessages.has(msg._id)
+                    ? "Delivered"
+                    : "Sent"}
+              </span>
+            )}
+          </div>
 
-  {isMine && (
-
-  <span className="ml-2">
-
-    {msg.seenBy &&
-    msg.seenBy.length > 1
-      ? "Seen"
-      : deliveredMessages.has(
-          msg._id
-        )
-      ? "Delivered"
-      : "Sent"}
-
-  </span>
-
-)}
-
-</div>
-
-{!msg.isDeleted &&
-  ![
-    "location",
-    "document",
-    "image",
-  ].includes(msg.type) && (
-    <button
-      onClick={() =>
-        handleReactToMessage(
-          msg._id,
-          "👍"
-        )
-      }
-      className="
+          {!msg.isDeleted &&
+            !["location", "document", "image"].includes(msg.type) && (
+              <button
+                onClick={() => handleReactToMessage(msg._id, "👍")}
+                className="
         mt-1
         text-xs
         text-white/50
         hover:text-white
       "
-    >
-      👍
-    </button>
-)}
+              >
+                👍
+              </button>
+            )}
 
-{msg.reactions &&
-  msg.reactions.length > 0 && (
-    <div className="mt-1 flex gap-1 flex-wrap">
-      {(
-        msg.reactions as {
-          emoji: string;
-        }[]
-      ).map(
-        (
-          reaction: {
-            emoji: string;
-          },
-          index: number
-        ) => (
-          <span
-            key={index}
-            className="
+          {msg.reactions && msg.reactions.length > 0 && (
+            <div className="mt-1 flex gap-1 flex-wrap">
+              {(
+                msg.reactions as {
+                  emoji: string;
+                }[]
+              ).map(
+                (
+                  reaction: {
+                    emoji: string;
+                  },
+                  index: number,
+                ) => (
+                  <span
+                    key={index}
+                    className="
               text-xs
               px-2
               py-[2px]
               rounded-full
               bg-white/10
             "
-          >
-            {reaction.emoji}
-          </span>
-        )
-      )}
-    </div>
-)}
-
-                      </div>
-
-                    </div>
-
-                    
-
+                  >
+                    {reaction.emoji}
+                  </span>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 }
