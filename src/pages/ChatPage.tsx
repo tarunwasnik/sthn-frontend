@@ -27,29 +27,65 @@ import ImagePreviewModal from "../components/chat/ImagePreviewModal";
 
 interface ChatMessage {
   _id: string;
+
   bookingId: string;
+
   senderId: string;
+
   senderRole: "USER" | "CREATOR";
 
-  type?: string;
+  type?: "text" | "location" | "document" | "image" | "voice" | "video";
+
   groupId?: string;
+
+  replyTo?: {
+    messageId: string;
+
+    senderId: string;
+
+    senderRole: "USER" | "CREATOR";
+
+    type: "text" | "location" | "document" | "image" | "voice" | "video";
+
+    message: string;
+
+    attachment?: {
+      url: string;
+
+      fileName: string;
+
+      mimeType: string;
+
+      resourceType: "raw" | "image" | "video";
+    };
+  };
 
   location?: {
     latitude: number;
+
     longitude: number;
+
     name: string;
+
     address: string;
+
     placeId?: string;
   };
 
   attachment?: {
     url: string;
+
     publicId: string;
+
     fileName: string;
+
     originalFileName: string;
+
     mimeType: string;
+
     fileSize: number;
-    resourceType: string;
+
+    resourceType: "raw" | "image" | "video";
   };
 
   message: string;
@@ -57,10 +93,12 @@ interface ChatMessage {
   seenBy: string[];
 
   isDeleted?: boolean;
+
   deletedAt?: string;
 
   reactions?: {
     userId: string;
+
     emoji: string;
   }[];
 
@@ -95,6 +133,8 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [input, setInput] = useState("");
+
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
   const [sending, setSending] = useState(false);
 
@@ -157,7 +197,17 @@ export default function ChatPage() {
 
       const res = await api.get(`/v1/chat/${bookingId}/messages`);
 
-      setMessages(res.data.chats || []);
+      setMessages(
+        (res.data.chats || []).map((chat: ChatMessage) => ({
+          ...chat,
+
+          replyTo: chat.replyTo
+            ? {
+                ...chat.replyTo,
+              }
+            : undefined,
+        })),
+      );
 
       await api.post(`/v1/chat/${bookingId}/seen`);
     } catch (err: any) {
@@ -261,31 +311,38 @@ export default function ChatPage() {
     socket.emit("join-booking", bookingId);
 
     const handleMessage = (msg: ChatMessage) => {
+      const incoming: ChatMessage = {
+        ...msg,
+
+        replyTo: msg.replyTo
+          ? {
+              ...msg.replyTo,
+            }
+          : undefined,
+      };
+
       const addMessage = () => {
         setMessages((prev) => {
-          const exists = prev.find((m) => m._id === msg._id);
+          const exists = prev.find((m) => m._id === incoming._id);
 
           if (exists) {
             return prev;
           }
 
-          const isMine = msg.senderId === userId;
+          const isMine = incoming.senderId === userId;
 
           if (isMine) {
             return prev;
           }
 
-          return [...prev, msg];
+          return [...prev, incoming];
         });
       };
 
-      if (
-        (msg.type === "IMAGE" || msg.type === "image") &&
-        msg.attachment?.url
-      ) {
+      if (incoming.type === "image" && incoming.attachment?.url) {
         const image = new Image();
 
-        image.src = msg.attachment.url;
+        image.src = incoming.attachment.url;
 
         image.onload = () => {
           addMessage();
@@ -302,7 +359,7 @@ export default function ChatPage() {
 
       socket.emit("chat:delivered", {
         bookingId,
-        messageId: msg._id,
+        messageId: incoming._id,
         userId,
       });
     };
@@ -368,15 +425,29 @@ export default function ChatPage() {
       }
 
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === data.messageId
-            ? {
-                ...msg,
+        prev.map((msg) => {
+          // Original deleted message
+          if (msg._id === data.messageId) {
+            return {
+              ...msg,
+              isDeleted: true,
+              deletedAt: data.deletedAt,
+            };
+          }
+
+          // Any reply pointing to the deleted message
+          if (msg.replyTo?.messageId === data.messageId) {
+            return {
+              ...msg,
+              replyTo: {
+                ...msg.replyTo,
                 isDeleted: true,
-                deletedAt: data.deletedAt,
-              }
-            : msg,
-        ),
+              },
+            };
+          }
+
+          return msg;
+        }),
       );
     };
 
@@ -517,6 +588,10 @@ export default function ChatPage() {
     });
   }, []);
 
+  /* ======================================================
+   Location Sending
+====================================================== */
+
   const handleSendLocation = async (location: {
     latitude: number;
     longitude: number;
@@ -534,9 +609,11 @@ export default function ChatPage() {
       const { data } = await api.post(`/v1/chat/${bookingId}/messages`, {
         type: "location",
         location,
+        replyTo: replyingTo?._id,
       });
 
       setMessages((prev) => [...prev, data.chat]);
+      setReplyingTo(null);
 
       setShowLocationPicker(false);
 
@@ -566,7 +643,8 @@ export default function ChatPage() {
 
       const formData = new FormData();
 
-      formData.append("files", file);
+      formData.append("file", file);
+      formData.append("replyTo", replyingTo?._id ?? "");
 
       const { data } = await api.post(
         `/v1/chat/${bookingId}/documents`,
@@ -579,6 +657,7 @@ export default function ChatPage() {
       );
 
       setMessages((prev) => [...prev, data.chat]);
+      setReplyingTo(null);
 
       requestAnimationFrame(() => {
         bottomRef.current?.scrollIntoView({
@@ -592,7 +671,7 @@ export default function ChatPage() {
     }
   };
 
-  /* ====================================================== 
+  /* ======================================================
                   IMAGE SENDING
  ====================================================== */
   const handleSendImages = async (files: File[]) => {
@@ -624,6 +703,22 @@ export default function ChatPage() {
           type: "image",
 
           message: "",
+
+          replyTo: replyingTo
+            ? {
+                messageId: replyingTo._id,
+
+                senderId: replyingTo.senderId,
+
+                senderRole: replyingTo.senderRole,
+
+                type: replyingTo.type ?? "text",
+
+                message: replyingTo.message,
+
+                attachment: replyingTo.attachment,
+              }
+            : undefined,
 
           groupId: undefined,
 
@@ -658,7 +753,6 @@ export default function ChatPage() {
 
     setMessages((prev) => [
       ...prev,
-
       ...uploadQueue.map((item) => item.message),
     ]);
 
@@ -673,6 +767,8 @@ export default function ChatPage() {
     uploadQueue.forEach(({ file }) => {
       formData.append("files", file);
     });
+
+    formData.append("replyTo", replyingTo?._id ?? "");
 
     try {
       const { data } = await api.post(
@@ -751,11 +847,14 @@ export default function ChatPage() {
 
             location: chat.location,
 
+            replyTo: chat.replyTo,
+
             reactions: chat.reactions ?? [],
 
             seenBy: chat.seenBy ?? [],
 
             createdAt: chat.createdAt,
+
             isUploading: false,
 
             uploadProgress: 100,
@@ -766,6 +865,8 @@ export default function ChatPage() {
 
         return next;
       });
+
+      setReplyingTo(null);
     } catch (err) {
       setMessages((prev) =>
         prev.map((msg) => {
@@ -788,7 +889,6 @@ export default function ChatPage() {
       console.error(err);
     }
   };
-
   /* ======================================================
      SEND
   ====================================================== */
@@ -834,6 +934,23 @@ export default function ChatPage() {
 
       message: messageText,
 
+      replyTo: replyingTo
+        ? {
+            messageId: replyingTo._id,
+
+            senderId: replyingTo.senderId,
+            senderRole: replyingTo.senderRole,
+
+            type: replyingTo.type ?? "text",
+
+            message: replyingTo.message,
+
+            isDeleted: replyingTo.isDeleted,
+
+            attachment: replyingTo.attachment,
+          }
+        : undefined,
+
       seenBy: userId ? [userId] : [],
 
       createdAt: new Date().toISOString(),
@@ -844,6 +961,7 @@ export default function ChatPage() {
     try {
       const res = await api.post(`/v1/chat/${bookingId}/messages`, {
         message: messageText,
+        replyTo: replyingTo?._id,
       });
 
       const saved = res.data.chat;
@@ -851,6 +969,7 @@ export default function ChatPage() {
       setMessages((prev) =>
         prev.map((msg) => (msg._id === tempMessage._id ? saved : msg)),
       );
+      setReplyingTo(null);
     } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m._id !== tempMessage._id));
 
@@ -1090,6 +1209,8 @@ export default function ChatPage() {
           handleInputChange={handleInputChange}
           handleKeyDown={handleKeyDown}
           handleSend={handleSend}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
           sending={sending}
           chatClosed={chatClosed}
           showLocationButton={true}
@@ -1136,6 +1257,19 @@ export default function ChatPage() {
       <MessageActions
         isOpen={actionsOpen}
         canDelete={!!selectedMessageId}
+        onReply={() => {
+          if (!selectedMessageId) {
+            return;
+          }
+
+          const message = messages.find((m) => m._id === selectedMessageId);
+
+          if (!message) {
+            return;
+          }
+
+          setReplyingTo(message);
+        }}
         onDelete={() => {
           if (selectedMessageId) {
             handleDeleteMessage(selectedMessageId);

@@ -1,16 +1,21 @@
 //frontend/src/components/chat/MessageActions.tsx
 
-
 interface MessageActionsProps {
   isOpen: boolean;
+
   canDelete: boolean;
+
+  onReply: () => void;
+
   onDelete: () => void;
+
   onClose: () => void;
 }
 
 export default function MessageActions({
   isOpen,
   canDelete,
+  onReply,
   onDelete,
   onClose,
 }: MessageActionsProps) {
@@ -20,15 +25,12 @@ export default function MessageActions({
     <>
       {/* Backdrop */}
 
-      <div
-  className="fixed inset-0 z-[99998]"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-[99998]" onClick={onClose} />
 
       {/* Menu */}
 
       <div
-  className="
+        className="
     fixed
     bottom-24
     md:bottom-6
@@ -42,7 +44,26 @@ export default function MessageActions({
     shadow-xl
     overflow-hidden
   "
->
+      >
+        <button
+          onClick={() => {
+            onReply();
+            onClose();
+          }}
+          className="
+    w-full
+    px-4
+    py-3
+    text-left
+    text-white
+    hover:bg-white/5
+    border-b
+    border-white/10
+  "
+        >
+          Reply
+        </button>
+
         {canDelete && (
           <button
             onClick={() => {

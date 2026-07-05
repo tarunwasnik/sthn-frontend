@@ -1,22 +1,24 @@
 // frontend/src/components/chat/ChatComposer.tsx
 
-import {
-  useRef,
-  type KeyboardEvent,
-} from "react";
+import { useRef, type KeyboardEvent } from "react";
 
 interface ChatComposerProps {
   input: string;
 
-  handleInputChange: (
-    value: string
-  ) => void;
+  handleInputChange: (value: string) => void;
 
-  handleKeyDown: (
-    e: KeyboardEvent<HTMLInputElement>
-  ) => void;
+  handleKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
 
   handleSend: () => void;
+
+  replyingTo?: {
+    senderRole: "USER" | "CREATOR";
+
+    type?: "text" | "location" | "document" | "image" | "voice" | "video";
+
+    message: string;
+  } | null;
+  onCancelReply?: () => void;
 
   sending: boolean;
 
@@ -26,13 +28,9 @@ interface ChatComposerProps {
 
   onLocationClick?: () => void;
 
-  onDocumentSelect?: (
-    file: File
-  ) => void;
+  onDocumentSelect?: (file: File) => void;
 
-onImageSelect?: (
-  files: File[]
-) => void;
+  onImageSelect?: (files: File[]) => void;
 }
 
 export default function ChatComposer({
@@ -46,16 +44,13 @@ export default function ChatComposer({
   onLocationClick,
   onDocumentSelect,
   onImageSelect,
-}: ChatComposerProps) {
-  const fileInputRef =
-    useRef<HTMLInputElement | null>(
-      null
-    );
 
-  const imageInputRef =
-    useRef<HTMLInputElement | null>(
-      null
-    );
+  replyingTo,
+  onCancelReply,
+}: ChatComposerProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
     <div
@@ -72,6 +67,52 @@ export default function ChatComposer({
         py-1.5
       "
     >
+      {replyingTo && (
+        <div
+          className="
+      mb-2
+      flex
+      items-start
+      justify-between
+      rounded-xl
+      border
+      border-white/10
+      bg-white/[0.05]
+      px-3
+      py-2
+    "
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-blue-400">
+              Replying to{" "}
+              {replyingTo.senderRole === "USER" ? "User" : "Creator"}
+            </p>
+
+            <p className="mt-1 truncate text-sm text-white/70">
+              {replyingTo.type === "image"
+                ? "🖼️ Image"
+                : replyingTo.type === "document"
+                  ? "📄 Document"
+                  : replyingTo.type === "location"
+                    ? "📍 Location"
+                    : replyingTo.message}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCancelReply}
+            className="
+        ml-3
+        text-white/60
+        hover:text-white
+      "
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Hidden Document Picker */}
       <input
         ref={fileInputRef}
@@ -104,13 +145,9 @@ application/zip,
 application/x-rar-compressed
 "
         onChange={(e) => {
-          const file =
-            e.target.files?.[0];
+          const file = e.target.files?.[0];
 
-          if (
-            file &&
-            onDocumentSelect
-          ) {
+          if (file && onDocumentSelect) {
             onDocumentSelect(file);
           }
 
@@ -124,7 +161,7 @@ application/x-rar-compressed
         type="file"
         hidden
         multiple
-       accept="
+        accept="
 image/*,
 .jpg,
 .jpeg,
@@ -136,30 +173,22 @@ image/*,
 "
         capture={undefined}
         onChange={(e) => {
-  const files = Array.from(
-    e.target.files ?? []
-  );
+          const files = Array.from(e.target.files ?? []);
 
-  if (
-    files.length > 0 &&
-    onImageSelect
-  ) {
-    onImageSelect(files);
-  }
+          if (files.length > 0 && onImageSelect) {
+            onImageSelect(files);
+          }
 
-  e.currentTarget.value = "";
-}}
+          e.currentTarget.value = "";
+        }}
       />
 
       <div className="flex items-end gap-2">
-
         {/* Image Button */}
         <button
           type="button"
           disabled={chatClosed}
-          onClick={() =>
-            imageInputRef.current?.click()
-          }
+          onClick={() => imageInputRef.current?.click()}
           className="
             h-[40px]
             w-[40px]
@@ -183,9 +212,7 @@ image/*,
         <button
           type="button"
           disabled={chatClosed}
-          onClick={() =>
-            fileInputRef.current?.click()
-          }
+          onClick={() => fileInputRef.current?.click()}
           className="
             h-[40px]
             w-[40px]
@@ -236,17 +263,11 @@ image/*,
           type="text"
           value={input}
           onChange={(e) => {
-            handleInputChange(
-              e.target.value
-            );
+            handleInputChange(e.target.value);
           }}
           onKeyDown={handleKeyDown}
           disabled={chatClosed}
-          placeholder={
-            chatClosed
-              ? "Chat closed"
-              : "Type a message..."
-          }
+          placeholder={chatClosed ? "Chat closed" : "Type a message..."}
           className="
             flex-1
             min-w-0
@@ -268,11 +289,7 @@ image/*,
         {/* Send Button */}
         <button
           onClick={handleSend}
-          disabled={
-            sending ||
-            !input.trim() ||
-            chatClosed
-          }
+          disabled={sending || !input.trim() || chatClosed}
           className="
             h-[40px]
             px-4
@@ -288,9 +305,7 @@ image/*,
             font-medium
           "
         >
-          {sending
-            ? "Sending..."
-            : "Send"}
+          {sending ? "Sending..." : "Send"}
         </button>
       </div>
     </div>

@@ -54,6 +54,7 @@ export default function MobileMessageList({
   handleReactToMessage,
   setSelectedMessageId,
   setActionsOpen,
+
   startLongPress,
   endLongPress,
   isTyping,

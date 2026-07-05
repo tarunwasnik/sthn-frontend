@@ -12,6 +12,7 @@ interface MessageListProps {
   handleReactToMessage: (messageId: string, emoji: string) => void;
   setSelectedMessageId: (id: string | null) => void;
   setActionsOpen: (open: boolean) => void;
+  onReply: (message: any) => void;
   isTyping: boolean;
   bottomRef: React.RefObject<HTMLDivElement | null>;
   setMapPickerOpen: (open: boolean) => void;
@@ -36,6 +37,7 @@ export default function MessageList({
   handleReactToMessage,
   setSelectedMessageId,
   setActionsOpen,
+  onReply,
   isTyping,
   bottomRef,
   setMapPickerOpen,
@@ -140,6 +142,7 @@ export default function MessageList({
                 handleReactToMessage={handleReactToMessage}
                 setSelectedMessageId={setSelectedMessageId}
                 setActionsOpen={setActionsOpen}
+                onReply={onReply}
                 setMapPickerOpen={setMapPickerOpen}
                 setSelectedMapLocation={setSelectedMapLocation}
                 setImageViewerOpen={setImageViewerOpen}

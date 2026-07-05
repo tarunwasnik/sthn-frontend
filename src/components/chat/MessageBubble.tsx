@@ -53,6 +53,7 @@ export default function MessageBubble({
   userId,
   deliveredMessages,
   handleReactToMessage,
+
   setImageViewerOpen,
   setSelectedImages,
   setSelectedImageIndex,
@@ -187,6 +188,35 @@ export default function MessageBubble({
         return "📄";
     }
   };
+  const getReplyPreview = () => {
+    if (!msg.replyTo) {
+      return null;
+    }
+
+    if (msg.replyTo.isDeleted) {
+      return "This message was deleted";
+    }
+
+    switch (msg.replyTo.type) {
+      case "image":
+        return "🖼️ Image";
+
+      case "document":
+        return "📄 Document";
+
+      case "location":
+        return "📍 Location";
+
+      case "voice":
+        return "🎤 Voice message";
+
+      case "video":
+        return "🎥 Video";
+
+      default:
+        return msg.replyTo.message || "Message";
+    }
+  };
 
   const downloadDocument = async () => {
     try {
@@ -281,6 +311,35 @@ export default function MessageBubble({
                           }
                         `}
         >
+          {msg.replyTo && (
+            <div
+              className="
+      mb-2
+      rounded-lg
+      
+      
+      bg-white/5
+      px-3
+      py-2
+    "
+            >
+              <p className="text-[11px] font-medium text-blue-400">
+                {msg.replyTo.senderRole === "USER" ? "User" : "Creator"}
+              </p>
+
+              <p
+                className="
+        mt-0.5
+        truncate
+        text-[12px]
+        text-white/65
+      "
+              >
+                {getReplyPreview()}
+              </p>
+            </div>
+          )}
+
           {msg.isDeleted ? (
             <p
               className="
