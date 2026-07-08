@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import api from "../../../api/axios";
+import AdminLayout from "../../../components/admin/layout/AdminLayout";
 
 export default function SystemDashboard() {
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,6 +19,7 @@ export default function SystemDashboard() {
         setLoading(false);
       } catch (err: any) {
         setError("Access denied");
+
         setTimeout(() => {
           navigate("/admin/entry", { replace: true });
         }, 300);
@@ -27,24 +31,37 @@ export default function SystemDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: 32 }}>
-        <p>Initializing system dashboard…</p>
-      </div>
+      <AdminLayout workspace="system">
+        <div className="flex h-[70vh] items-center justify-center">
+          <p className="text-neutral-400">Initializing System Workspace...</p>
+        </div>
+      </AdminLayout>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: 32 }}>
-        <p>{error}</p>
-      </div>
+      <AdminLayout workspace="system">
+        <div className="flex h-[70vh] items-center justify-center">
+          <p className="text-red-400">{error}</p>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div style={{ padding: 32 }}>
-      <h2>System Dashboard</h2>
-      <p>System dashboard initialized.</p>
-    </div>
+    <AdminLayout workspace="system">
+      {/* ======================================================
+          SYSTEM OVERVIEW (PLACEHOLDER)
+      ====================================================== */}
+
+      <div className="space-y-3">
+        <h1 className="text-3xl font-bold">System Dashboard</h1>
+
+        <p className="text-neutral-400">
+          Welcome to the STHN System Workspace.
+        </p>
+      </div>
+    </AdminLayout>
   );
 }

@@ -13,8 +13,7 @@ export default function AdminEntry() {
   const selectMode = async (mode: AdminMode) => {
     try {
       setLoading(mode);
-
-      const res = await api.post("/control-plane/admin/mode", {
+      const res = await api.post("/admin/mode", {
         mode,
       });
 

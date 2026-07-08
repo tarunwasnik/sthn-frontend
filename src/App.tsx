@@ -61,7 +61,6 @@ export default function App() {
 
   return (
     <Routes>
-
       {/* PUBLIC */}
       <Route path="/" element={<Home />} />
       <Route path="/explore" element={<Explore />} />
@@ -79,7 +78,7 @@ export default function App() {
       <Route path="/creator-application" element={<CreatorApplication />} />
 
       <Route
-        path="/admin/creator-applications"
+        path="/admin/operations/creator-applications"
         element={
           <AdminRoute>
             <CreatorApplicationsQueue />
@@ -116,7 +115,7 @@ export default function App() {
       />
 
       <Route
-        path="/admin/profile-verification"
+        path="/admin/operations/profile-verification"
         element={
           <AdminRoute>
             <ProfileVerificationQueue />
@@ -145,35 +144,20 @@ export default function App() {
       {/* CREATOR */}
       <Route path="/dashboard/creator" element={<CreatorDashboard />} />
 
-      <Route
-        path="/dashboard/creator/bookings"
-        element={<CreatorBookings />}
-      />
+      <Route path="/dashboard/creator/bookings" element={<CreatorBookings />} />
 
       <Route
         path="/dashboard/creator/bookings/:id"
         element={<CreatorBookingDetails />}
       />
 
-      <Route
-        path="/dashboard/creator/messages"
-        element={<MessagesPage />}
-      />
+      <Route path="/dashboard/creator/messages" element={<MessagesPage />} />
 
-      <Route
-        path="/dashboard/creator/services"
-        element={<CreatorServices />}
-      />
+      <Route path="/dashboard/creator/services" element={<CreatorServices />} />
 
-      <Route
-        path="/dashboard/creator/browse"
-        element={<CreatorBrowse />}
-      />
+      <Route path="/dashboard/creator/browse" element={<CreatorBrowse />} />
 
-      <Route
-        path="/dashboard/creator/requests"
-        element={<CreatorRequests />}
-      />
+      <Route path="/dashboard/creator/requests" element={<CreatorRequests />} />
 
       <Route
         path="/dashboard/creator/availability"
@@ -181,18 +165,13 @@ export default function App() {
       />
 
       {/* CHAT */}
-      <Route
-        path="/dashboard/chat/:bookingId"
-        element={<ChatPage />}
-      />
+      <Route path="/dashboard/chat/:bookingId" element={<ChatPage />} />
 
-      
       {/* ADMIN DASHBOARD */}
       <Route path="/dashboard/admin" element={<AdminDashboard />} />
 
       {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/" />} />
-
     </Routes>
   );
 }
