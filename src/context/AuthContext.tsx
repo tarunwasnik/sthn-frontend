@@ -7,17 +7,14 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from "react";
 
 import type { ReactNode } from "react";
 
 import api from "../api/axios";
 
-type Role =
-  | "user"
-  | "creator"
-  | "admin"
-  | null;
+type Role = "user" | "creator" | "admin" | null;
 
 type CreatorStatus =
   | "none"
@@ -35,131 +32,79 @@ interface AuthState {
   loading: boolean;
 }
 
-interface AuthContextType
-  extends AuthState {
-  login: (
-    token: string
-  ) => Promise<void>;
+interface AuthContextType extends AuthState {
+  login: (token: string) => Promise<void>;
 
   logout: () => void;
 
-  bootstrap: () => Promise<void>;
+  bootstrap: () => Promise<any>;
 }
 
-const AuthContext =
-  createContext<
-    AuthContextType | undefined
-  >(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}) => {
-  const [
-    isAuthenticated,
-    setIsAuthenticated,
-  ] = useState(false);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const [
-    userId,
-    setUserId,
-  ] = useState<string | null>(
-    null
-  );
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const [role, setRole] =
-    useState<Role>(null);
+  const [role, setRole] = useState<Role>(null);
 
-  const [
-    creatorStatus,
-    setCreatorStatus,
-  ] =
-    useState<CreatorStatus>(
-      null
-    );
+  const [creatorStatus, setCreatorStatus] = useState<CreatorStatus>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const bootstrap =
-    async () => {
-      try {
-        setLoading(true);
+  const bootstrap = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const res =
-          await api.get(
-            "/auth/entry"
-          );
+      const res = await api.get("/auth/entry");
 
-        const {
-          entryType,
-          creatorStatus,
-          userId,
-        } = res.data;
+      const { entryType, creatorStatus, userId } = res.data;
 
-        const normalizedRole: Role =
-          entryType === "ADMIN"
-            ? "admin"
-            : entryType ===
-              "CREATOR"
+      const normalizedRole: Role =
+        entryType === "ADMIN"
+          ? "admin"
+          : entryType === "CREATOR"
             ? "creator"
-            : entryType ===
-              "USER"
-            ? "user"
-            : null;
+            : entryType === "USER"
+              ? "user"
+              : null;
 
-        setIsAuthenticated(true);
+      setIsAuthenticated(true);
 
-        setRole(
-          normalizedRole
-        );
+      setRole(normalizedRole);
 
-        setUserId(
-          userId ?? null
-        );
+      setUserId(userId ?? null);
 
-        setCreatorStatus(
-          creatorStatus ??
-            "none"
-        );
-      } catch {
-        setIsAuthenticated(false);
+      setCreatorStatus(creatorStatus ?? "none");
+      return res.data;
+    } catch {
+      setIsAuthenticated(false);
 
-        setUserId(null);
+      setUserId(null);
 
-        setRole(null);
+      setRole(null);
 
-        setCreatorStatus(
-          null
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+      setCreatorStatus(null);
 
-  const login = async (
-    token: string
-  ) => {
-    localStorage.setItem(
-      "accessToken",
-      token
-    );
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    api.defaults.headers.common[
-      "Authorization"
-    ] = `Bearer ${token}`;
+  const login = async (token: string) => {
+    localStorage.setItem("accessToken", token);
+
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
     await bootstrap();
   };
 
   const logout = () => {
-    localStorage.removeItem(
-      "accessToken"
-    );
+    localStorage.removeItem("accessToken");
 
-    delete api.defaults.headers
-      .common["Authorization"];
+    delete api.defaults.headers.common["Authorization"];
 
     setIsAuthenticated(false);
 
@@ -171,15 +116,10 @@ export const AuthProvider = ({
   };
 
   useEffect(() => {
-    const token =
-      localStorage.getItem(
-        "accessToken"
-      );
+    const token = localStorage.getItem("accessToken");
 
     if (token) {
-      api.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${token}`;
+      api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
       bootstrap();
     } else {
@@ -192,45 +132,28 @@ export const AuthProvider = ({
   ====================================================== */
 
   useEffect(() => {
-    console.log(
-      "AUTH STATE",
-      {
-        isAuthenticated,
-        userId,
-        role,
-        loading,
-      }
-    );
-  }, [
-    isAuthenticated,
-    userId,
-    role,
-    loading,
-  ]);
+    console.log("AUTH STATE", {
+      isAuthenticated,
+      userId,
+      role,
+      loading,
+    });
+  }, [isAuthenticated, userId, role, loading]);
 
   /* ======================================================
      PRESENCE EMIT
   ====================================================== */
 
   useEffect(() => {
-    console.log(
-      "PRESENCE EFFECT",
-      userId
-    );
+    console.log("PRESENCE EFFECT", userId);
 
     if (!userId) {
       return;
     }
 
-    console.log(
-      "EMITTING USER ONLINE",
-      userId
-    );
+    console.log("EMITTING USER ONLINE", userId);
 
-    socket.emit(
-      "user-online",
-      userId
-    );
+    socket.emit("user-online", userId);
   }, [userId]);
 
   return (
@@ -252,13 +175,10 @@ export const AuthProvider = ({
 };
 
 export const useAuth = () => {
-  const context =
-    useContext(AuthContext);
+  const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth must be used within AuthProvider"
-    );
+    throw new Error("useAuth must be used within AuthProvider");
   }
 
   return context;

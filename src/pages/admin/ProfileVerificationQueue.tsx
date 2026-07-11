@@ -29,6 +29,7 @@ import AdminDetailPanel from "../../components/admin/panel/AdminDetailPanel";
 import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState";
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
 import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
+import AdminRejectDialog from "../../components/admin/feedback/AdminRejectDialog";
 
 interface Profile {
   _id: string;
@@ -70,6 +71,10 @@ export default function ProfileVerificationQueue() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
   const [confirmProfile, setConfirmProfile] = useState<Profile | null>(null);
+
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const [reasonError, setReasonError] = useState("");
 
   const fetchProfiles = async () => {
     try {
@@ -117,11 +122,21 @@ export default function ProfileVerificationQueue() {
   const rejectProfile = async () => {
     if (!confirmProfile) return;
 
+    const trimmedReason = rejectionReason.trim();
+
+    if (!trimmedReason) {
+      setReasonError("Rejection reason is required.");
+      return;
+    }
+
     try {
       setProcessingId(confirmProfile._id);
 
       await api.patch(
         `/v1/admin/profile-verification/${confirmProfile._id}/reject`,
+        {
+          reason: trimmedReason,
+        },
       );
 
       await fetchProfiles();
@@ -130,7 +145,9 @@ export default function ProfileVerificationQueue() {
         setSelectedProfile(null);
       }
 
+      setReasonError("");
       setConfirmAction(null);
+      setRejectionReason("");
       setConfirmProfile(null);
     } catch (err: any) {
       alert(err?.response?.data?.message ?? "Failed to reject profile.");
@@ -389,6 +406,8 @@ export default function ProfileVerificationQueue() {
                           }
                           onClick={() => {
                             setConfirmProfile(profile);
+                            setRejectionReason("");
+                            setReasonError("");
                             setConfirmAction("reject");
                           }}
                         >
@@ -441,6 +460,8 @@ export default function ProfileVerificationQueue() {
                 }
                 onClick={() => {
                   setConfirmProfile(selectedProfile);
+                  setRejectionReason("");
+                  setReasonError("");
                   setConfirmAction("reject");
                 }}
               >
@@ -577,20 +598,28 @@ export default function ProfileVerificationQueue() {
         }}
       />
 
-      <AdminConfirmDialog
+      <AdminRejectDialog
         open={confirmAction === "reject" && confirmProfile !== null}
         title="Reject Profile Verification"
-        description={`Are you sure you want to reject ${confirmProfile?.username}'s profile verification?`}
-        confirmText="Reject"
-        cancelText="Cancel"
-        confirmVariant="danger"
+        description={`Provide a clear reason why ${confirmProfile?.username}'s profile verification is being rejected.`}
+        value={rejectionReason}
+        error={reasonError}
         loading={processingId === confirmProfile?._id}
+        onChange={(value) => {
+          setRejectionReason(value);
+
+          if (reasonError) {
+            setReasonError("");
+          }
+        }}
         onConfirm={rejectProfile}
         onCancel={() => {
           if (processingId) return;
 
           setConfirmAction(null);
           setConfirmProfile(null);
+          setRejectionReason("");
+          setReasonError("");
         }}
       />
     </AdminLayout>

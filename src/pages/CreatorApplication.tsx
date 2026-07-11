@@ -19,7 +19,7 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
     {
       method: "POST",
       body: formData,
-    }
+    },
   );
 
   const data = await res.json();
@@ -48,7 +48,10 @@ export default function CreatorApplication() {
   const [currencySearch, setCurrencySearch] = useState("");
 
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [application, setApplication] = useState<any>(null);
   const isVerified = profileStatus === "verified";
+
+  const isResubmission = application?.status === "rejected";
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +63,9 @@ export default function CreatorApplication() {
       try {
         const res = await api.get("/v1/profile/me");
         setProfileStatus(res.data?.profileStatus || null);
+
+        const applicationRes = await api.get("/v1/creator-applications/me");
+        setApplication(applicationRes.data.application);
       } catch {
         setProfileStatus(null);
       }
@@ -67,6 +73,40 @@ export default function CreatorApplication() {
 
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (!application) return;
+
+    setForm({
+      displayName: application.displayName ?? "",
+      primaryCategory: application.primaryCategory ?? "",
+      country: application.country ?? "",
+      city: application.city ?? "",
+      currency: application.currency ?? "",
+      services: Array.isArray(application.services)
+        ? application.services.join(", ")
+        : "",
+      publicBio: application.publicBio ?? "",
+      languages: Array.isArray(application.languages)
+        ? application.languages.join(", ")
+        : "",
+    });
+    setAvatarUrl(application.avatarUrl ?? null);
+    setCoverUrl(application.coverUrl ?? null);
+    setMedia(Array.isArray(application.media) ? application.media : []);
+
+    if (application.currency) {
+      const selectedCurrency = currencies.find(
+        (c) => c.code === application.currency,
+      );
+
+      setCurrencySearch(
+        selectedCurrency
+          ? `${selectedCurrency.code} — ${selectedCurrency.label}`
+          : application.currency,
+      );
+    }
+  }, [application]);
 
   /* ================= CLOSE DROPDOWN ================= */
 
@@ -79,7 +119,7 @@ export default function CreatorApplication() {
   /* ================= FILTER ================= */
 
   const filteredCurrencies = currencies.filter((c) =>
-    `${c.code} ${c.label}`.toLowerCase().includes(currencySearch.toLowerCase())
+    `${c.code} ${c.label}`.toLowerCase().includes(currencySearch.toLowerCase()),
   );
 
   /* ================= HANDLERS ================= */
@@ -158,21 +198,44 @@ export default function CreatorApplication() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 text-white bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617]">
-
       <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl p-6">
-
-        <h2 className="text-2xl font-bold mb-2">Become a Creator</h2>
-        <p className="text-gray-400 text-sm mb-6">Submit for review</p>
+        <h2 className="text-2xl font-bold mb-2">
+          {isResubmission ? "Update Creator Application" : "Become a Creator"}
+        </h2>
+        <p className="text-gray-400 text-sm mb-6">
+          {isResubmission
+            ? "Update your application according to the administrator's feedback. Saving your changes will automatically resubmit it for review."
+            : "Submit for review"}
+        </p>
 
         {error && <p className="text-red-400 mb-4">{error}</p>}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           {/* INPUTS */}
-          <input name="displayName" placeholder="Display Name" onChange={handleChange} className="input" />
-          <input name="primaryCategory" placeholder="Primary Category" onChange={handleChange} className="input" />
-          <input name="country" placeholder="Country" onChange={handleChange} className="input" />
-          <input name="city" placeholder="City" onChange={handleChange} className="input" />
+          <input
+            name="displayName"
+            placeholder="Display Name"
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="primaryCategory"
+            placeholder="Primary Category"
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="country"
+            placeholder="Country"
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="city"
+            placeholder="City"
+            onChange={handleChange}
+            className="input"
+          />
 
           {/* SEARCHABLE CURRENCY */}
           <div className="relative">
@@ -192,7 +255,6 @@ export default function CreatorApplication() {
 
             {currencyOpen && (
               <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-lg bg-white border border-white/10 shadow-xl">
-
                 {filteredCurrencies.length > 0 ? (
                   filteredCurrencies.map((c) => (
                     <div
@@ -212,24 +274,46 @@ export default function CreatorApplication() {
                     No results found
                   </div>
                 )}
-
               </div>
             )}
           </div>
 
-          <input name="services" placeholder="Services" onChange={handleChange} className="input" />
-          <input name="languages" placeholder="Languages" onChange={handleChange} className="input" />
+          <input
+            name="services"
+            placeholder="Services"
+            onChange={handleChange}
+            className="input"
+          />
+          <input
+            name="languages"
+            placeholder="Languages"
+            onChange={handleChange}
+            className="input"
+          />
 
-          <textarea name="publicBio" placeholder="Public Bio" onChange={handleChange} className="input" />
+          <textarea
+            name="publicBio"
+            placeholder="Public Bio"
+            onChange={handleChange}
+            className="input"
+          />
 
           {/* AVATAR */}
           <div>
             <p className="text-sm mb-1">Avatar</p>
-            <input type="file" onChange={(e) => e.target.files && handleAvatarUpload(e.target.files[0])} />
+            <input
+              type="file"
+              onChange={(e) =>
+                e.target.files && handleAvatarUpload(e.target.files[0])
+              }
+            />
 
             {avatarUrl && (
               <div className="relative w-20 h-20 mt-2">
-                <img src={avatarUrl} className="w-20 h-20 object-cover rounded-full" />
+                <img
+                  src={avatarUrl}
+                  className="w-20 h-20 object-cover rounded-full"
+                />
                 <button
                   type="button"
                   onClick={() => setAvatarUrl(null)}
@@ -244,11 +328,19 @@ export default function CreatorApplication() {
           {/* COVER */}
           <div>
             <p className="text-sm mb-1">Cover</p>
-            <input type="file" onChange={(e) => e.target.files && handleCoverUpload(e.target.files[0])} />
+            <input
+              type="file"
+              onChange={(e) =>
+                e.target.files && handleCoverUpload(e.target.files[0])
+              }
+            />
 
             {coverUrl && (
               <div className="relative mt-2">
-                <img src={coverUrl} className="w-full h-24 object-cover rounded-lg" />
+                <img
+                  src={coverUrl}
+                  className="w-full h-24 object-cover rounded-lg"
+                />
                 <button
                   type="button"
                   onClick={() => setCoverUrl(null)}
@@ -263,7 +355,13 @@ export default function CreatorApplication() {
           {/* MEDIA */}
           <div>
             <p className="text-sm mb-1">Media</p>
-            <input type="file" multiple onChange={(e) => e.target.files && handleMediaUpload(e.target.files)} />
+            <input
+              type="file"
+              multiple
+              onChange={(e) =>
+                e.target.files && handleMediaUpload(e.target.files)
+              }
+            />
 
             <div className="grid grid-cols-3 gap-2 mt-2">
               {media.map((img, i) => (
@@ -285,7 +383,6 @@ export default function CreatorApplication() {
           <button className="w-full bg-teal-400 text-black py-3 rounded-xl">
             {loading ? "Submitting..." : "Submit Application"}
           </button>
-
         </form>
       </div>
 

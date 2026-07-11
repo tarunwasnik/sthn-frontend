@@ -28,6 +28,7 @@ import AdminDetailPanel from "../../components/admin/panel/AdminDetailPanel";
 import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState";
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
 import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
+import AdminRejectDialog from "../../components/admin/feedback/AdminRejectDialog";
 
 interface CreatorApplication {
   _id: string;
@@ -57,6 +58,7 @@ interface CreatorApplication {
     email: string;
   };
 }
+type ConfirmAction = "approve" | "reject" | null;
 
 const PAGE_SIZE = 10;
 
@@ -73,8 +75,14 @@ export default function CreatorApplicationsQueue() {
   const [selectedApplication, setSelectedApplication] =
     useState<CreatorApplication | null>(null);
 
-  const [confirmApprove, setConfirmApprove] =
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+
+  const [confirmApplication, setConfirmApplication] =
     useState<CreatorApplication | null>(null);
+
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const [reasonError, setReasonError] = useState("");
 
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -98,22 +106,23 @@ export default function CreatorApplicationsQueue() {
   };
 
   const approveApplication = async () => {
-    if (!confirmApprove) return;
+    if (!confirmApplication) return;
 
     try {
-      setProcessingId(confirmApprove._id);
+      setProcessingId(confirmApplication._id);
 
       await api.patch(
-        `/v1/admin/creator-applications/${confirmApprove._id}/approve`,
+        `/v1/admin/creator-applications/${confirmApplication._id}/approve`,
       );
 
       await fetchApplications();
 
-      if (selectedApplication?._id === confirmApprove._id) {
+      if (selectedApplication?._id === confirmApplication._id) {
         setSelectedApplication(null);
       }
 
-      setConfirmApprove(null);
+      setConfirmAction(null);
+      setConfirmApplication(null);
     } catch (err: any) {
       alert(
         err?.response?.data?.message ??
@@ -127,6 +136,45 @@ export default function CreatorApplicationsQueue() {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  const rejectApplication = async () => {
+    if (!confirmApplication) return;
+
+    const trimmedReason = rejectionReason.trim();
+
+    if (!trimmedReason) {
+      setReasonError("Rejection reason is required.");
+      return;
+    }
+
+    try {
+      setProcessingId(confirmApplication._id);
+
+      await api.patch(
+        `/v1/admin/creator-applications/${confirmApplication._id}/reject`,
+        {
+          reason: trimmedReason,
+        },
+      );
+
+      await fetchApplications();
+
+      if (selectedApplication?._id === confirmApplication._id) {
+        setSelectedApplication(null);
+      }
+
+      setReasonError("");
+      setConfirmAction(null);
+      setRejectionReason("");
+      setConfirmApplication(null);
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ?? "Failed to reject creator application.",
+      );
+    } finally {
+      setProcessingId(null);
+    }
+  };
 
   const filteredApplications = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -342,15 +390,37 @@ export default function CreatorApplicationsQueue() {
 
                       <AdminTableCell align="right">
                         <div
-                          className="flex justify-end"
+                          className="flex justify-end gap-2"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <AdminButton
                             variant="success"
-                            loading={processingId === application._id}
-                            onClick={() => setConfirmApprove(application)}
+                            loading={
+                              processingId === application._id &&
+                              confirmAction === "approve"
+                            }
+                            onClick={() => {
+                              setConfirmApplication(application);
+                              setConfirmAction("approve");
+                            }}
                           >
                             Approve
+                          </AdminButton>
+
+                          <AdminButton
+                            variant="danger"
+                            loading={
+                              processingId === application._id &&
+                              confirmAction === "reject"
+                            }
+                            onClick={() => {
+                              setConfirmApplication(application);
+                              setRejectionReason("");
+                              setReasonError("");
+                              setConfirmAction("reject");
+                            }}
+                          >
+                            Reject
                           </AdminButton>
                         </div>
                       </AdminTableCell>
@@ -376,13 +446,35 @@ export default function CreatorApplicationsQueue() {
           subtitle={selectedApplication?.userId.email}
           footer={
             selectedApplication && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-3">
                 <AdminButton
                   variant="success"
-                  loading={processingId === selectedApplication._id}
-                  onClick={() => setConfirmApprove(selectedApplication)}
+                  loading={
+                    processingId === selectedApplication._id &&
+                    confirmAction === "approve"
+                  }
+                  onClick={() => {
+                    setConfirmApplication(selectedApplication);
+                    setConfirmAction("approve");
+                  }}
                 >
                   Approve Application
+                </AdminButton>
+
+                <AdminButton
+                  variant="danger"
+                  loading={
+                    processingId === selectedApplication._id &&
+                    confirmAction === "reject"
+                  }
+                  onClick={() => {
+                    setConfirmApplication(selectedApplication);
+                    setRejectionReason("");
+                    setReasonError("");
+                    setConfirmAction("reject");
+                  }}
+                >
+                  Reject Application
                 </AdminButton>
               </div>
             )
@@ -556,18 +648,44 @@ export default function CreatorApplicationsQueue() {
         </AdminDetailPanel>
 
         <AdminConfirmDialog
-          open={confirmApprove !== null}
+          open={confirmAction === "approve" && confirmApplication !== null}
           title="Approve Creator Application"
-          description={`Approve ${confirmApprove?.displayName}'s creator application?`}
+          description={`Are you sure you want to approve ${confirmApplication?.displayName}'s creator application?`}
           confirmText="Approve"
           cancelText="Cancel"
           confirmVariant="primary"
-          loading={processingId === confirmApprove?._id}
+          loading={processingId === confirmApplication?._id}
           onConfirm={approveApplication}
           onCancel={() => {
             if (processingId) return;
 
-            setConfirmApprove(null);
+            setConfirmAction(null);
+            setConfirmApplication(null);
+          }}
+        />
+
+        <AdminRejectDialog
+          open={confirmAction === "reject" && confirmApplication !== null}
+          title="Reject Creator Application"
+          description={`Provide a clear reason why ${confirmApplication?.displayName}'s creator application is being rejected.`}
+          value={rejectionReason}
+          error={reasonError}
+          loading={processingId === confirmApplication?._id}
+          onChange={(value) => {
+            setRejectionReason(value);
+
+            if (reasonError) {
+              setReasonError("");
+            }
+          }}
+          onConfirm={rejectApplication}
+          onCancel={() => {
+            if (processingId) return;
+
+            setConfirmAction(null);
+            setConfirmApplication(null);
+            setRejectionReason("");
+            setReasonError("");
           }}
         />
       </>

@@ -7,6 +7,8 @@ import Home from "./pages/Home";
 import Explore from "./pages/Explore";
 import CreatorPublicProfile from "./pages/CreatorPublicProfile";
 
+import IdentityRefreshListener from "./components/IdentityRefreshListener";
+
 import Login from "./components/Login";
 import Register from "./components/Register";
 import AdminRoute from "./components/AdminRoute";
@@ -60,118 +62,131 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      {/* PUBLIC */}
-      <Route path="/" element={<Home />} />
-      <Route path="/explore" element={<Explore />} />
-      <Route path="/creators/:slug" element={<CreatorPublicProfile />} />
+    <>
+      <IdentityRefreshListener />
 
-      {/* AUTH */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Routes>
+        {/* PUBLIC */}
+        <Route path="/" element={<Home />} />
+        <Route path="/explore" element={<Explore />} />
+        <Route path="/creators/:slug" element={<CreatorPublicProfile />} />
 
-      {/* ENTRY */}
-      <Route path="/entry" element={<EntryLoader />} />
+        {/* AUTH */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-      {/* ONBOARDING */}
-      <Route path="/onboarding" element={<Onboarding />} />
-      <Route path="/creator-application" element={<CreatorApplication />} />
+        {/* ENTRY */}
+        <Route path="/entry" element={<EntryLoader />} />
 
-      <Route
-        path="/admin/operations/creator-applications"
-        element={
-          <AdminRoute>
-            <CreatorApplicationsQueue />
-          </AdminRoute>
-        }
-      />
+        {/* ONBOARDING */}
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/creator-application" element={<CreatorApplication />} />
 
-      {/* ADMIN */}
-      <Route
-        path="/admin/entry"
-        element={
-          <AdminRoute>
-            <AdminEntry />
-          </AdminRoute>
-        }
-      />
+        <Route
+          path="/admin/operations/creator-applications"
+          element={
+            <AdminRoute>
+              <CreatorApplicationsQueue />
+            </AdminRoute>
+          }
+        />
 
-      <Route
-        path="/admin/system"
-        element={
-          <AdminRoute>
-            <SystemDashboard />
-          </AdminRoute>
-        }
-      />
+        {/* ADMIN */}
+        <Route
+          path="/admin/entry"
+          element={
+            <AdminRoute>
+              <AdminEntry />
+            </AdminRoute>
+          }
+        />
 
-      <Route
-        path="/admin/operations"
-        element={
-          <AdminRoute>
-            <OperationsDashboard />
-          </AdminRoute>
-        }
-      />
+        <Route
+          path="/admin/system"
+          element={
+            <AdminRoute>
+              <SystemDashboard />
+            </AdminRoute>
+          }
+        />
 
-      <Route
-        path="/admin/operations/profile-verification"
-        element={
-          <AdminRoute>
-            <ProfileVerificationQueue />
-          </AdminRoute>
-        }
-      />
+        <Route
+          path="/admin/operations"
+          element={
+            <AdminRoute>
+              <OperationsDashboard />
+            </AdminRoute>
+          }
+        />
 
-      {/* USER */}
-      <Route path="/dashboard/user" element={<UserDashboard />} />
-      <Route path="/dashboard/user/bookings" element={<UserBookings />} />
+        <Route
+          path="/admin/operations/profile-verification"
+          element={
+            <AdminRoute>
+              <ProfileVerificationQueue />
+            </AdminRoute>
+          }
+        />
 
-      {/* ✅ NEW: USER BOOKING DETAIL ROUTE */}
-      <Route
-        path="/dashboard/user/bookings/:bookingId"
-        element={<UserBookingDetail />}
-      />
+        {/* USER */}
+        <Route path="/dashboard/user" element={<UserDashboard />} />
+        <Route path="/dashboard/user/bookings" element={<UserBookings />} />
 
-      <Route path="/dashboard/user/messages" element={<MessagesPage />} />
-      <Route path="/dashboard/user/browse" element={<UserBrowse />} />
+        {/* ✅ NEW: USER BOOKING DETAIL ROUTE */}
+        <Route
+          path="/dashboard/user/bookings/:bookingId"
+          element={<UserBookingDetail />}
+        />
 
-      {/* PROFILE */}
-      <Route path="/profile" element={<UserProfilePage />} />
-      <Route path="/users/:userId" element={<PublicUserProfile />} />
-      <Route path="/creator/profile" element={<CreatorProfile />} />
+        <Route path="/dashboard/user/messages" element={<MessagesPage />} />
+        <Route path="/dashboard/user/browse" element={<UserBrowse />} />
 
-      {/* CREATOR */}
-      <Route path="/dashboard/creator" element={<CreatorDashboard />} />
+        {/* PROFILE */}
+        <Route path="/profile" element={<UserProfilePage />} />
+        <Route path="/users/:userId" element={<PublicUserProfile />} />
+        <Route path="/creator/profile" element={<CreatorProfile />} />
 
-      <Route path="/dashboard/creator/bookings" element={<CreatorBookings />} />
+        {/* CREATOR */}
+        <Route path="/dashboard/creator" element={<CreatorDashboard />} />
 
-      <Route
-        path="/dashboard/creator/bookings/:id"
-        element={<CreatorBookingDetails />}
-      />
+        <Route
+          path="/dashboard/creator/bookings"
+          element={<CreatorBookings />}
+        />
 
-      <Route path="/dashboard/creator/messages" element={<MessagesPage />} />
+        <Route
+          path="/dashboard/creator/bookings/:id"
+          element={<CreatorBookingDetails />}
+        />
 
-      <Route path="/dashboard/creator/services" element={<CreatorServices />} />
+        <Route path="/dashboard/creator/messages" element={<MessagesPage />} />
 
-      <Route path="/dashboard/creator/browse" element={<CreatorBrowse />} />
+        <Route
+          path="/dashboard/creator/services"
+          element={<CreatorServices />}
+        />
 
-      <Route path="/dashboard/creator/requests" element={<CreatorRequests />} />
+        <Route path="/dashboard/creator/browse" element={<CreatorBrowse />} />
 
-      <Route
-        path="/dashboard/creator/availability"
-        element={<CreatorAvailability />}
-      />
+        <Route
+          path="/dashboard/creator/requests"
+          element={<CreatorRequests />}
+        />
 
-      {/* CHAT */}
-      <Route path="/dashboard/chat/:bookingId" element={<ChatPage />} />
+        <Route
+          path="/dashboard/creator/availability"
+          element={<CreatorAvailability />}
+        />
 
-      {/* ADMIN DASHBOARD */}
-      <Route path="/dashboard/admin" element={<AdminDashboard />} />
+        {/* CHAT */}
+        <Route path="/dashboard/chat/:bookingId" element={<ChatPage />} />
 
-      {/* FALLBACK */}
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        {/* ADMIN DASHBOARD */}
+        <Route path="/dashboard/admin" element={<AdminDashboard />} />
+
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </>
   );
 }
