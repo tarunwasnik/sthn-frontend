@@ -51,6 +51,8 @@ interface CreatorApplication {
   media?: string[];
 
   status: string;
+
+  submittedForReviewAt?: string | null;
   createdAt: string;
 
   userId: {
@@ -329,7 +331,9 @@ export default function CreatorApplicationsQueue() {
 
                     <AdminTableHeaderCell>Country</AdminTableHeaderCell>
 
-                    <AdminTableHeaderCell>Submitted</AdminTableHeaderCell>
+                    <AdminTableHeaderCell>
+                      Submitted for Review
+                    </AdminTableHeaderCell>
 
                     <AdminTableHeaderCell>Status</AdminTableHeaderCell>
 
@@ -381,7 +385,10 @@ export default function CreatorApplicationsQueue() {
                       <AdminTableCell>{application.country}</AdminTableCell>
 
                       <AdminTableCell>
-                        {new Date(application.createdAt).toLocaleDateString()}
+                        {new Date(
+                          application.submittedForReviewAt ??
+                            application.createdAt,
+                        ).toLocaleDateString()}
                       </AdminTableCell>
 
                       <AdminTableCell>
@@ -528,11 +535,14 @@ export default function CreatorApplicationsQueue() {
 
                 <div>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Submitted
+                    Submitted for Review
                   </p>
 
                   <p className="text-sm text-slate-200">
-                    {new Date(selectedApplication.createdAt).toLocaleString()}
+                    {new Date(
+                      selectedApplication.submittedForReviewAt ??
+                        selectedApplication.createdAt,
+                    ).toLocaleString()}
                   </p>
                 </div>
 

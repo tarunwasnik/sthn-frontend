@@ -44,6 +44,7 @@ interface Profile {
   profilePhotos: string[];
 
   profileStatus: string;
+  verificationSubmittedAt?: string | null;
   createdAt: string;
 
   userId: {
@@ -87,7 +88,7 @@ export default function ProfileVerificationQueue() {
     } catch (err: any) {
       setError(
         err?.response?.data?.message ??
-          "Failed to load pending profile verifications.",
+          "Failed to load pending user verifications.",
       );
     } finally {
       setLoading(false);
@@ -113,7 +114,7 @@ export default function ProfileVerificationQueue() {
       setConfirmAction(null);
       setConfirmProfile(null);
     } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to approve profile.");
+      alert(err?.response?.data?.message ?? "Failed to approve user.");
     } finally {
       setProcessingId(null);
     }
@@ -150,7 +151,7 @@ export default function ProfileVerificationQueue() {
       setRejectionReason("");
       setConfirmProfile(null);
     } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to reject profile.");
+      alert(err?.response?.data?.message ?? "Failed to reject user.");
     } finally {
       setProcessingId(null);
     }
@@ -209,8 +210,8 @@ export default function ProfileVerificationQueue() {
     return (
       <AdminLayout workspace="operations">
         <AdminLoadingState
-          title="Loading profile verification queue..."
-          description="Fetching pending verification requests."
+          title="Loading user verification queue..."
+          description="Fetching pending user verification requests."
         />
       </AdminLayout>
     );
@@ -221,7 +222,7 @@ export default function ProfileVerificationQueue() {
       <AdminLayout workspace="operations">
         <div className="rounded-xl border border-red-900 bg-red-950/40 p-6">
           <h2 className="text-lg font-semibold text-red-300">
-            Failed to load profile verification queue
+            Failed to load user verification queue
           </h2>
 
           <p className="mt-2 text-sm text-red-200">{error}</p>
@@ -233,31 +234,32 @@ export default function ProfileVerificationQueue() {
       </AdminLayout>
     );
   }
+
   return (
     <AdminLayout workspace="operations">
       <div className="space-y-6">
         <AdminPageHeader
-          title="Profile Verification"
-          description="Review, inspect and process pending user profile verification requests."
+          title="User Verification"
+          description="Review, inspect and process pending user verification requests."
         >
           <AdminButton onClick={fetchProfiles}>Refresh Queue</AdminButton>
         </AdminPageHeader>
 
         <div className="grid gap-4 md:grid-cols-3">
           <AdminMetricCard
-            label="Pending Profiles"
+            label="Pending Users"
             value={metrics.pending}
-            subtitle="Awaiting review"
+            subtitle="Awaiting verification review"
           />
 
           <AdminMetricCard
-            label="Profiles With Avatar"
+            label="Users With Avatar"
             value={metrics.withAvatar}
             subtitle="Primary profile image uploaded"
           />
 
           <AdminMetricCard
-            label="Profiles With Gallery"
+            label="Users With Gallery"
             value={metrics.withGallery}
             subtitle="Gallery images available"
           />
@@ -290,8 +292,8 @@ export default function ProfileVerificationQueue() {
 
         {filteredProfiles.length === 0 ? (
           <AdminEmptyState
-            title="No pending profile verifications"
-            description="There are currently no profiles waiting for review."
+            title="No pending user verifications"
+            description="There are currently no users waiting for verification review."
             action={<AdminButton onClick={fetchProfiles}>Refresh</AdminButton>}
           />
         ) : (
@@ -307,7 +309,9 @@ export default function ProfileVerificationQueue() {
 
                   <AdminTableHeaderCell>Interests</AdminTableHeaderCell>
 
-                  <AdminTableHeaderCell>Submitted</AdminTableHeaderCell>
+                  <AdminTableHeaderCell>
+                    Submitted for Review
+                  </AdminTableHeaderCell>
 
                   <AdminTableHeaderCell>Status</AdminTableHeaderCell>
 
@@ -372,7 +376,9 @@ export default function ProfileVerificationQueue() {
                     </AdminTableCell>
 
                     <AdminTableCell>
-                      {new Date(profile.createdAt).toLocaleDateString()}
+                      {new Date(
+                        profile.verificationSubmittedAt ?? profile.createdAt,
+                      ).toLocaleDateString()}
                     </AdminTableCell>
 
                     <AdminTableCell>
@@ -430,10 +436,11 @@ export default function ProfileVerificationQueue() {
           </>
         )}
       </div>
+
       <AdminDetailPanel
         open={selectedProfile !== null}
         onClose={() => setSelectedProfile(null)}
-        title={selectedProfile?.username ?? "Profile"}
+        title={selectedProfile?.username ?? "User"}
         subtitle={selectedProfile?.userId.email}
         footer={
           selectedProfile && (
@@ -449,7 +456,7 @@ export default function ProfileVerificationQueue() {
                   setConfirmAction("approve");
                 }}
               >
-                Approve Profile
+                Approve User
               </AdminButton>
 
               <AdminButton
@@ -465,7 +472,7 @@ export default function ProfileVerificationQueue() {
                   setConfirmAction("reject");
                 }}
               >
-                Reject Profile
+                Reject User
               </AdminButton>
             </div>
           )
@@ -516,11 +523,14 @@ export default function ProfileVerificationQueue() {
 
               <div>
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Submitted
+                  Submitted for Review
                 </p>
 
                 <p className="text-sm text-slate-200">
-                  {new Date(selectedProfile.createdAt).toLocaleString()}
+                  {new Date(
+                    selectedProfile.verificationSubmittedAt ??
+                      selectedProfile.createdAt,
+                  ).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -581,10 +591,11 @@ export default function ProfileVerificationQueue() {
           </div>
         )}
       </AdminDetailPanel>
+
       <AdminConfirmDialog
         open={confirmAction === "approve" && confirmProfile !== null}
-        title="Approve Profile Verification"
-        description={`Are you sure you want to approve ${confirmProfile?.username}'s profile verification?`}
+        title="Approve User Verification"
+        description={`Are you sure you want to approve ${confirmProfile?.username}'s user verification?`}
         confirmText="Approve"
         cancelText="Cancel"
         confirmVariant="primary"
@@ -600,8 +611,8 @@ export default function ProfileVerificationQueue() {
 
       <AdminRejectDialog
         open={confirmAction === "reject" && confirmProfile !== null}
-        title="Reject Profile Verification"
-        description={`Provide a clear reason why ${confirmProfile?.username}'s profile verification is being rejected.`}
+        title="Reject User Verification"
+        description={`Provide a clear reason why ${confirmProfile?.username}'s user verification is being rejected.`}
         value={rejectionReason}
         error={reasonError}
         loading={processingId === confirmProfile?._id}

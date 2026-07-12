@@ -31,6 +31,10 @@ export default function UserDashboard() {
   const [creatorApplication, setCreatorApplication] =
     useState<CreatorApplication | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkingCreatorEligibility, setCheckingCreatorEligibility] =
+    useState(false);
+
+  const [creatorEligibilityError, setCreatorEligibilityError] = useState("");
 
   const navigate = useNavigate();
 
@@ -69,6 +73,33 @@ export default function UserDashboard() {
 
     loadData();
   }, []);
+
+  const handleBeginCreatorJourney = async () => {
+    try {
+      setCheckingCreatorEligibility(true);
+      setCreatorEligibilityError("");
+
+      const res = await api.get("/v1/bookings/creator-journey-eligibility");
+
+      if (!res.data.eligible) {
+        setCreatorEligibilityError(
+          res.data.message ??
+            "You must resolve your active bookings before applying as a creator.",
+        );
+
+        return;
+      }
+
+      navigate("/creator-application");
+    } catch (err: any) {
+      setCreatorEligibilityError(
+        err?.response?.data?.message ??
+          "Unable to check Creator Journey eligibility. Please try again.",
+      );
+    } finally {
+      setCheckingCreatorEligibility(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -306,21 +337,40 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => navigate("/creator-application")}
-                  className="
+                <div className="space-y-3">
+                  {creatorEligibilityError && (
+                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                      <p className="text-sm font-semibold text-red-300 mb-2">
+                        Creator Journey Unavailable
+                      </p>
+
+                      <p className="text-white/70 leading-relaxed">
+                        {creatorEligibilityError}
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleBeginCreatorJourney}
+                    disabled={checkingCreatorEligibility}
+                    className="
       px-5
       py-2.5
       rounded-xl
       bg-emerald-400
       hover:bg-emerald-300
+      disabled:opacity-50
+      disabled:cursor-not-allowed
       transition
       text-black
       font-semibold
     "
-                >
-                  Begin Creator Journey
-                </button>
+                  >
+                    {checkingCreatorEligibility
+                      ? "Checking Eligibility..."
+                      : "Begin Creator Journey"}
+                  </button>
+                </div>
               </div>
             )}
 
