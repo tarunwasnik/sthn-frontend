@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
+import { formatMajorUnitBookingMoney } from "../features/bookingFunding/money";
+import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
 
 interface Slot {
   _id: string;
@@ -22,7 +24,6 @@ interface Booking {
   createdAt: string;
   expiresAt?: string;
 
-  price: number;
   currency: string;
 
   serviceTitle?: string;
@@ -58,8 +59,15 @@ interface Booking {
   slots: Slot[];
 }
 
+const getBookedServicePrice = (booking: Booking): number | null => {
+  if (booking.slots.length === 0) return null;
+  const price = booking.slots.reduce((sum, slot) => sum + slot.price, 0);
+  return Number.isFinite(price) ? price : null;
+};
+
 export default function CreatorBookings() {
   const navigate = useNavigate();
+  const bookingCurrencies = useBookingCurrencyMetadata();
 
   const [bookings, setBookings] =
     useState<Booking[]>([]);
@@ -444,6 +452,7 @@ const personLink =
   bookingView === "PURCHASED"
     ? `/creators/${booking.creator?.profile?.slug}`
     : `/users/${booking.user?._id}`;
+const bookedServicePrice = getBookedServicePrice(booking);
 
                   return (
 
@@ -667,7 +676,9 @@ const personLink =
         font-bold
         leading-none
       ">
-        {booking.price}
+        {bookedServicePrice === null
+          ? "Price unavailable"
+          : formatMajorUnitBookingMoney(bookedServicePrice, booking.currency, bookingCurrencies)}
       </p>
 
     </div>
@@ -978,7 +989,9 @@ border border-white/10
                                   mt-1
                                 "
                               >
-                                {booking.price}
+                                {bookedServicePrice === null
+                                  ? "Price unavailable"
+                                  : formatMajorUnitBookingMoney(bookedServicePrice, booking.currency, bookingCurrencies)}
                               </p>
 
                             </div>

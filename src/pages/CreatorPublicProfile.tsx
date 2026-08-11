@@ -2,10 +2,14 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import axios from "axios";
 import { fetchCreatorProfile } from "../api/public";
 import api from "../api/axios";
 import type { CreatorPublicProfileDTO } from "../api/public";
 import StarRating from "../components/StarRating";
+import { useBookingPricingPreview } from "../features/bookingFunding/useBookingPricingPreview";
+import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
+import { formatBookingMoney } from "../features/bookingFunding/money";
 
 /* ================= TYPES ================= */
 
@@ -61,6 +65,9 @@ export default function CreatorPublicProfile() {
 
   const [loadingBooking, setLoadingBooking] =
     useState(false);
+  const { preview: bookingPreview, loading: loadingPreview, error: previewError, refresh: refreshPreview } = useBookingPricingPreview(selectedService?.id, selectedSlots);
+  const bookingCurrencies = useBookingCurrencyMetadata();
+  const bookingIntentRef = useRef<{ key: string; idempotencyKey: string } | null>(null);
 
   const [reviews, setReviews] =
     useState<Review[]>([]);
@@ -130,7 +137,7 @@ export default function CreatorPublicProfile() {
       }
 
       const res = await api.get(
-        `/api/v1/reviews/creator/${creatorId}`,
+        `/v1/reviews/creator/${creatorId}`,
         {
           params: {
             page,
@@ -373,6 +380,10 @@ export default function CreatorPublicProfile() {
 
         setLoadingBooking(true);
 
+        if (!bookingPreview?.walletFunding.sufficient) return;
+        const intentKey = `${selectedService.id}:${[...selectedSlots].sort().join(",")}`;
+        if (!bookingIntentRef.current || bookingIntentRef.current.key !== intentKey) bookingIntentRef.current = { key: intentKey, idempotencyKey: crypto.randomUUID() };
+        const idempotencyKey = bookingIntentRef.current.idempotencyKey;
         await api.post(
   "/v1/bookings/request",
   {
@@ -380,6 +391,8 @@ export default function CreatorPublicProfile() {
       selectedService.id,
     slotIds:
       selectedSlots,
+    paymentMethod: "WALLET",
+    idempotencyKey,
   }
 );
 
@@ -388,6 +401,7 @@ alert(
 );
 
 setSelectedSlots([]);
+bookingIntentRef.current = null;
 
 if (
   selectedDate &&
@@ -399,12 +413,13 @@ if (
   );
 }
 
-      } catch (err: any) {
+      } catch (err: unknown) {
+        await refreshPreview();
+        const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
 
         alert(
-          err?.response?.data
-            ?.message ||
-            "Booking failed"
+          (typeof responseData?.message === "string" && responseData.message) ||
+          "Booking failed"
         );
 
       } finally {
@@ -1865,8 +1880,12 @@ return (
 
           </div>
 
+          {loadingPreview && <p className="text-sm text-white/60">Checking Wallet funding…</p>}
+          {previewError && <p className="text-sm text-red-300">{previewError}</p>}
+          {bookingPreview && <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/70"><p className="text-xs font-semibold uppercase tracking-wider text-white/45">Wallet booking review</p><div className="space-y-2 border-b border-white/10 pb-3"><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(bookingPreview.serviceAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Customer platform fee</span><span>{formatBookingMoney(bookingPreview.customerFeeAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between text-base font-semibold text-white"><span>Total Wallet requirement</span><span>{formatBookingMoney(bookingPreview.grossFundingAmount, bookingPreview.currency, bookingCurrencies)}</span></p></div><div className={bookingPreview.walletFunding.sufficient ? "rounded-xl bg-emerald-500/10 p-3 text-emerald-200" : "rounded-xl bg-amber-500/10 p-3 text-amber-100"}><p className="font-medium">{bookingPreview.walletFunding.sufficient ? "Wallet ready" : "Wallet funding needed"}</p><p className="mt-1 text-xs">{bookingPreview.walletFunding.walletExists ? `Available: ${formatBookingMoney(bookingPreview.walletFunding.availableAmount, bookingPreview.currency, bookingCurrencies)}` : `This booking requires a ${bookingPreview.currency} Wallet.`}</p>{!bookingPreview.walletFunding.sufficient && <a href="/dashboard/user/wallet" className="mt-2 inline-block text-xs font-semibold underline">Open Wallet</a>}</div><p className="text-xs text-white/45">Pricing, Wallet availability, and slots are checked again when you submit.</p></div>}
+
           <button
-            disabled={loadingBooking}
+            disabled={loadingBooking || loadingPreview || !bookingPreview?.walletFunding.sufficient}
             onClick={handleBooking}
             className="
               w-full

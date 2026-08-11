@@ -32,7 +32,7 @@ export default function DisputesPage() {
     try {
       setLoading(true);
 
-      const res = await api.get("/api/v1/disputes/my");
+      const res = await api.get("/v1/disputes/my");
 
       setDisputes(res.data.disputes || []);
     } catch (err) {

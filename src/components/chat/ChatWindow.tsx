@@ -11,7 +11,7 @@ import { getConversations } from "../../api/chat";
 
 import type { Conversation } from "../../api/chat";
 
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 
 import { socket } from "../../lib/socket";
 import ImageViewerModal from "./ImageViewerModal";

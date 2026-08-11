@@ -9,8 +9,7 @@ import {
   MessageCircle,
   Search,
   Clock,
-  DollarSign,
-  Settings,
+  Wallet,
   ChevronDown,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -66,26 +65,18 @@ export default function DashboardLayout({ children }: Props) {
           "radial-gradient(circle at top center, #1A1A1A 0%, #111111 40%, #050505 100%)",
       }}
     >
-
       {/* ================= SIDEBAR ================= */}
       <aside className="hidden md:flex w-64 h-screen shrink-0 flex-col bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.08)]">
-
         <div>
-
           <div className="p-6 border-b border-[rgba(255,255,255,0.08)]">
-
-            <h1 className="text-xl font-bold text-[#F8FAFC]">
-              STHN
-            </h1>
+            <h1 className="text-xl font-bold text-[#F8FAFC]">STHN</h1>
 
             <p className="text-sm text-[rgba(255,255,255,0.50)]">
               Creator Panel
             </p>
-
           </div>
 
           <nav className="p-4 space-y-2">
-
             <SidebarItem
               to="/dashboard/creator"
               icon={<LayoutDashboard size={18} />}
@@ -130,28 +121,20 @@ export default function DashboardLayout({ children }: Props) {
             />
 
             <SidebarItem
-              to="/dashboard/creator/earnings"
-              icon={<DollarSign size={18} />}
-              label="Earnings"
-            />
-
-            <SidebarItem
-              to="/dashboard/creator/settings"
-              icon={<Settings size={18} />}
-              label="Settings"
+              to="/dashboard/creator/wallet"
+              icon={<Wallet size={18} />}
+              label="Wallet"
             />
 
           </nav>
-
         </div>
-
       </aside>
 
       {/* ================= MAIN ================= */}
       <div className="flex-1 h-screen flex flex-col relative min-w-0 isolate overflow-hidden">
-
         {/* ================= HEADER ================= */}
-        <header className="
+        <header
+          className="
           h-14
           md:h-16
           flex
@@ -165,8 +148,8 @@ export default function DashboardLayout({ children }: Props) {
           bg-[#111111]
           relative
           z-10
-        ">
-
+        "
+        >
           <h2 className="text-sm md:text-lg font-semibold text-[#E5E7EB]">
             Creator Dashboard
           </h2>
@@ -186,14 +169,11 @@ export default function DashboardLayout({ children }: Props) {
               transition
             "
           >
-
             {avatar ? (
-              <img
-                src={avatar}
-                className="w-full h-full object-cover"
-              />
+              <img src={avatar} className="w-full h-full object-cover" />
             ) : (
-              <div className="
+              <div
+                className="
                 w-full
                 h-full
                 flex
@@ -201,17 +181,17 @@ export default function DashboardLayout({ children }: Props) {
                 justify-center
                 text-xs
                 text-[rgba(255,255,255,0.55)]
-              ">
+              "
+              >
                 C
               </div>
             )}
-
           </div>
-
         </header>
 
         {/* ================= CONTENT ================= */}
-        <main className="
+        <main
+          className="
           flex-1
           overflow-y-auto
           w-full
@@ -225,12 +205,14 @@ export default function DashboardLayout({ children }: Props) {
           md:pb-6
           relative
           z-10
-        ">
+        "
+        >
           {children}
         </main>
 
         {/* ================= MOBILE NAV ================= */}
-        <nav className="
+        <nav
+          className="
           fixed
           bottom-3
           left-1/2
@@ -249,8 +231,8 @@ export default function DashboardLayout({ children }: Props) {
           md:hidden
           shadow-[0_10px_30px_rgba(0,0,0,0.35)]
           z-[900]
-        ">
-
+        "
+        >
           <BottomNavItem
             to="/dashboard/creator"
             icon={<LayoutDashboard size={20} />}
@@ -289,7 +271,6 @@ export default function DashboardLayout({ children }: Props) {
             <span className="text-lg">⋯</span>
             <span>More</span>
           </button>
-
         </nav>
 
         {/* ================= BOTTOM SHEET ================= */}
@@ -308,8 +289,8 @@ export default function DashboardLayout({ children }: Props) {
 
             {/* Sheet Container */}
             <div className="fixed inset-x-0 bottom-0 z-[1001]">
-
-              <div className="
+              <div
+                className="
                 bg-[#151515]
                 border-t
                 border-[rgba(255,255,255,0.08)]
@@ -320,21 +301,22 @@ export default function DashboardLayout({ children }: Props) {
                 max-h-[75vh]
                 overflow-y-auto
                 relative
-              ">
-
+              "
+              >
                 {/* Handle */}
                 <div className="flex justify-center mb-4">
-                  <div className="
+                  <div
+                    className="
                     w-10
                     h-1
                     bg-[rgba(255,255,255,0.20)]
                     rounded-full
-                  " />
+                  "
+                  />
                 </div>
 
                 {/* Grid */}
                 <div className="grid grid-cols-2 gap-3">
-
                   <SheetItem
                     to="/dashboard/creator/availability"
                     icon={<Calendar size={18} />}
@@ -357,16 +339,9 @@ export default function DashboardLayout({ children }: Props) {
                   />
 
                   <SheetItem
-                    to="/dashboard/creator/earnings"
-                    icon={<DollarSign size={18} />}
-                    label="Earnings"
-                    close={() => setShowMore(false)}
-                  />
-
-                  <SheetItem
-                    to="/dashboard/creator/settings"
-                    icon={<Settings size={18} />}
-                    label="Settings"
+                    to="/dashboard/creator/wallet"
+                    icon={<Wallet size={18} />}
+                    label="Wallet"
                     close={() => setShowMore(false)}
                   />
 
@@ -395,13 +370,10 @@ export default function DashboardLayout({ children }: Props) {
                 >
                   <ChevronDown size={18} />
                 </button>
-
               </div>
-
             </div>
           </>
         )}
-
       </div>
     </div>
   );
@@ -409,7 +381,14 @@ export default function DashboardLayout({ children }: Props) {
 
 /* ================= COMPONENTS ================= */
 
-function SidebarItem({ to, icon, label, end = false }: any) {
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  end?: boolean;
+}
+
+function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -443,15 +422,12 @@ function SidebarItem({ to, icon, label, end = false }: any) {
     >
       {icon}
 
-      <span className="text-sm">
-        {label}
-      </span>
-
+      <span className="text-sm">{label}</span>
     </NavLink>
   );
 }
 
-function BottomNavItem({ to, icon, label, end = false }: any) {
+function BottomNavItem({ to, icon, label, end = false }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -462,27 +438,25 @@ function BottomNavItem({ to, icon, label, end = false }: any) {
           flex-col
           items-center
           justify-center
-          ${
-            isActive
-              ? "text-white"
-              : "text-[rgba(255,255,255,0.50)]"
-          }
+          ${isActive ? "text-white" : "text-[rgba(255,255,255,0.50)]"}
         `
       }
     >
-      <div className="mb-0.5">
-        {icon}
-      </div>
+      <div className="mb-0.5">{icon}</div>
 
-      <span>
-        {label}
-      </span>
-
+      <span>{label}</span>
     </NavLink>
   );
 }
 
-function SheetItem({ to, icon, label, close }: any) {
+interface SheetItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  close: () => void;
+}
+
+function SheetItem({ to, icon, label, close }: SheetItemProps) {
   const navigate = useNavigate();
 
   return (
@@ -507,15 +481,9 @@ function SheetItem({ to, icon, label, close }: any) {
         transition
       "
     >
+      <div className="text-[rgba(255,255,255,0.70)]">{icon}</div>
 
-      <div className="text-[rgba(255,255,255,0.70)]">
-        {icon}
-      </div>
-
-      <span className="text-[#F8FAFC]">
-        {label}
-      </span>
-
+      <span className="text-[#F8FAFC]">{label}</span>
     </button>
   );
 }

@@ -16,7 +16,7 @@ import { getConversations } from "../api/chat";
 
 import type { Conversation } from "../api/chat";
 
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 
 import { socket } from "../lib/socket";
 import ChatHeader from "../components/chat/ChatHeader";
@@ -944,8 +944,6 @@ export default function ChatPage() {
             type: replyingTo.type ?? "text",
 
             message: replyingTo.message,
-
-            isDeleted: replyingTo.isDeleted,
 
             attachment: replyingTo.attachment,
           }

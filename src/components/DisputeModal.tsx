@@ -1,6 +1,7 @@
 // frontend/src/components/DisputeModal.tsx
 
 import { useState } from "react";
+import axios from "axios";
 import api from "../api/axios";
 
 interface Props {
@@ -23,19 +24,21 @@ export default function DisputeModal({
     try {
       setLoading(true);
 
-      await api.post("/api/v1/disputes/open", {
+      await api.post("/v1/disputes/open", {
         bookingId,
         reason,
       });
 
       alert("Dispute submitted");
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
 
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
+
       alert(
-        err?.response?.data?.message ||
-          "Failed to raise dispute"
+        (typeof responseData?.message === "string" && responseData.message) ||
+        "Failed to raise dispute"
       );
 
       onClose();

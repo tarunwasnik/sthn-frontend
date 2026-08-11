@@ -2,8 +2,10 @@
 
 import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
+
 import {
   Activity,
+  ArrowRightLeft,
   BadgeCheck,
   BarChart3,
   CalendarDays,
@@ -78,6 +80,22 @@ const operationsSections: NavSection[] = [
         path: "/admin/operations/payments",
         icon: Wallet,
       },
+      {
+        label: "Wallet Top-ups",
+        path: "/admin/operations/wallet-top-ups",
+        icon: Wallet,
+      },
+      {
+        label: "Wallet Conversions",
+        path: "/admin/operations/wallet-conversions",
+        icon: ArrowRightLeft,
+      },
+      {
+        label: "Booking Escrow",
+        path: "/admin/operations/booking-escrow",
+        icon: Wallet,
+      },
+      { label: "Platform Revenue", path: "/admin/operations/platform-revenue", icon: Wallet },
     ],
   },
 
@@ -184,6 +202,11 @@ const systemSections: NavSection[] = [
         label: "Maintenance",
         path: "/admin/system/maintenance",
         icon: Wrench,
+      },
+      {
+        label: "Wallet Backfill",
+        path: "/admin/system/wallet-backfill",
+        icon: Wallet,
       },
     ],
   },

@@ -1,13 +1,14 @@
 //frontend/src/components/GoogleLoginButton.tsx
 
 import { GoogleLogin } from "@react-oauth/google";
-import { useAuth } from "../context/AuthContext";
+import type { CredentialResponse } from "@react-oauth/google";
+import { useAuth } from "../hooks/useAuth";
 import api from "../api/axios";
 
 export default function GoogleLoginButton() {
   const { login } = useAuth();
 
-  const handleSuccess = async (credentialResponse: any) => {
+  const handleSuccess = async (credentialResponse: CredentialResponse) => {
     try {
       const idToken = credentialResponse.credential;
 

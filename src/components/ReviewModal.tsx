@@ -1,6 +1,7 @@
 // frontend/src/components/ReviewModal.tsx
 
 import { useState } from "react";
+import axios from "axios";
 import api from "../api/axios";
 import StarRating from "./StarRating";
 
@@ -26,7 +27,7 @@ export default function ReviewModal({
     try {
       setLoading(true);
 
-      await api.post(`/api/v1/reviews/${bookingId}`, {
+      await api.post(`/v1/reviews/${bookingId}`, {
         rating,
         comment,
         reportFlag,
@@ -34,11 +35,13 @@ export default function ReviewModal({
 
       alert("Review submitted!");
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
 
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
+
       const msg =
-        err?.response?.data?.message ||
+        (typeof responseData?.message === "string" && responseData.message) ||
         "Failed to submit review";
 
       if (msg.includes("already")) {

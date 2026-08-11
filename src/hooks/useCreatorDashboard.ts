@@ -1,7 +1,8 @@
 // frontend/src/hooks/useCreatorDashboard.ts
 
 import { useEffect, useState } from "react";
-import axios from "../api/axios";
+import axios from "axios";
+import api from "../api/axios";
 
 interface CreatorProfile {
   id: string;
@@ -60,17 +61,17 @@ export function useCreatorDashboard() {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await axios.get(
+        const response = await api.get(
           "/v1/creator/dashboard"
         );
 
         setData(response.data);
-      } catch (err: any) {
-        if (err.response) {
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err) && err.response) {
           setErrorCode(err.response.status);
 
           setErrorMessage(
-            err.response.data?.message ||
+            (typeof err.response.data?.message === "string" && err.response.data.message) ||
               "Something went wrong"
           );
         } else {

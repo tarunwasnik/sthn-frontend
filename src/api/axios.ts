@@ -2,13 +2,19 @@
 
 import axios from "axios";
 
+import {
+  ACCESS_TOKEN_KEY,
+  SESSION_EXPIRED_EVENT,
+  clearAccessToken,
+} from "../auth/session";
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL + "/api",
 });
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
 
     if (token) {
       config.headers = config.headers || {};
@@ -24,10 +30,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("accessToken");
-
-      // Force logout and refresh auth state
-      window.location.href = "/login";
+      clearAccessToken();
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
 
     return Promise.reject(error);

@@ -1,37 +1,14 @@
 // frontend/src/pages/EntryLoader.tsx
 
-import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api/axios";
+import { Navigate } from "react-router-dom";
+
+import { useAuth } from "../hooks/useAuth";
 
 const EntryLoader = () => {
-  const navigate = useNavigate();
-  const resolvedRef = useRef(false);
+  const { loading, isAuthenticated, entryRoute } = useAuth();
 
-  useEffect(() => {
-    const resolveEntry = async () => {
-      if (resolvedRef.current) return;
-      resolvedRef.current = true;
-
-      try {
-        const res = await api.get("/auth/entry");
-
-        const { entryRoute } = res.data;
-
-        if (!entryRoute) {
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        navigate(entryRoute, { replace: true });
-
-      } catch (err) {
-        navigate("/login", { replace: true });
-      }
-    };
-
-    resolveEntry();
-  }, [navigate]);
+  if (!loading && !isAuthenticated) return <Navigate to="/login" replace />;
+  if (!loading && entryRoute) return <Navigate to={entryRoute} replace />;
 
   return (
     <div

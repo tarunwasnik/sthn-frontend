@@ -7,7 +7,7 @@ import {
   Search,
   Calendar,
   MessageCircle,
-  Settings,
+  Wallet,
   ChevronDown,
 } from "lucide-react";
 import api from "../api/axios";
@@ -146,10 +146,11 @@ export default function UserDashboardLayout({ children }: Props) {
             />
 
             <SidebarItem
-              to="/dashboard/user/settings"
-              icon={<Settings size={18} />}
-              label="Settings"
+              to="/dashboard/user/wallet"
+              icon={<Wallet size={18} />}
+              label="Wallet"
             />
+
           </nav>
         </div>
       </aside>
@@ -302,9 +303,9 @@ export default function UserDashboardLayout({ children }: Props) {
           />
 
           <BottomNavItem
-            to="/dashboard/user/messages"
-            icon={<MessageCircle size={20} />}
-            label="Messages"
+            to="/dashboard/user/wallet"
+            icon={<Wallet size={20} />}
+            label="Wallet"
           />
 
           <button
@@ -363,11 +364,12 @@ export default function UserDashboardLayout({ children }: Props) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <SheetItem
-                    to="/dashboard/user/settings"
-                    icon={<Settings size={18} />}
-                    label="Settings"
+                    to="/dashboard/user/messages"
+                    icon={<MessageCircle size={18} />}
+                    label="Messages"
                     close={() => setShowMore(false)}
                   />
+
                 </div>
 
                 <button
@@ -403,7 +405,14 @@ export default function UserDashboardLayout({ children }: Props) {
 
 /* SIDEBAR ITEM */
 
-function SidebarItem({ to, icon, label, end = false }: any) {
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  end?: boolean;
+}
+
+function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -441,7 +450,7 @@ function SidebarItem({ to, icon, label, end = false }: any) {
   );
 }
 
-function BottomNavItem({ to, icon, label, end = false }: any) {
+function BottomNavItem({ to, icon, label, end = false }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -463,7 +472,14 @@ function BottomNavItem({ to, icon, label, end = false }: any) {
   );
 }
 
-function SheetItem({ to, icon, label, close }: any) {
+interface SheetItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  close: () => void;
+}
+
+function SheetItem({ to, icon, label, close }: SheetItemProps) {
   const navigate = useNavigate();
 
   return (

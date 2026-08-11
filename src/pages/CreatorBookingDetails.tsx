@@ -5,6 +5,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router-dom";
+import axios from "axios";
 
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
@@ -14,6 +15,9 @@ import CompleteButton from "../components/CompleteButton";
 import ReviewModal from "../components/ReviewModal";
 import DisputeModal from "../components/DisputeModal";
 import DisputeTimer from "../components/DisputeTimer";
+import { useBookingFunding } from "../features/bookingFunding/useBookingFunding";
+import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
+import { formatBookingMoney } from "../features/bookingFunding/money";
 
 /* ================= MODAL ================= */
 
@@ -22,7 +26,7 @@ function ConfirmModal({
   onClose,
   onConfirm,
   loading,
-}: any) {
+}: { open: boolean; onClose: () => void; onConfirm: () => void; loading: boolean }) {
   if (!open) return null;
 
   return (
@@ -102,6 +106,8 @@ export default function CreatorBookingDetails() {
 
   const [booking, setBooking] =
     useState<Booking | null>(null);
+  const { funding, refresh: refreshFunding } = useBookingFunding(id);
+  const bookingCurrencies = useBookingCurrencyMetadata();
 
   const [loading, setLoading] =
     useState(true);
@@ -134,7 +140,7 @@ export default function CreatorBookingDetails() {
       );
 
       setBooking(res.data.booking);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
     } finally {
       if (!silent) setLoading(false);
@@ -198,15 +204,11 @@ export default function CreatorBookingDetails() {
         booking._id,
         decision
       );
-
-      setTimeout(() => {
-        navigate(
-          "/dashboard/creator/requests"
-        );
-      }, 500);
-    } catch (err: any) {
+      await fetchBooking(true);
+      await refreshFunding();
+    } catch (err: unknown) {
       alert(
-        err?.response?.data?.message ||
+        (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
           "Decision failed"
       );
     } finally {
@@ -234,11 +236,11 @@ export default function CreatorBookingDetails() {
 
       window.location.href =
         "/dashboard/creator/bookings";
-    } catch (err: any) {
+    } catch (err: unknown) {
       setProcessing(false);
 
       alert(
-        err?.response?.data?.message ||
+        (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
           "Cancel failed"
       );
     }
@@ -247,7 +249,7 @@ export default function CreatorBookingDetails() {
   /* ================= COMPLETE ================= */
 
   const handleCompleted = (
-    updated: any
+    updated: Booking
   ) => {
     setBooking(updated);
   };
@@ -733,6 +735,7 @@ return (
             }
           </span>
         </div>
+        {funding && <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/10 p-3 text-[10px] text-white/65"><p className="font-semibold uppercase tracking-wider text-white/45">Customer funding assurance</p><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(funding.pricing.serviceAmount, funding.booking.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Platform fee</span><span>{formatBookingMoney(funding.pricing.customerFeeAmount, funding.booking.currency, bookingCurrencies)}</span></p><p className="flex justify-between font-semibold text-white"><span>Total funding</span><span>{formatBookingMoney(funding.pricing.grossFundingAmount, funding.booking.currency, bookingCurrencies)}</span></p><p>Payment: {funding.payment?.method ?? "Legacy"} · {funding.payment?.status ?? "Unavailable"}</p><p className="font-medium text-white">{funding.walletFunding.state === "ACTIVE" ? "Customer funds reserved" : funding.walletFunding.state === "RELEASED" ? "Customer funds released" : funding.walletFunding.state === "CAPTURED" ? "Customer funds captured" : "Wallet funding not applicable"}</p></div>}
       </div>
     </div>
   </div>

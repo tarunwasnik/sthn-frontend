@@ -10,10 +10,13 @@ import CompleteButton from "../components/CompleteButton";
 import ReviewModal from "../components/ReviewModal";
 import DisputeModal from "../components/DisputeModal";
 import DisputeTimer from "../components/DisputeTimer";
+import { useBookingFunding } from "../features/bookingFunding/useBookingFunding";
+import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
+import { formatBookingMoney } from "../features/bookingFunding/money";
 
 /* ================= MODAL ================= */
 
-function ConfirmModal({ open, onClose, onConfirm, loading }: any) {
+function ConfirmModal({ open, onClose, onConfirm, loading }: { open: boolean; onClose: () => void; onConfirm: () => void; loading: boolean }) {
   if (!open) return null;
 
   return (
@@ -135,6 +138,8 @@ export default function UserBookingDetail() {
   const navigate = useNavigate();
 
   const [booking, setBooking] = useState<Booking | null>(null);
+  const { funding } = useBookingFunding(bookingId);
+  const bookingCurrencies = useBookingCurrencyMetadata();
 
   const [loading, setLoading] = useState(true);
 
@@ -203,8 +208,8 @@ export default function UserBookingDetail() {
       await fetchBooking();
 
       setShowModal(false);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to cancel booking");
+    } catch {
+      alert("Failed to cancel booking");
     } finally {
       setCancelling(false);
     }
@@ -212,7 +217,7 @@ export default function UserBookingDetail() {
 
   /* ================= COMPLETE ================= */
 
-  const handleCompleted = (updated: any) => {
+  const handleCompleted = (updated: Booking) => {
     setBooking(updated);
   };
 
@@ -564,6 +569,7 @@ export default function UserBookingDetail() {
                       {booking.paymentStatus}
                     </span>
                   </div>
+                  {funding && <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-black/10 p-3 text-[10px] text-white/65"><p className="font-semibold uppercase tracking-wider text-white/45">Payment & funding</p><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(funding.pricing.serviceAmount, funding.booking.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Platform fee</span><span>{formatBookingMoney(funding.pricing.customerFeeAmount, funding.booking.currency, bookingCurrencies)}</span></p><p className="flex justify-between font-semibold text-white"><span>Total funding</span><span>{formatBookingMoney(funding.pricing.grossFundingAmount, funding.booking.currency, bookingCurrencies)}</span></p><p>Payment: {funding.payment?.method ?? "Legacy"} · {funding.payment?.status ?? "Unavailable"}</p><p className="font-medium text-white">{funding.walletFunding.state === "ACTIVE" ? "Funds reserved" : funding.walletFunding.state === "RELEASED" ? "Funds released" : funding.walletFunding.state === "CAPTURED" ? "Funds captured" : "Wallet funding not applicable"}</p></div>}
                 </div>
               </div>
             </div>

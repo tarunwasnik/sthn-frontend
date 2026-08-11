@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
-import { useAuth } from "../context/AuthContext";
+import axios from "axios";
+import { useAuth } from "../hooks/useAuth";
 import api from "../api/axios";
 
 export default function Login() {
@@ -38,10 +39,11 @@ export default function Login() {
 
       navigate("/entry", { replace: true });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
       const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
+        (typeof responseData?.message === "string" && responseData.message) ||
+        (typeof responseData?.error === "string" && responseData.error) ||
         "Invalid credentials. Please try again.";
 
       setError(message);
@@ -78,9 +80,10 @@ export default function Login() {
 
       navigate("/entry", { replace: true });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
       const message =
-        err?.response?.data?.message ||
+        (typeof responseData?.message === "string" && responseData.message) ||
         "Google login failed.";
 
       setError(message);
