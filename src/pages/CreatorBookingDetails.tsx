@@ -18,6 +18,8 @@ import DisputeTimer from "../components/DisputeTimer";
 import { useBookingFunding } from "../features/bookingFunding/useBookingFunding";
 import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
 import { formatBookingMoney } from "../features/bookingFunding/money";
+import { useBookingReview } from "../features/review/useBookingReview";
+import { useBookingDispute } from "../features/dispute/useBookingDispute";
 
 /* ================= MODAL ================= */
 
@@ -108,6 +110,18 @@ export default function CreatorBookingDetails() {
     useState<Booking | null>(null);
   const { funding, refresh: refreshFunding } = useBookingFunding(id);
   const bookingCurrencies = useBookingCurrencyMetadata();
+  const {
+    reviewState,
+    loading: reviewLoading,
+    error: reviewError,
+    refresh: refreshReviewState,
+  } = useBookingReview(booking?.status === "COMPLETED" ? id : undefined);
+  const {
+    disputeState,
+    loading: disputeLoading,
+    error: disputeError,
+    refresh: refreshDisputeState,
+  } = useBookingDispute(booking?._id);
 
   const [loading, setLoading] =
     useState(true);
@@ -168,12 +182,14 @@ export default function CreatorBookingDetails() {
   useEffect(() => {
     if (
       booking?.status === "COMPLETED" &&
+      !reviewLoading &&
+      reviewState?.hasReviewed === false &&
       !reviewShown
     ) {
       setReviewOpen(true);
       setReviewShown(true);
     }
-  }, [booking?.status, reviewShown]);
+  }, [booking?.status, reviewLoading, reviewShown, reviewState?.hasReviewed]);
 
   /* ================= ACTIONS ================= */
 
@@ -252,35 +268,6 @@ export default function CreatorBookingDetails() {
     updated: Booking
   ) => {
     setBooking(updated);
-  };
-
-  /* ================= DISPUTE ================= */
-
-  const canRaiseDispute = () => {
-    if (!booking) return false;
-
-    if (
-      ["CANCELLED", "EXPIRED"].includes(
-        booking.status
-      )
-    ) {
-      return true;
-    }
-
-    if (
-      booking.status === "COMPLETED" &&
-      booking.completedAt
-    ) {
-      const end =
-        new Date(
-          booking.completedAt
-        ).getTime() +
-        24 * 60 * 60 * 1000;
-
-      return Date.now() < end;
-    }
-
-    return false;
   };
 
   /* ================= HELPERS ================= */
@@ -896,6 +883,39 @@ return (
         </>
       )}
 
+      {booking.status === "COMPLETED" && (
+        <>
+          {reviewLoading && (
+            <p className="px-1 text-[10px] text-white/45">
+              Checking review status...
+            </p>
+          )}
+          {reviewError && (
+            <button
+              type="button"
+              onClick={refreshReviewState}
+              className="w-full rounded-[16px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-[11px] font-semibold text-red-200"
+            >
+              Review status unavailable — Retry
+            </button>
+          )}
+          {reviewState?.hasReviewed && (
+            <div className="rounded-[16px] border border-green-500/20 bg-green-500/10 px-4 py-3 text-[11px] text-green-200">
+              Reviewed{reviewState.review ? `: ${reviewState.review.rating}/5` : ""}
+            </div>
+          )}
+          {reviewState?.hasReviewed === false && !reviewLoading && (
+            <button
+              type="button"
+              onClick={() => setReviewOpen(true)}
+              className="w-full rounded-[16px] border border-cyan-500/20 bg-cyan-500/15 px-4 py-3 text-[11px] font-semibold text-cyan-100"
+            >
+              Rate Booking
+            </button>
+          )}
+        </>
+      )}
+
       {/* COMPLETED / CANCELLED / EXPIRED */}
       {[
         "COMPLETED",
@@ -920,7 +940,24 @@ return (
             </div>
           )}
 
-          {canRaiseDispute() && (
+          {disputeLoading && (
+            <p className="px-1 text-[10px] text-white/45">Checking dispute status...</p>
+          )}
+
+          {disputeError && (
+            <button type="button" onClick={refreshDisputeState} className="w-full rounded-[16px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-[11px] font-semibold text-red-200">
+              Dispute status unavailable — Retry
+            </button>
+          )}
+
+          {disputeState?.hasDispute && disputeState.dispute && (
+            <div className="rounded-[16px] border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-[10px] text-yellow-100">
+              Dispute {disputeState.dispute.status.toLowerCase()} · {disputeState.dispute.raisedByMe ? "raised by you" : "raised by User"}
+              <button type="button" onClick={() => navigate("/dashboard/creator/settings/disputes")} className="ml-2 font-semibold underline">Track disputes</button>
+            </div>
+          )}
+
+          {disputeState?.hasDispute === false && disputeState.canOpenDispute && !disputeLoading && (
             <button
               onClick={() =>
                 setDisputeOpen(true)
@@ -954,6 +991,7 @@ return (
         onClose={() =>
           setReviewOpen(false)
         }
+        onSubmitted={refreshReviewState}
       />
 
       <DisputeModal
@@ -962,6 +1000,7 @@ return (
         onClose={() =>
           setDisputeOpen(false)
         }
+        onSubmitted={refreshDisputeState}
       />
     </div>
   </DashboardLayout>

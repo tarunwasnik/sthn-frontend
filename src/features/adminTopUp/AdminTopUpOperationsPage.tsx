@@ -1,7 +1,9 @@
 import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import AdminLayout from "../../components/admin/layout/AdminLayout";
+import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
 import {
   completeAdminTopUpAccounting,
   decideAdminTopUp,
@@ -15,8 +17,13 @@ import type {
   ProviderFundingStatus,
   TopUpReconciliationDto,
   TopUpRejectionCode,
+  TopUpStatus,
+  WalletTopUpOperationalAction,
+  WalletTopUpRepairAction,
+  WalletTopUpReconciliationStatusAction,
+  WalletTopUpRetryAction,
 } from "./types";
-import { useAdminTopUps } from "./useAdminTopUps";
+import { useAdminTopUpOperations, useAdminTopUps } from "./useAdminTopUps";
 
 function safeActionError(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -65,6 +72,22 @@ function formatMinorFull(amount: number, currency: string): string {
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
+}
+
+function operationalActionLabel(action: WalletTopUpOperationalAction): string {
+  const labels: Record<WalletTopUpOperationalAction, string> = {
+    INSPECT: "Inspect reconciliation",
+    FINALIZE_PROVIDER_FAILURE: "Finalize provider failure",
+    RETRY_ACCOUNTING: "Retry accounting",
+    RETRY_COMPLETION: "Retry completion",
+    MARK_RECONCILIATION_REQUIRED: "Mark reconciliation required",
+    REPAIR_REQUEST_LINKS: "Repair request links",
+    REPAIR_PROJECTION_LINK: "Repair projection link",
+    REPAIR_LEDGER_LINK: "Repair Ledger link",
+    ACKNOWLEDGE_CORRUPTION: "Acknowledge corruption",
+    RESOLVE_RECONCILIATION: "Resolve reconciliation",
+  };
+  return labels[action];
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +211,10 @@ const simulateFailureButtonClass = `${buttonBase} border border-amber-500/40 tex
 // ---------------------------------------------------------------------------
 
 export default function AdminTopUpOperationsPage() {
-  const queue = useAdminTopUps();
+  const navigate = useNavigate();
+  const { topUpReference } = useParams<{ topUpReference: string }>();
+  const [statusFilter, setStatusFilter] = useState<TopUpStatus>("PENDING");
+  const queue = useAdminTopUps(statusFilter);
   const [selected, setSelected] = useState<AdminTopUpRequestDto | null>(null);
   const [reconciliation, setReconciliation] =
     useState<TopUpReconciliationDto | null>(null);
@@ -202,6 +228,48 @@ export default function AdminTopUpOperationsPage() {
     "SIMULATED_DECLINE" | "SIMULATED_PROVIDER_ERROR"
   >("SIMULATED_DECLINE");
   const [failureReason, setFailureReason] = useState("");
+  const [pendingOperationalAction, setPendingOperationalAction] = useState<
+    WalletTopUpRetryAction | WalletTopUpRepairAction | null
+  >(null);
+  const [pendingStatusAction, setPendingStatusAction] = useState<
+    WalletTopUpReconciliationStatusAction | null
+  >(null);
+  const [resolutionCode, setResolutionCode] = useState("");
+  const [resolutionNote, setResolutionNote] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!topUpReference) {
+      setSelected(null);
+      setReconciliation(null);
+      setActionError(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setActionError(null);
+    setDetailLoading(topUpReference);
+    void Promise.all([
+      getAdminTopUpRequest(topUpReference),
+      inspectAdminTopUp(topUpReference),
+    ])
+      .then(([request, inspection]) => {
+        if (cancelled) return;
+        setSelected(request);
+        setReconciliation(inspection);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setActionError(safeActionError(error));
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topUpReference]);
 
   async function refreshSelected(topUpReference: string) {
     const [request, inspection] = await Promise.all([
@@ -213,16 +281,10 @@ export default function AdminTopUpOperationsPage() {
     queue.refresh();
   }
 
-  async function selectRequest(topUpReference: string) {
-    setActionError(null);
-    setDetailLoading(topUpReference);
-    try {
-      await refreshSelected(topUpReference);
-    } catch (error) {
-      setActionError(safeActionError(error));
-    } finally {
-      setDetailLoading(null);
-    }
+  const operations = useAdminTopUpOperations(refreshSelected);
+
+  function selectRequest(reference: string) {
+    navigate(`/admin/operations/wallet-top-ups/${encodeURIComponent(reference)}`);
   }
 
   async function runAction(
@@ -259,10 +321,77 @@ export default function AdminTopUpOperationsPage() {
     selected?.status === "REJECTED" ||
     selected?.status === "COMPLETED" ||
     selected?.status === "FAILED";
+  const retryActions = reconciliation?.allowedActions.filter(
+    (action): action is WalletTopUpRetryAction =>
+      action === "RETRY_ACCOUNTING" || action === "RETRY_COMPLETION",
+  ) ?? [];
+  const repairActions = reconciliation?.allowedActions.filter(
+    (action): action is WalletTopUpRepairAction =>
+      action === "REPAIR_REQUEST_LINKS" ||
+      action === "REPAIR_PROJECTION_LINK" ||
+      action === "REPAIR_LEDGER_LINK",
+  ) ?? [];
+  const statusActions = reconciliation?.allowedActions.filter(
+    (action): action is WalletTopUpReconciliationStatusAction =>
+      action === "ACKNOWLEDGE_CORRUPTION" ||
+      action === "RESOLVE_RECONCILIATION",
+  ) ?? [];
+
+  function confirmOperationalAction() {
+    if (!selected || !reconciliation || !pendingOperationalAction) return;
+    const action = pendingOperationalAction;
+    setPendingOperationalAction(null);
+    void operations.run(
+      selected.topUpReference,
+      reconciliation.reconciliationReference,
+      action,
+    );
+  }
+
+  function confirmStatusAction() {
+    if (!selected || !reconciliation || !pendingStatusAction || !resolutionCode.trim()) return;
+    const action = pendingStatusAction;
+    setPendingStatusAction(null);
+    void operations.runStatus(
+      selected.topUpReference,
+      reconciliation.reconciliationReference,
+      action,
+      resolutionCode.trim(),
+      resolutionNote.trim() || undefined,
+    );
+  }
 
   return (
     <AdminLayout workspace="operations">
       <div className="space-y-6">
+        <AdminConfirmDialog
+          open={pendingOperationalAction !== null}
+          title="Confirm bounded recovery action"
+          description={
+            selected && reconciliation && pendingOperationalAction
+              ? `${operationalActionLabel(pendingOperationalAction)} for ${selected.topUpReference} (${formatMinor(selected.amount, selected.currency)}). Current reconciliation: ${reconciliation.classification}; issues: ${reconciliation.issueCodes.join(", ") || "none"}. This invokes the existing backend-controlled operation and then reloads authoritative state.`
+              : "Confirm the backend-controlled recovery operation."
+          }
+          confirmText={pendingOperationalAction ? operationalActionLabel(pendingOperationalAction) : "Confirm"}
+          confirmVariant="danger"
+          loading={operations.operationLoading !== null}
+          onConfirm={confirmOperationalAction}
+          onCancel={() => setPendingOperationalAction(null)}
+        />
+        <AdminConfirmDialog
+          open={pendingStatusAction !== null}
+          title={pendingStatusAction === "ACKNOWLEDGE_CORRUPTION" ? "Acknowledge reconciliation corruption" : "Resolve reconciliation"}
+          description={
+            selected && reconciliation && pendingStatusAction
+              ? `${operationalActionLabel(pendingStatusAction)} for ${selected.topUpReference}. Reconciliation ${reconciliation.reconciliationReference}: ${reconciliation.classification} (${reconciliation.severity}); issues: ${reconciliation.issueCodes.join(", ") || "none"}. Resolution code: ${resolutionCode.trim()}. ${resolutionNote.trim() ? `Note: ${resolutionNote.trim()}. ` : ""}This records an operational reconciliation status only; it does not repair accounting, credit a Wallet, or change provider funding.`
+              : "Confirm the bounded reconciliation status update."
+          }
+          confirmText={pendingStatusAction ? operationalActionLabel(pendingStatusAction) : "Confirm"}
+          confirmVariant="danger"
+          loading={operations.operationLoading !== null}
+          onConfirm={confirmStatusAction}
+          onCancel={() => setPendingStatusAction(null)}
+        />
         {/* 1. Page header */}
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-800 pb-6">
           <div className="min-w-0">
@@ -322,11 +451,12 @@ export default function AdminTopUpOperationsPage() {
         <section className="rounded-xl border border-neutral-800 bg-neutral-900/40">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 px-5 py-4">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-200">
-                Pending queue
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-200">
+                {statusLabel(statusFilter)} queue
               </h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                Requests awaiting an approve / reject decision.
+                Persisted requests in this lifecycle state. Open any request to
+                resume from its authoritative state.
               </p>
             </div>
             {queue.state === "ready" && (
@@ -337,6 +467,15 @@ export default function AdminTopUpOperationsPage() {
             )}
           </div>
 
+          <div className="border-b border-neutral-800 px-5 py-3">
+            <div className="flex flex-wrap gap-2" aria-label="Top-up status filter">
+              {(["PENDING", "APPROVED", "PROCESSING", "COMPLETED", "FAILED", "REJECTED"] as TopUpStatus[]).map((status) => (
+                <button key={status} type="button" onClick={() => setStatusFilter(status)} className={statusFilter === status ? primaryButtonClass : neutralButtonClass}>
+                  {statusLabel(status)}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="p-4">
             {queue.state === "loading" && (
               <div className="flex items-center gap-3 rounded-lg border border-neutral-800/70 bg-neutral-950/40 px-4 py-6 text-sm text-neutral-400">
@@ -355,11 +494,10 @@ export default function AdminTopUpOperationsPage() {
             {queue.state === "ready" && queue.requests.length === 0 && (
               <div className="rounded-lg border border-dashed border-neutral-700 px-4 py-10 text-center">
                 <p className="text-sm font-medium text-neutral-300">
-                  No pending requests
+                  No {statusLabel(statusFilter).toLowerCase()} requests
                 </p>
                 <p className="mt-1 text-xs text-neutral-500">
-                  The funding queue is clear. New top-up requests will appear
-                  here.
+                  No persisted requests currently match this lifecycle state.
                 </p>
               </div>
             )}
@@ -395,9 +533,7 @@ export default function AdminTopUpOperationsPage() {
                         </div>
                         <button
                           type="button"
-                          onClick={() =>
-                            void selectRequest(request.topUpReference)
-                          }
+                          onClick={() => selectRequest(request.topUpReference)}
                           disabled={isLoadingThis}
                           className={`${isSelected ? primaryButtonClass : neutralButtonClass} shrink-0`}
                         >
@@ -437,7 +573,7 @@ export default function AdminTopUpOperationsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => void selectRequest(selected.topUpReference)}
+                onClick={() => navigate(`/admin/operations/wallet-top-ups/${encodeURIComponent(selected.topUpReference)}`)}
                 disabled={detailLoading !== null}
                 className={`${neutralButtonClass} shrink-0`}
               >
@@ -504,6 +640,77 @@ export default function AdminTopUpOperationsPage() {
                   )}
                 </DetailCard>
 
+                {reconciliation && (
+                  <DetailCard
+                    title="Reconciliation"
+                    subtitle="Backend operational inspection. It does not change request state."
+                  >
+                    <dl className="grid gap-4 sm:grid-cols-2">
+                      <DetailField label="Reference">
+                        <span className="break-all font-mono text-xs">
+                          {reconciliation.reconciliationReference}
+                        </span>
+                      </DetailField>
+                      <DetailField label="Status">
+                        {reconciliation.status}
+                      </DetailField>
+                      <DetailField label="Classification">
+                        {reconciliation.classification}
+                      </DetailField>
+                      <DetailField label="Severity">
+                        {reconciliation.severity}
+                      </DetailField>
+                      {reconciliation.providerFundingReference && (
+                        <DetailField label="Provider funding reference">
+                          <span className="break-all font-mono text-xs">{reconciliation.providerFundingReference}</span>
+                        </DetailField>
+                      )}
+                      {reconciliation.ledgerReference && (
+                        <DetailField label="Ledger reference">
+                          <span className="break-all font-mono text-xs">{reconciliation.ledgerReference}</span>
+                        </DetailField>
+                      )}
+                      {reconciliation.projectionOperationReference && (
+                        <DetailField label="Projection reference">
+                          <span className="break-all font-mono text-xs">{reconciliation.projectionOperationReference}</span>
+                        </DetailField>
+                      )}
+                      {reconciliation.recommendedAction && (
+                        <DetailField label="Recommended action">
+                          {reconciliation.recommendedAction}
+                        </DetailField>
+                      )}
+                      {reconciliation.issueCodes.length > 0 && (
+                        <DetailField label="Issue codes">
+                          {reconciliation.issueCodes.join(", ")}
+                        </DetailField>
+                      )}
+                      <DetailField label="Retry budget">
+                        {reconciliation.retry.count} of {reconciliation.retry.max}
+                        {reconciliation.retry.nextRetryAt
+                          ? ` · next eligible ${formatDateTime(reconciliation.retry.nextRetryAt)}`
+                          : ""}
+                      </DetailField>
+                      {reconciliation.resolution && (
+                        <DetailField label="Resolution">
+                          {reconciliation.resolution.action
+                            ? operationalActionLabel(reconciliation.resolution.action)
+                            : "Recorded"}
+                          {reconciliation.resolution.code
+                            ? ` · ${reconciliation.resolution.code}`
+                            : ""}
+                          {reconciliation.resolution.note
+                            ? ` · ${reconciliation.resolution.note}`
+                            : ""}
+                          {reconciliation.resolution.resolvedAt
+                            ? ` · ${formatDateTime(reconciliation.resolution.resolvedAt)}`
+                            : ""}
+                        </DetailField>
+                      )}
+                    </dl>
+                  </DetailCard>
+                )}
+
                 {(selected.rejectionCode || selected.rejectionReason) && (
                   <DetailCard title="Decision">
                     <dl className="grid gap-4">
@@ -547,9 +754,14 @@ export default function AdminTopUpOperationsPage() {
                   {actionError}
                 </p>
               )}
+              {operations.operationErrorMessage && (
+                <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+                  {operations.operationErrorMessage}
+                </p>
+              )}
 
               {/* Actions */}
-              {isTerminal ? (
+              {isTerminal && retryActions.length === 0 && repairActions.length === 0 && statusActions.length === 0 ? (
                 <div className="rounded-lg border border-neutral-800/70 bg-neutral-950/40 px-4 py-3">
                   <p className="text-xs text-neutral-500">
                     This request is in a terminal state. No further actions are
@@ -842,6 +1054,50 @@ export default function AdminTopUpOperationsPage() {
                           "Finalize provider failure"
                         )}
                       </button>
+                    </div>
+                  )}
+
+                  {reconciliation && (retryActions.length > 0 || repairActions.length > 0) && (
+                    <div className="space-y-3 rounded-lg border border-amber-500/25 bg-amber-500/5 p-4">
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-200">Operational recovery</h4>
+                        <p className="mt-1 text-xs leading-5 text-neutral-400">
+                          These exceptional actions are available only because the backend reconciliation returned them for the current authoritative snapshot. They do not bypass Wallet or Ledger controls.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {retryActions.map((action) => (
+                          <button key={action} type="button" disabled={actionLoading !== null || operations.operationLoading !== null} onClick={() => setPendingOperationalAction(action)} className={neutralButtonClass}>
+                            {operations.operationLoading === action ? <><Spinner /> {operationalActionLabel(action)}…</> : operationalActionLabel(action)}
+                          </button>
+                        ))}
+                        {repairActions.map((action) => (
+                          <button key={action} type="button" disabled={actionLoading !== null || operations.operationLoading !== null} onClick={() => setPendingOperationalAction(action)} className={destructiveButtonClass}>
+                            {operations.operationLoading === action ? <><Spinner /> {operationalActionLabel(action)}…</> : operationalActionLabel(action)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {reconciliation && statusActions.length > 0 && (
+                    <div className="space-y-3 rounded-lg border border-sky-500/25 bg-sky-500/5 p-4">
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-sky-200">Reconciliation status</h4>
+                        <p className="mt-1 text-xs leading-5 text-neutral-400">These actions are available only when the backend returned them for this reconciliation. They record an operational acknowledgement or resolution; they do not retry, repair, change provider funding, or alter Wallet/Ledger accounting.</p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-medium text-neutral-500">Resolution code</span>
+                          <input value={resolutionCode} onChange={(event) => setResolutionCode(event.target.value)} disabled={actionLoading !== null || operations.operationLoading !== null} maxLength={100} required placeholder="Required operational code" className={inputClass} />
+                        </label>
+                        <label className="block">
+                          <span className="mb-1 block text-[11px] font-medium text-neutral-500">Resolution note <span className="text-neutral-600">(optional)</span></span>
+                          <input value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} disabled={actionLoading !== null || operations.operationLoading !== null} maxLength={500} placeholder="Optional operational note" className={inputClass} />
+                        </label>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {statusActions.map((action) => <button key={action} type="button" disabled={!resolutionCode.trim() || actionLoading !== null || operations.operationLoading !== null} onClick={() => setPendingStatusAction(action)} className={action === "ACKNOWLEDGE_CORRUPTION" ? destructiveButtonClass : neutralButtonClass}>{operationalActionLabel(action)}</button>)}
+                      </div>
                     </div>
                   )}
                 </div>

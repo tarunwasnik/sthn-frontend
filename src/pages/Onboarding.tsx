@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import api from "../api/axios";
 import { UPLOAD_PRESET } from "../config/cloudinary";
+import { useAuth } from "../hooks/useAuth";
 
 
 
@@ -27,6 +29,7 @@ const uploadToCloudinary = async (file: File) => {
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { bootstrap } = useAuth();
 
   const [username, setUsername] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -156,11 +159,19 @@ const Onboarding = () => {
         cover: coverUrl,
       });
 
-      navigate("/entry", { replace: true });
+      const entry = await bootstrap();
 
-    } catch (err: any) {
+      if (!entry?.entryRoute) {
+        throw new Error("Unable to refresh account access after profile submission");
+      }
+
+      navigate(entry.entryRoute, { replace: true });
+
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
       setError(
-        err?.response?.data?.message || "Failed to submit profile"
+        (typeof responseData?.message === "string" && responseData.message) ||
+        "Failed to submit profile"
       );
     } finally {
       setLoading(false);

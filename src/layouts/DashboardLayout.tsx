@@ -10,6 +10,7 @@ import {
   Search,
   Clock,
   Wallet,
+  Settings,
   ChevronDown,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -124,6 +125,12 @@ export default function DashboardLayout({ children }: Props) {
               to="/dashboard/creator/wallet"
               icon={<Wallet size={18} />}
               label="Wallet"
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/settings"
+              icon={<Settings size={18} />}
+              label="Settings"
             />
 
           </nav>

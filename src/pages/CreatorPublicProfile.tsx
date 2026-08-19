@@ -33,11 +33,11 @@ interface Service {
 }
 
 interface Review {
-  _id: string;
+  reviewId: string;
   rating: number;
   comment?: string;
   createdAt: string;
-  reviewerId?: {
+  reviewer?: {
     displayName?: string;
     avatarUrl?: string;
   };
@@ -74,6 +74,7 @@ export default function CreatorPublicProfile() {
 
   const [loadingReviews, setLoadingReviews] =
     useState(true);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
 
   const [currentPage, setCurrentPage] =
     useState(1);
@@ -132,6 +133,7 @@ export default function CreatorPublicProfile() {
 
       if (initial) {
         setLoadingReviews(true);
+        setReviewsError(null);
       } else {
         setLoadingMore(true);
       }
@@ -164,9 +166,15 @@ export default function CreatorPublicProfile() {
 
       setCurrentPage(page);
 
-    } catch {
+    } catch (error) {
 
       setHasMore(false);
+      setReviewsError(
+        axios.isAxiosError(error) &&
+          typeof error.response?.data?.message === "string"
+          ? error.response.data.message
+          : "Reviews are unavailable right now.",
+      );
 
     } finally {
 
@@ -2074,7 +2082,23 @@ return (
 
   {/* ================= REVIEW LIST ================= */}
 
-  {reviews.length > 0 ? (
+  {reviewsError ? (
+
+    <div
+      className="rounded-[28px] border border-red-500/20 bg-red-500/10 p-8 text-center text-sm text-red-100"
+    >
+      {reviewsError}
+    </div>
+
+  ) : loadingReviews ? (
+
+    <div
+      className="rounded-[28px] border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/50"
+    >
+      Loading reviews...
+    </div>
+
+  ) : reviews.length > 0 ? (
 
     <div className="space-y-4">
 
@@ -2087,7 +2111,7 @@ return (
           return (
 
             <div
-              key={review._id}
+              key={review.reviewId}
               ref={
                 isLast
                   ? lastReviewRef
@@ -2113,12 +2137,12 @@ return (
 
                   <img
                     src={
-                      review.reviewerId
+                      review.reviewer
                         ?.avatarUrl ||
                       "/avatars/default.png"
                     }
                     alt={
-                      review.reviewerId
+                      review.reviewer
                         ?.displayName ||
                       "User"
                     }
@@ -2160,7 +2184,7 @@ return (
                           text-[16px]
                         "
                       >
-                        {review.reviewerId
+                        {review.reviewer
                           ?.displayName ||
                           "Anonymous User"}
                       </div>

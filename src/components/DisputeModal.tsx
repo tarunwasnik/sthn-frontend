@@ -2,46 +2,48 @@
 
 import { useState } from "react";
 import axios from "axios";
-import api from "../api/axios";
+import { openDispute } from "../features/dispute/api";
 
 interface Props {
   open: boolean;
   bookingId: string;
   onClose: () => void;
+  onSubmitted: () => void;
 }
 
 export default function DisputeModal({
   open,
   bookingId,
   onClose,
+  onSubmitted,
 }: Props) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!open) return null;
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
 
-      await api.post("/v1/disputes/open", {
+      await openDispute({
         bookingId,
         reason,
       });
 
-      alert("Dispute submitted");
+      onSubmitted();
       onClose();
     } catch (err: unknown) {
       console.error(err);
 
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
 
-      alert(
+      setErrorMessage(
         (typeof responseData?.message === "string" && responseData.message) ||
-        "Failed to raise dispute"
+        "Failed to raise dispute",
       );
-
-      onClose();
     } finally {
       setLoading(false);
     }
@@ -62,6 +64,12 @@ export default function DisputeModal({
           Explain why you believe this booking requires review.
         </p>
       </div>
+
+      {errorMessage && (
+        <p role="alert" className="mt-3 text-sm text-red-200">
+          {errorMessage}
+        </p>
+      )}
 
       {/* REASON */}
       <div className="mt-5">

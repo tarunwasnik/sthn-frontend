@@ -320,8 +320,8 @@ export default function Home() {
             md:mb-6
           "
         >
-          5,240 experiences booked
-          today
+          Explore real creator
+          availability
         </div>
 
         <h1
@@ -481,7 +481,7 @@ export default function Home() {
               label="Creators"
               value={
                 data?.stats
-                  .totalCreators || 0
+                  .totalCreators ?? 0
               }
             />
 
@@ -489,7 +489,7 @@ export default function Home() {
               label="Bookings"
               value={
                 data?.stats
-                  .totalBookings || 0
+                  .totalBookings ?? 0
               }
             />
 
@@ -497,7 +497,7 @@ export default function Home() {
               label="Users"
               value={
                 data?.stats
-                  .totalUsers || 0
+                  .totalUsers ?? 0
               }
             />
           </>

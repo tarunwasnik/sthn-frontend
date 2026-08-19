@@ -8,6 +8,7 @@ import {
   Calendar,
   MessageCircle,
   Wallet,
+  Settings,
   ChevronDown,
 } from "lucide-react";
 import api from "../api/axios";
@@ -149,6 +150,12 @@ export default function UserDashboardLayout({ children }: Props) {
               to="/dashboard/user/wallet"
               icon={<Wallet size={18} />}
               label="Wallet"
+            />
+
+            <SidebarItem
+              to="/dashboard/user/settings"
+              icon={<Settings size={18} />}
+              label="Settings"
             />
 
           </nav>

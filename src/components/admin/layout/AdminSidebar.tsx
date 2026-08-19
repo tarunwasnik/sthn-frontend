@@ -90,12 +90,19 @@ const operationsSections: NavSection[] = [
         path: "/admin/operations/wallet-conversions",
         icon: ArrowRightLeft,
       },
+      { label: "FX Rates", path: "/admin/operations/fx-rates", icon: ArrowRightLeft },
       {
         label: "Booking Escrow",
         path: "/admin/operations/booking-escrow",
         icon: Wallet,
       },
+      {
+        label: "Settlements",
+        path: "/admin/operations/settlements",
+        icon: Wallet,
+      },
       { label: "Platform Revenue", path: "/admin/operations/platform-revenue", icon: Wallet },
+      { label: "Governance", path: "/admin/operations/governance", icon: Hammer },
     ],
   },
 

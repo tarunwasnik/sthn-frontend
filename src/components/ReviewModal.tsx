@@ -2,55 +2,52 @@
 
 import { useState } from "react";
 import axios from "axios";
-import api from "../api/axios";
 import StarRating from "./StarRating";
+import { submitReview } from "../features/review/api";
 
 interface Props {
   open: boolean;
   bookingId: string;
   onClose: () => void;
+  onSubmitted: () => void;
 }
 
 export default function ReviewModal({
   open,
   bookingId,
   onClose,
+  onSubmitted,
 }: Props) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [reportFlag, setReportFlag] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!open) return null;
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
 
-      await api.post(`/v1/reviews/${bookingId}`, {
+      await submitReview(bookingId, {
         rating,
         comment,
         reportFlag,
       });
 
-      alert("Review submitted!");
+      onSubmitted();
       onClose();
     } catch (err: unknown) {
       console.error(err);
 
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
 
-      const msg =
+      setErrorMessage(
         (typeof responseData?.message === "string" && responseData.message) ||
-        "Failed to submit review";
-
-      if (msg.includes("already")) {
-        alert("You already reviewed this booking");
-      } else {
-        alert(msg);
-      }
-
-      onClose();
+        "Failed to submit review",
+      );
     } finally {
       setLoading(false);
     }
@@ -98,6 +95,12 @@ export default function ReviewModal({
 />
           Report this user
         </label>
+
+        {errorMessage && (
+          <p role="alert" className="text-[11px] text-red-200">
+            {errorMessage}
+          </p>
+        )}
 
         {/* ACTIONS */}
         <div className="mt-5 flex gap-2">

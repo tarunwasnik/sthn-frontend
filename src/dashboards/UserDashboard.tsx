@@ -20,21 +20,10 @@ type Profile = {
   rejectionReason?: string;
 };
 
-type CreatorApplication = {
-  status: "draft" | "submitted" | "approved" | "rejected";
-  rejectionReason?: string;
-};
-
 export default function UserDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [creatorApplication, setCreatorApplication] =
-    useState<CreatorApplication | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkingCreatorEligibility, setCheckingCreatorEligibility] =
-    useState(false);
-
-  const [creatorEligibilityError, setCreatorEligibilityError] = useState("");
 
   const navigate = useNavigate();
 
@@ -59,11 +48,6 @@ export default function UserDashboard() {
           rejectionReason: profileRes.data.profile?.rejectionReason,
         });
 
-        const creatorApplicationRes = await api.get(
-          "/v1/creator-applications/me",
-        );
-
-        setCreatorApplication(creatorApplicationRes.data.application);
       } catch (err) {
         console.error("Dashboard load failed", err);
       } finally {
@@ -73,33 +57,6 @@ export default function UserDashboard() {
 
     loadData();
   }, []);
-
-  const handleBeginCreatorJourney = async () => {
-    try {
-      setCheckingCreatorEligibility(true);
-      setCreatorEligibilityError("");
-
-      const res = await api.get("/v1/bookings/creator-journey-eligibility");
-
-      if (!res.data.eligible) {
-        setCreatorEligibilityError(
-          res.data.message ??
-            "You must resolve your active bookings before applying as a creator.",
-        );
-
-        return;
-      }
-
-      navigate("/creator-application");
-    } catch (err: any) {
-      setCreatorEligibilityError(
-        err?.response?.data?.message ??
-          "Unable to check Creator Journey eligibility. Please try again.",
-      );
-    } finally {
-      setCheckingCreatorEligibility(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -119,12 +76,11 @@ export default function UserDashboard() {
 
   const role = user.role?.toUpperCase();
   const creatorStatus = user.creatorStatus?.toLowerCase();
-  const applicationStatus = creatorApplication?.status?.toLowerCase() ?? "none";
   const profileStatus = profile.profileStatus?.toLowerCase();
   /* ================= LOGIC ================= */
   const isVerified = profileStatus === "verified";
 
-  const showCreatorCard = role === "USER" && isVerified;
+  const showCreatorCta = role === "USER" && isVerified && (creatorStatus === "none" || creatorStatus === "rejected");
 
   return (
     <UserDashboardLayout>
@@ -274,202 +230,12 @@ export default function UserDashboard() {
           </DashboardCard>
         )}
 
-        {/* CREATOR JOURNEY */}
-        {showCreatorCard && (
+        {showCreatorCta && (
           <DashboardCard className="p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              Creator Journey
-            </h2>
-
-            {applicationStatus === "none" && (
-              <div className="space-y-5">
-                <p className="text-white/70 leading-relaxed">
-                  Your account has been successfully verified and you're now
-                  eligible to apply as a creator on STHN.
-                </p>
-
-                <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
-                  <div>
-                    <p className="text-white font-semibold mb-2">
-                      Why become a creator?
-                    </p>
-
-                    <p className="text-white/70 leading-relaxed text-sm">
-                      Share your skills, experiences, and expertise with the
-                      community. As a creator, you'll be able to publish
-                      services, manage your availability, accept bookings,
-                      communicate with clients, and grow your presence on the
-                      platform.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-white font-semibold mb-2">
-                      Application & Review Process
-                    </p>
-
-                    <ul className="space-y-2 text-sm text-white/70">
-                      <li>• Complete and submit your creator application.</li>
-                      <li>
-                        • Our moderation team will carefully review your
-                        submission.
-                      </li>
-                      <li>
-                        • If additional information or corrections are needed,
-                        your application may be returned with administrator
-                        feedback.
-                      </li>
-                      <li>
-                        • You can update your application and resubmit it for
-                        another review at any time.
-                      </li>
-                      <li>
-                        • Once approved, your account will automatically become
-                        a Creator account.
-                      </li>
-                      <li>
-                        • You'll be automatically redirected to your Creator
-                        Dashboard, where all of your existing user features
-                        remain available alongside creator tools such as
-                        services, availability, bookings, and earnings.
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {creatorEligibilityError && (
-                    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                      <p className="text-sm font-semibold text-red-300 mb-2">
-                        Creator Journey Unavailable
-                      </p>
-
-                      <p className="text-white/70 leading-relaxed">
-                        {creatorEligibilityError}
-                      </p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleBeginCreatorJourney}
-                    disabled={checkingCreatorEligibility}
-                    className="
-      px-5
-      py-2.5
-      rounded-xl
-      bg-emerald-400
-      hover:bg-emerald-300
-      disabled:opacity-50
-      disabled:cursor-not-allowed
-      transition
-      text-black
-      font-semibold
-    "
-                  >
-                    {checkingCreatorEligibility
-                      ? "Checking Eligibility..."
-                      : "Begin Creator Journey"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {applicationStatus === "submitted" && (
-              <div className="space-y-3">
-                <p className="text-yellow-400 font-medium">
-                  Your creator application has been received.
-                </p>
-
-                <p className="text-white/60 leading-relaxed">
-                  Your application is currently under review. No action is
-                  required at this time.
-                </p>
-              </div>
-            )}
-
-            {applicationStatus === "approved" && (
-              <div className="space-y-5">
-                <p className="text-emerald-400 font-medium">
-                  🎉 Your creator application has been approved.
-                </p>
-
-                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                  <p className="text-emerald-300 font-semibold mb-2">
-                    Welcome to the Creator Community
-                  </p>
-
-                  <p className="text-white/70 leading-relaxed">
-                    Your creator workspace is ready. You can now start managing
-                    your profile, services, availability, bookings, and
-                    earnings.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => navigate("/dashboard/creator")}
-                  className="
-        px-5
-        py-2.5
-        rounded-xl
-        bg-emerald-400
-        hover:bg-emerald-300
-        transition
-        text-black
-        font-semibold
-      "
-                >
-                  Open Creator Dashboard
-                </button>
-              </div>
-            )}
-
-            {applicationStatus === "rejected" && (
-              <div className="space-y-5">
-                <p className="text-red-400 font-medium">
-                  Your creator application was rejected.
-                </p>
-
-                {creatorApplication?.rejectionReason && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                    <p className="text-sm font-semibold text-red-300 mb-2">
-                      Administrator Feedback
-                    </p>
-
-                    <p className="text-white/80 leading-relaxed">
-                      {creatorApplication.rejectionReason}
-                    </p>
-                  </div>
-                )}
-
-                <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                  <p className="text-yellow-300 font-semibold mb-2">
-                    Next Steps
-                  </p>
-
-                  <p className="text-white/70 leading-relaxed">
-                    Review the administrator's feedback, update the requested
-                    information, and submit your application again for another
-                    review.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => navigate("/creator-application")}
-                  className="
-        px-5
-        py-2.5
-        rounded-xl
-        bg-emerald-400
-        hover:bg-emerald-300
-        transition
-        text-black
-        font-semibold
-      "
-                >
-                  Update Application
-                </button>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div><h2 className="text-xl font-semibold text-white">Become a Creator</h2><p className="mt-1 text-sm text-white/60">Manage your Creator application from Settings.</p></div>
+              <button onClick={() => navigate("/dashboard/user/settings/creator")} className="rounded-xl bg-emerald-400 px-5 py-2.5 font-semibold text-black transition hover:bg-emerald-300">Become a Creator</button>
+            </div>
           </DashboardCard>
         )}
 

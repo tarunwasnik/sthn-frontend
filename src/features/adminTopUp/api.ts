@@ -4,8 +4,13 @@ import type {
   AdminTopUpRequestDto,
   ProviderFundingFailureCode,
   ProviderFundingResultDto,
+  TopUpRepairResultDto,
   TopUpReconciliationDto,
   TopUpRejectionCode,
+  TopUpStatus,
+  WalletTopUpRepairAction,
+  WalletTopUpReconciliationStatusAction,
+  WalletTopUpRetryAction,
 } from "./types";
 
 interface DataResponse<T> {
@@ -13,9 +18,12 @@ interface DataResponse<T> {
   data: T;
 }
 
-export async function getAdminTopUpQueue(): Promise<AdminTopUpRequestDto[]> {
+export async function getAdminTopUpQueue(
+  status: TopUpStatus = "PENDING",
+): Promise<AdminTopUpRequestDto[]> {
   const response = await api.get<DataResponse<AdminTopUpRequestDto[]>>(
     "/v1/admin/financial/wallet-top-up-requests",
+    { params: { status } },
   );
   return response.data.data;
 }
@@ -88,6 +96,43 @@ export async function completeAdminTopUpAccounting(
   const response = await api.post<DataResponse<AccountingCompletionDto>>(
     `/v1/admin/financial/wallet-top-up-requests/${encodeURIComponent(topUpReference)}/complete-accounting`,
     {},
+  );
+  return response.data.data;
+}
+
+export async function retryAdminTopUpReconciliation(
+  reconciliationReference: string,
+  action: WalletTopUpRetryAction,
+): Promise<TopUpReconciliationDto> {
+  const response = await api.post<DataResponse<TopUpReconciliationDto>>(
+    `/v1/admin/financial/wallet-top-up-reconciliations/${encodeURIComponent(reconciliationReference)}/retry`,
+    { action },
+  );
+  return response.data.data;
+}
+
+export async function repairAdminTopUpReconciliation(
+  reconciliationReference: string,
+  action: WalletTopUpRepairAction,
+): Promise<TopUpRepairResultDto> {
+  const response = await api.post<DataResponse<TopUpRepairResultDto>>(
+    `/v1/admin/financial/wallet-top-up-reconciliations/${encodeURIComponent(reconciliationReference)}/repair`,
+    { action },
+  );
+  return response.data.data;
+}
+
+export async function updateAdminTopUpReconciliationStatus(
+  reconciliationReference: string,
+  input: {
+    action: WalletTopUpReconciliationStatusAction;
+    resolutionCode: string;
+    resolutionNote?: string;
+  },
+): Promise<TopUpReconciliationDto> {
+  const response = await api.patch<DataResponse<TopUpReconciliationDto>>(
+    `/v1/admin/financial/wallet-top-up-reconciliations/${encodeURIComponent(reconciliationReference)}/status`,
+    input,
   );
   return response.data.data;
 }

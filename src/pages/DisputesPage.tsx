@@ -1,144 +1,56 @@
-// frontend/src/pages/DisputesPage.tsx
-
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
+
 import DashboardLayout from "../layouts/DashboardLayout";
-import api from "../api/axios";
+import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import { getMyDisputes } from "../features/dispute/api";
+import type { DisputeListItem } from "../features/dispute/types";
 
-interface Dispute {
-  _id: string;
-  status: "OPEN" | "RESOLVED" | "REJECTED";
-  reason: string;
-  createdAt: string;
+type Props = { actor: "user" | "creator" };
+type ContentProps = Props & { embedded?: boolean };
 
-  bookingId: {
-    _id: string;
-    status: string;
-
-    service?: {
-      title: string;
-    };
-
-    user?: {
-      displayName: string;
-    };
-  };
+function messageFor(error: unknown) {
+  if (axios.isAxiosError(error) && typeof error.response?.data?.message === "string") return error.response.data.message;
+  return "Disputes are unavailable right now.";
 }
 
-export default function DisputesPage() {
-  const [disputes, setDisputes] = useState<Dispute[]>([]);
+export function DisputeTrackingContent({ actor, embedded = false }: ContentProps) {
+  const [disputes, setDisputes] = useState<DisputeListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchDisputes = async () => {
-    try {
-      setLoading(true);
-
-      const res = await api.get("/v1/disputes/my");
-
-      setDisputes(res.data.disputes || []);
-    } catch (err) {
-      console.error("DISPUTES ERROR:", err);
-    } finally {
-      setLoading(false);
-    }
+  const load = async () => {
+    setLoading(true); setError(null);
+    try { setDisputes(await getMyDisputes()); }
+    catch (loadError) { setError(messageFor(loadError)); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchDisputes();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "OPEN":
-        return "bg-yellow-500";
-      case "RESOLVED":
-        return "bg-green-600";
-      case "REJECTED":
-        return "bg-red-600";
-      default:
-        return "bg-gray-500";
-    }
-  };
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <p className="text-gray-400">Loading disputes...</p>
-      </DashboardLayout>
-    );
-  }
-
+  const bookingPath = actor === "user" ? "/dashboard/user/bookings" : "/dashboard/creator/bookings";
   return (
-    <DashboardLayout>
-      <div className="max-w-4xl space-y-6">
-
-        <h1 className="text-2xl font-bold">
-          My Disputes
-        </h1>
-
-        {disputes.length === 0 ? (
-          <p className="text-gray-400">
-            No disputes found
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {disputes.map((d) => (
-              <div
-                key={d._id}
-                className="bg-[#0B1220] border border-gray-800 p-5 rounded-xl space-y-3"
-              >
-                {/* HEADER */}
-                <div className="flex justify-between">
-                  <span
-                    className={`text-xs px-2 py-1 rounded text-white ${getStatusColor(
-                      d.status
-                    )}`}
-                  >
-                    {d.status}
-                  </span>
-
-                  <span className="text-xs text-gray-400">
-                    {new Date(d.createdAt).toLocaleString()}
-                  </span>
-                </div>
-
-                {/* BOOKING */}
-                <div>
-                  <p className="text-sm text-gray-400">
-                    Booking
-                  </p>
-                  <p className="text-white">
-                    {d.bookingId?.service?.title ||
-                      "Service"}
-                  </p>
-                </div>
-
-                {/* USER */}
-                {d.bookingId?.user && (
-                  <div>
-                    <p className="text-xs text-gray-400">
-                      User
-                    </p>
-                    <p className="text-white">
-                      {d.bookingId.user.displayName}
-                    </p>
-                  </div>
-                )}
-
-                {/* REASON */}
-                <div>
-                  <p className="text-xs text-gray-400">
-                    Reason
-                  </p>
-                  <p className="text-sm text-white">
-                    {d.reason}
-                  </p>
-                </div>
-
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </DashboardLayout>
+      <section className="mx-auto max-w-4xl space-y-5">
+        <div><h2 className={embedded ? "text-xl font-semibold text-white" : "text-2xl font-bold text-white"}>Disputes</h2><p className="mt-1 text-sm text-white/50">Track disputes affecting your bookings.</p></div>
+        {loading && <p className="text-sm text-white/50">Loading disputes...</p>}
+        {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">{error}<button type="button" onClick={() => void load()} className="ml-3 font-semibold underline">Retry</button></div>}
+        {!loading && !error && disputes.length === 0 && <p className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/50">No disputes found.</p>}
+        {!loading && !error && disputes.map((dispute) => (
+          <article key={dispute.disputeId} className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded bg-yellow-500/15 px-2 py-1 text-xs font-semibold text-yellow-100">{dispute.status}</span><span className="text-xs text-white/45">{new Date(dispute.createdAt).toLocaleString()}</span></div>
+            <div><p className="text-xs text-white/45">Booking</p><p className="text-sm font-medium text-white">{dispute.booking?.serviceTitle ?? "Booking"}</p><p className="text-xs text-white/50">{dispute.booking?.bookingReference ?? dispute.booking?.status ?? ""}</p></div>
+            <p className="text-sm text-white/70">{dispute.reason}</p>
+            <p className="text-xs text-white/50">{dispute.raisedByMe ? "Raised by you" : `Raised by ${dispute.raisedByRole === "CREATOR" ? "Creator" : "User"}`}{dispute.escalationLevel !== "NONE" ? ` · Escalation: ${dispute.escalationLevel}` : ""}</p>
+            {dispute.resolution && <p className="text-xs text-white/50">Resolution: {dispute.resolution.action}</p>}
+            {dispute.booking && <Link className="text-xs font-semibold text-cyan-200 underline" to={`${bookingPath}/${dispute.booking.bookingId}`}>View booking</Link>}
+          </article>
+        ))}
+      </section>
   );
+}
+
+export default function DisputesPage({ actor }: Props) {
+  const Layout = actor === "user" ? UserDashboardLayout : DashboardLayout;
+  return <Layout><DisputeTrackingContent actor={actor} /></Layout>;
 }

@@ -31,6 +31,11 @@ import AdminTopUpOperationsPage from "./features/adminTopUp/AdminTopUpOperations
 import AdminWalletConversionOperationsPage from "./features/adminWalletConversion/AdminWalletConversionOperationsPage";
 import AdminEscrowOperationsPage from "./features/adminEscrow/AdminEscrowOperationsPage";
 import AdminPlatformRevenuePage from "./features/adminRevenue/AdminPlatformRevenuePage";
+import AdminGovernancePage from "./features/adminGovernance/AdminGovernancePage";
+import AdminSettlementOperationsPage from "./features/adminSettlement/AdminSettlementOperationsPage";
+import AdminPaymentOperationsPage from "./features/adminPayment/AdminPaymentOperationsPage";
+import AdminFxOperationsPage from "./features/adminFx/AdminFxOperationsPage";
+import AdminDisputeOperationsPage from "./features/adminDispute/AdminDisputeOperationsPage";
 
 /* Dashboards */
 import UserDashboard from "./dashboards/UserDashboard";
@@ -63,6 +68,7 @@ import CreatorProfile from "./pages/profile/CreatorProfile";
 /* CHAT */
 import MessagesPage from "./pages/MessagesPage";
 import ChatPage from "./pages/ChatPage";
+import AccountSettingsPage from "./pages/AccountSettingsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -149,11 +155,27 @@ export default function App() {
             </AdminRoute>
           }
         />
+        <Route
+          path="/admin/operations/wallet-top-ups/:topUpReference"
+          element={
+            <AdminRoute>
+              <AdminTopUpOperationsPage />
+            </AdminRoute>
+          }
+        />
         <Route path="/admin/operations/wallet-conversions" element={<AdminRoute><AdminWalletConversionOperationsPage /></AdminRoute>} />
         <Route path="/admin/operations/wallet-conversions/:conversionReference" element={<AdminRoute><AdminWalletConversionOperationsPage /></AdminRoute>} />
         <Route path="/admin/operations/booking-escrow" element={<AdminRoute><AdminEscrowOperationsPage /></AdminRoute>} />
         <Route path="/admin/operations/booking-escrow/:bookingReference" element={<AdminRoute><AdminEscrowOperationsPage /></AdminRoute>} />
         <Route path="/admin/operations/platform-revenue" element={<AdminRoute><AdminPlatformRevenuePage /></AdminRoute>} />
+        <Route path="/admin/operations/settlements" element={<AdminRoute><AdminSettlementOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/settlements/:settlementReference" element={<AdminRoute><AdminSettlementOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/payments" element={<AdminRoute><AdminPaymentOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/payments/:paymentReference" element={<AdminRoute><AdminPaymentOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/fx-rates" element={<AdminRoute><AdminFxOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/governance" element={<AdminRoute><AdminGovernancePage /></AdminRoute>} />
+        <Route path="/admin/operations/disputes" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
+        <Route path="/admin/operations/disputes/:disputeId" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
         <Route path="/admin/system/wallet-backfill" element={<AdminRoute><WalletBackfill /></AdminRoute>} />
 
         {/* USER */}
@@ -167,6 +189,10 @@ export default function App() {
         />
 
         <Route path="/dashboard/user/wallet" element={<UserRoute><UserWallet /></UserRoute>} />
+        <Route path="/dashboard/user/settings" element={<UserRoute><Navigate to="/dashboard/user/settings/creator" replace /></UserRoute>} />
+        <Route path="/dashboard/user/settings/creator" element={<UserRoute><AccountSettingsPage actor="user" section="creator" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/disputes" element={<UserRoute><AccountSettingsPage actor="user" section="disputes" /></UserRoute>} />
+        <Route path="/dashboard/user/disputes" element={<UserRoute><Navigate to="/dashboard/user/settings/disputes" replace /></UserRoute>} />
 
         <Route path="/dashboard/user/messages" element={<UserRoute><MessagesPage /></UserRoute>} />
         <Route path="/dashboard/user/browse" element={<UserRoute><UserBrowse /></UserRoute>} />
@@ -209,6 +235,10 @@ export default function App() {
         />
 
         <Route path="/dashboard/creator/wallet" element={<CreatorRoute><CreatorWallet /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/creator" replace /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings/creator" element={<CreatorRoute><AccountSettingsPage actor="creator" section="creator" /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings/disputes" element={<CreatorRoute><AccountSettingsPage actor="creator" section="disputes" /></CreatorRoute>} />
+        <Route path="/dashboard/creator/disputes" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/disputes" replace /></CreatorRoute>} />
 
         {/* CHAT */}
         <Route path="/dashboard/chat/:bookingId" element={<AuthenticatedRoute><ChatPage /></AuthenticatedRoute>} />
