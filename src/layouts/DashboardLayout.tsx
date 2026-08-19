@@ -352,6 +352,13 @@ export default function DashboardLayout({ children }: Props) {
                     close={() => setShowMore(false)}
                   />
 
+                  <SheetItem
+                    to="/dashboard/creator/settings"
+                    icon={<Settings size={18} />}
+                    label="Settings"
+                    close={() => setShowMore(false)}
+                  />
+
                 </div>
 
                 {/* Floating Arrow */}

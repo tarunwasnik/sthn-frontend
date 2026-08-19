@@ -377,6 +377,13 @@ export default function UserDashboardLayout({ children }: Props) {
                     close={() => setShowMore(false)}
                   />
 
+                  <SheetItem
+                    to="/dashboard/user/settings"
+                    icon={<Settings size={18} />}
+                    label="Settings"
+                    close={() => setShowMore(false)}
+                  />
+
                 </div>
 
                 <button
