@@ -30,6 +30,7 @@ export function DisputeTrackingContent({ actor, embedded = false }: ContentProps
   useEffect(() => { void load(); }, []);
 
   const bookingPath = actor === "user" ? "/dashboard/user/bookings" : "/dashboard/creator/bookings";
+  const disputePath = `/dashboard/${actor}/settings/disputes`;
   return (
       <section className="mx-auto max-w-4xl space-y-5">
         <div><h2 className={embedded ? "text-xl font-semibold text-white" : "text-2xl font-bold text-white"}>Disputes</h2><p className="mt-1 text-sm text-white/50">Track disputes affecting your bookings.</p></div>
@@ -43,7 +44,7 @@ export function DisputeTrackingContent({ actor, embedded = false }: ContentProps
             <p className="text-sm text-white/70">{dispute.reason}</p>
             <p className="text-xs text-white/50">{dispute.raisedByMe ? "Raised by you" : `Raised by ${dispute.raisedByRole === "CREATOR" ? "Creator" : "User"}`}{dispute.escalationLevel !== "NONE" ? ` · Escalation: ${dispute.escalationLevel}` : ""}</p>
             {dispute.resolution && <p className="text-xs text-white/50">Resolution: {dispute.resolution.action}</p>}
-            {dispute.booking && <Link className="text-xs font-semibold text-cyan-200 underline" to={`${bookingPath}/${dispute.booking.bookingId}`}>View booking</Link>}
+            <div className="flex flex-wrap gap-4"><Link className="text-xs font-semibold text-cyan-200 underline" to={`${disputePath}/${dispute.disputeId}`}>Open dispute</Link>{dispute.booking && <Link className="text-xs font-semibold text-cyan-200 underline" to={`${bookingPath}/${dispute.booking.bookingId}`}>View booking</Link>}</div>
           </article>
         ))}
       </section>

@@ -4,6 +4,7 @@ interface MessageActionsProps {
   isOpen: boolean;
 
   canDelete: boolean;
+  readOnly?: boolean;
 
   onReply: () => void;
 
@@ -15,6 +16,7 @@ interface MessageActionsProps {
 export default function MessageActions({
   isOpen,
   canDelete,
+  readOnly = false,
   onReply,
   onDelete,
   onClose,
@@ -45,7 +47,7 @@ export default function MessageActions({
     overflow-hidden
   "
       >
-        <button
+        {!readOnly && <button
           onClick={() => {
             onReply();
             onClose();
@@ -62,7 +64,7 @@ export default function MessageActions({
   "
         >
           Reply
-        </button>
+        </button>}
 
         {canDelete && (
           <button

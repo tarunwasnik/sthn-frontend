@@ -12,6 +12,7 @@ import axios from "axios";
 
 import { getSupportedCurrencies, getWallets } from "./api";
 import type { CurrencyMetadataDto, WalletListItemDto } from "./types";
+import { formatMinorAmount } from "../walletConversion/money";
 
 export type WalletLoadState = "loading" | "ready" | "error";
 
@@ -120,14 +121,7 @@ export function useWallets(): UseWalletsResult {
   const format = useCallback(
     (minorAmount: number, currencyCode: string): string => {
       const meta = currenciesRef.current.get(currencyCode);
-      const minorUnits = meta?.minorUnits ?? 2;
-      const symbol = meta?.symbol ?? "";
-      const value = minorAmount / Math.pow(10, minorUnits);
-      const formatted = value.toLocaleString(undefined, {
-        minimumFractionDigits: minorUnits,
-        maximumFractionDigits: minorUnits,
-      });
-      return symbol ? `${symbol}${formatted}` : `${formatted} ${currencyCode}`;
+      return formatMinorAmount(minorAmount, currencyCode, meta);
     },
     [],
   );

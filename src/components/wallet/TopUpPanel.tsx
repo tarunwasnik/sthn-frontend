@@ -20,12 +20,10 @@ import {
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import type {
-  CurrencyMetadataDto,
-} from "../../features/wallet/types";
 import type { UseWalletsResult } from "../../features/wallet/useWallets";
 import type { TopUpStatus } from "../../features/topUp/types";
 import useTopUps from "../../features/topUp/useTopUps";
+import { formatMinorAmount } from "../../features/walletConversion/money";
 
 interface TopUpPanelProps {
   wallet: UseWalletsResult;
@@ -119,20 +117,6 @@ function StatusBadge({ status }: { status: TopUpStatus }) {
       {statusLabel(status)}
     </span>
   );
-}
-
-function formatMinor(
-  amount: number,
-  currency: string,
-  meta: CurrencyMetadataDto | undefined,
-): string {
-  const minorUnits = meta?.minorUnits ?? 2;
-  const value = amount / 10 ** minorUnits;
-  const display = value.toLocaleString(undefined, {
-    minimumFractionDigits: minorUnits,
-    maximumFractionDigits: minorUnits,
-  });
-  return meta?.symbol ? `${meta.symbol}${display}` : `${display} ${currency}`;
 }
 
 const fieldClass =
@@ -235,7 +219,7 @@ export default function TopUpPanel({ wallet }: TopUpPanelProps) {
                   Top-up request submitted
                 </p>
                 <p className="mt-1 text-sm text-emerald-100/90">
-                  {formatMinor(
+                  {formatMinorAmount(
                     topUps.lastCreated.amount,
                     topUps.lastCreated.currency,
                     metadata.get(topUps.lastCreated.currency),
@@ -430,7 +414,7 @@ export default function TopUpPanel({ wallet }: TopUpPanelProps) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-base font-semibold text-white">
-                    {formatMinor(
+                    {formatMinorAmount(
                       request.amount,
                       request.currency,
                       metadata.get(request.currency),

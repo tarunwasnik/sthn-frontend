@@ -51,13 +51,34 @@ interface Profile {
     _id: string;
     email: string;
   };
+  verificationRequest: {
+    verificationReference: string;
+    status: string;
+    attemptNumber: number;
+    profileSubmissionVersion: number;
+    submittedAt: string;
+    adminReviewRequiredAt: string | null;
+    adminReviewReasonCode: string | null;
+    adminReviewReason: string | null;
+  };
 }
 
 type ConfirmAction = "approve" | "reject" | null;
 
 const PAGE_SIZE = 10;
 
-export default function ProfileVerificationQueue() {
+export type ProfileVerificationQueueKind = "AI" | "ADMIN_REVIEW";
+
+interface ProfileVerificationQueueProps {
+  queueKind?: ProfileVerificationQueueKind;
+}
+
+export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVerificationQueueProps) {
+  const isAdminReviewQueue = queueKind === "ADMIN_REVIEW";
+  const queueTitle = isAdminReviewQueue ? "Admin Review Queue" : "AI Verification Queue";
+  const queueDescription = isAdminReviewQueue
+    ? "Review escalated user verification requests that require a manual decision."
+    : "Review submitted user verification requests awaiting automated processing or a manual decision.";
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,13 +103,15 @@ export default function ProfileVerificationQueue() {
       setLoading(true);
       setError(null);
 
-      const res = await api.get("/v1/admin/profile-verification/pending");
+      const res = await api.get(isAdminReviewQueue
+        ? "/v1/admin/profile-verification/admin-review"
+        : "/v1/admin/profile-verification/pending");
 
       setProfiles(res.data.profiles ?? []);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ??
-          "Failed to load pending user verifications.",
+          `Failed to load ${queueTitle.toLowerCase()}.`,
       );
     } finally {
       setLoading(false);
@@ -159,7 +182,7 @@ export default function ProfileVerificationQueue() {
 
   useEffect(() => {
     fetchProfiles();
-  }, []);
+  }, [isAdminReviewQueue]);
 
   const filteredProfiles = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -210,8 +233,8 @@ export default function ProfileVerificationQueue() {
     return (
       <AdminLayout workspace="operations">
         <AdminLoadingState
-          title="Loading user verification queue..."
-          description="Fetching pending user verification requests."
+          title={`Loading ${queueTitle.toLowerCase()}...`}
+          description="Fetching active user verification requests."
         />
       </AdminLayout>
     );
@@ -222,7 +245,7 @@ export default function ProfileVerificationQueue() {
       <AdminLayout workspace="operations">
         <div className="rounded-xl border border-red-900 bg-red-950/40 p-6">
           <h2 className="text-lg font-semibold text-red-300">
-            Failed to load user verification queue
+            Failed to load {queueTitle.toLowerCase()}
           </h2>
 
           <p className="mt-2 text-sm text-red-200">{error}</p>
@@ -239,17 +262,17 @@ export default function ProfileVerificationQueue() {
     <AdminLayout workspace="operations">
       <div className="space-y-6">
         <AdminPageHeader
-          title="User Verification"
-          description="Review, inspect and process pending user verification requests."
+          title={queueTitle}
+          description={queueDescription}
         >
           <AdminButton onClick={fetchProfiles}>Refresh Queue</AdminButton>
         </AdminPageHeader>
 
         <div className="grid gap-4 md:grid-cols-3">
           <AdminMetricCard
-            label="Pending Users"
+            label={isAdminReviewQueue ? "Escalated Users" : "Active Requests"}
             value={metrics.pending}
-            subtitle="Awaiting verification review"
+            subtitle={isAdminReviewQueue ? "Require a manual decision" : "Awaiting automated processing or review"}
           />
 
           <AdminMetricCard
@@ -279,7 +302,7 @@ export default function ProfileVerificationQueue() {
 
               <AdminFilterBar>
                 <span className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
-                  Pending: {metrics.pending}
+                  Requests: {metrics.pending}
                 </span>
 
                 <span className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
@@ -292,8 +315,8 @@ export default function ProfileVerificationQueue() {
 
         {filteredProfiles.length === 0 ? (
           <AdminEmptyState
-            title="No pending user verifications"
-            description="There are currently no users waiting for verification review."
+            title={`No ${queueTitle.toLowerCase()} requests`}
+            description="There are currently no active requests in this queue."
             action={<AdminButton onClick={fetchProfiles}>Refresh</AdminButton>}
           />
         ) : (
@@ -313,7 +336,9 @@ export default function ProfileVerificationQueue() {
                     Submitted for Review
                   </AdminTableHeaderCell>
 
-                  <AdminTableHeaderCell>Status</AdminTableHeaderCell>
+                  <AdminTableHeaderCell>Request Status</AdminTableHeaderCell>
+
+                  {isAdminReviewQueue && <AdminTableHeaderCell>Escalation</AdminTableHeaderCell>}
 
                   <AdminTableHeaderCell align="right">
                     Actions
@@ -382,8 +407,17 @@ export default function ProfileVerificationQueue() {
                     </AdminTableCell>
 
                     <AdminTableCell>
-                      <AdminStatusBadge status={profile.profileStatus} />
+                      <AdminStatusBadge status={profile.verificationRequest.status} />
                     </AdminTableCell>
+
+                    {isAdminReviewQueue && (
+                      <AdminTableCell className="max-w-xs">
+                        <div className="text-sm text-slate-300">{profile.verificationRequest.adminReviewReasonCode ?? "—"}</div>
+                        {profile.verificationRequest.adminReviewReason && (
+                          <div className="mt-1 line-clamp-2 text-xs text-slate-500">{profile.verificationRequest.adminReviewReason}</div>
+                        )}
+                      </AdminTableCell>
+                    )}
 
                     <AdminTableCell align="right">
                       <div
@@ -505,7 +539,7 @@ export default function ProfileVerificationQueue() {
                 </p>
 
                 <div className="mt-3">
-                  <AdminStatusBadge status={selectedProfile.profileStatus} />
+                  <AdminStatusBadge status={selectedProfile.verificationRequest.status} />
                 </div>
               </div>
             </div>
@@ -534,6 +568,19 @@ export default function ProfileVerificationQueue() {
                 </p>
               </div>
             </div>
+
+            {isAdminReviewQueue && (
+              <div className="rounded-xl border border-amber-900/70 bg-amber-950/20 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Escalation</p>
+                <p className="mt-2 text-sm text-slate-200">{selectedProfile.verificationRequest.adminReviewReasonCode ?? "—"}</p>
+                {selectedProfile.verificationRequest.adminReviewReason && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">{selectedProfile.verificationRequest.adminReviewReason}</p>
+                )}
+                {selectedProfile.verificationRequest.adminReviewRequiredAt && (
+                  <p className="mt-2 text-xs text-slate-500">Escalated {new Date(selectedProfile.verificationRequest.adminReviewRequiredAt).toLocaleString()}</p>
+                )}
+              </div>
+            )}
 
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">

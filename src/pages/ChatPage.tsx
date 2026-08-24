@@ -7,6 +7,7 @@ import ImageViewerModal from "../components/chat/ImageViewerModal";
 import MobileMessageList from "../components/chat/MobileMessageList";
 import ChatComposer from "../components/chat/ChatComposer";
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -24,6 +25,9 @@ import ChatHeader from "../components/chat/ChatHeader";
 import LocationPickerModal from "../components/chat/LocationPickerModal";
 import MapPickerModal from "../components/chat/MapPickerModal";
 import ImagePreviewModal from "../components/chat/ImagePreviewModal";
+import { useChatParticipantIdentity } from "../components/chat/replyIdentity";
+import { normalizeReplyReference } from "../components/chat/types";
+import { useReplyNavigation } from "../components/chat/useReplyNavigation";
 
 interface ChatMessage {
   _id: string;
@@ -115,6 +119,9 @@ interface ChatMessage {
   createdAt: string;
 }
 
+type ChatBookingSummary = { _id: string; status: string; slots?: Array<{ startTime: string; endTime: string }> };
+const errorMessage = (error: unknown, fallback: string) => axios.isAxiosError(error) && typeof error.response?.data?.message === "string" ? error.response.data.message : fallback;
+
 export default function ChatPage() {
   const { bookingId } = useParams();
 
@@ -127,6 +134,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const [conversation, setConversation] = useState<Conversation | null>(null);
+  const getParticipantIdentity = useChatParticipantIdentity(userId, conversation);
 
   const [loading, setLoading] = useState(true);
 
@@ -172,18 +180,30 @@ export default function ChatPage() {
   );
 
   const [chatClosed, setChatClosed] = useState(false);
+  const [terminalStatus, setTerminalStatus] = useState<"CANCELLED" | "COMPLETED" | null>(null);
 
   const [slotText, setSlotText] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    highlightedMessageId,
+    navigateToMessage,
+    registerMessageElement,
+  } = useReplyNavigation(messagesContainerRef);
 
   const shouldAutoScrollRef = useRef(true);
 
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasEmittedTypingRef = useRef(false);
+
+  const currentBookingSenderRole = () =>
+    conversation?.actorRole ??
+    messages.find((message) => String(message.senderId) === String(userId))
+      ?.senderRole ??
+    "USER";
 
   /* ======================================================
      FETCH CHAT
@@ -198,20 +218,14 @@ export default function ChatPage() {
       const res = await api.get(`/v1/chat/${bookingId}/messages`);
 
       setMessages(
-        (res.data.chats || []).map((chat: ChatMessage) => ({
-          ...chat,
-
-          replyTo: chat.replyTo
-            ? {
-                ...chat.replyTo,
-              }
-            : undefined,
-        })),
+        (res.data.chats || []).map((chat: ChatMessage) =>
+          normalizeReplyReference(chat),
+        ),
       );
 
-      await api.post(`/v1/chat/${bookingId}/seen`);
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load chat");
+      await api.post(`/v1/chat/${bookingId}/seen`).catch(() => undefined);
+    } catch (err: unknown) {
+      setError(errorMessage(err, "Failed to load chat"));
     } finally {
       setLoading(false);
     }
@@ -229,7 +243,7 @@ export default function ChatPage() {
         conversations.find((c) => c.bookingId === bookingId) || null;
 
       setConversation(matched);
-    } catch (err) {
+    } catch {
       console.error("Failed to fetch conversation");
     }
   };
@@ -240,19 +254,20 @@ export default function ChatPage() {
 
   const fetchBookingDetails = async () => {
     try {
-      let booking = null;
+      let booking: ChatBookingSummary | null = null;
 
       if (role === "user") {
         const res = await api.get("/v1/bookings/user");
 
-        booking = res.data.bookings.find((b: any) => b._id === bookingId);
+        booking = (res.data.bookings as ChatBookingSummary[]).find((b) => b._id === bookingId) ?? null;
       } else {
         const res = await api.get("/v1/creator/bookings");
 
-        booking = res.data.bookings.find((b: any) => b._id === bookingId);
+        booking = (res.data.bookings as ChatBookingSummary[]).find((b) => b._id === bookingId) ?? null;
       }
 
       if (!booking) return;
+      if (booking.status === "CANCELLED" || booking.status === "COMPLETED") { setTerminalStatus(booking.status); setChatClosed(true); return; }
 
       const slots = booking.slots || [];
 
@@ -308,18 +323,14 @@ export default function ChatPage() {
   useEffect(() => {
     if (!bookingId) return;
 
-    socket.emit("join-booking", bookingId);
+    const joinBooking = () => socket.emit("join-booking", bookingId);
+    socket.on("connect", joinBooking);
+    if (socket.connected) joinBooking();
 
     const handleMessage = (msg: ChatMessage) => {
-      const incoming: ChatMessage = {
-        ...msg,
+      const incoming = normalizeReplyReference(msg);
 
-        replyTo: msg.replyTo
-          ? {
-              ...msg.replyTo,
-            }
-          : undefined,
-      };
+      if (incoming.bookingId !== bookingId) return;
 
       const addMessage = () => {
         setMessages((prev) => {
@@ -339,34 +350,48 @@ export default function ChatPage() {
         });
       };
 
-      if (incoming.type === "image" && incoming.attachment?.url) {
-        const image = new Image();
-
-        image.src = incoming.attachment.url;
-
-        image.onload = () => {
-          addMessage();
-        };
-
-        image.onerror = () => {
-          addMessage();
-        };
-      } else {
-        addMessage();
-      }
+      addMessage();
 
       api.post(`/v1/chat/${bookingId}/seen`);
 
       socket.emit("chat:delivered", {
         bookingId,
         messageId: incoming._id,
-        userId,
       });
     };
 
     socket.on("chat:message", handleMessage);
 
+    const handleImageGroup = (data: {
+      bookingId: string;
+      messages: ChatMessage[];
+    }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
+
+      const incoming = data.messages
+        .map((message) => normalizeReplyReference(message))
+        .filter((message) => message.senderId !== userId);
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((message) => message._id));
+        const next = incoming.filter((message) => !existingIds.has(message._id));
+        return next.length ? [...prev, ...next] : prev;
+      });
+
+      void api.post(`/v1/chat/${bookingId}/seen`);
+      incoming.forEach((message) => {
+        socket.emit("chat:delivered", { bookingId, messageId: message._id });
+      });
+    };
+
+    socket.on("chat:image-group", handleImageGroup);
+
     const handleSeen = (data: { bookingId: string; seenBy: string }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
+
       setMessages((prev) =>
         prev.map((msg) => {
           const alreadySeen = msg.seenBy?.includes(data.seenBy);
@@ -529,8 +554,10 @@ export default function ChatPage() {
 
     return () => {
       socket.emit("leave-booking", bookingId);
+      socket.off("connect", joinBooking);
 
       socket.off("chat:message", handleMessage);
+      socket.off("chat:image-group", handleImageGroup);
 
       socket.off("chat:seen", handleSeen);
 
@@ -612,7 +639,7 @@ export default function ChatPage() {
         replyTo: replyingTo?._id,
       });
 
-      setMessages((prev) => [...prev, data.chat]);
+      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
       setReplyingTo(null);
 
       setShowLocationPicker(false);
@@ -620,10 +647,10 @@ export default function ChatPage() {
       bottomRef.current?.scrollIntoView({
         behavior: "smooth",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to send location", err);
 
-      alert(err?.response?.data?.message || "Failed to send location");
+      alert(errorMessage(err, "Failed to send location"));
     } finally {
       setSending(false);
     }
@@ -656,7 +683,7 @@ export default function ChatPage() {
         },
       );
 
-      setMessages((prev) => [...prev, data.chat]);
+      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
       setReplyingTo(null);
 
       requestAnimationFrame(() => {
@@ -664,8 +691,8 @@ export default function ChatPage() {
           behavior: "smooth",
         });
       });
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to upload document");
+    } catch (err: unknown) {
+      alert(errorMessage(err, "Failed to upload document"));
     } finally {
       setSending(false);
     }
@@ -698,7 +725,7 @@ export default function ChatPage() {
 
           senderId: userId,
 
-          senderRole: role === "creator" ? "CREATOR" : "USER",
+          senderRole: currentBookingSenderRole(),
 
           type: "image",
 
@@ -847,7 +874,7 @@ export default function ChatPage() {
 
             location: chat.location,
 
-            replyTo: chat.replyTo,
+            replyTo: normalizeReplyReference(chat).replyTo,
 
             reactions: chat.reactions ?? [],
 
@@ -907,7 +934,6 @@ export default function ChatPage() {
     if (hasEmittedTypingRef.current) {
       socket.emit("chat:stop-typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = false;
@@ -930,7 +956,7 @@ export default function ChatPage() {
 
       senderId: userId ?? "temp",
 
-      senderRole: role === "creator" ? "CREATOR" : "USER",
+      senderRole: currentBookingSenderRole(),
 
       message: messageText,
 
@@ -965,13 +991,15 @@ export default function ChatPage() {
       const saved = res.data.chat;
 
       setMessages((prev) =>
-        prev.map((msg) => (msg._id === tempMessage._id ? saved : msg)),
+        prev.map((msg) =>
+          msg._id === tempMessage._id ? normalizeReplyReference(saved) : msg,
+        ),
       );
       setReplyingTo(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessages((prev) => prev.filter((m) => m._id !== tempMessage._id));
 
-      const msg = err?.response?.data?.message || "Failed to send message";
+      const msg = errorMessage(err, "Failed to send message");
 
       if (
         msg.toLowerCase().includes("chat is closed") ||
@@ -991,14 +1019,15 @@ export default function ChatPage() {
 ====================================================== */
 
   const handleDeleteMessage = async (messageId: string) => {
+    if (chatClosed) return;
     try {
       await api.delete(`/v1/chat/message/${messageId}`);
 
       setActionsOpen(false);
 
       setSelectedMessageId(null);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete message");
+    } catch (err: unknown) {
+      alert(errorMessage(err, "Failed to delete message"));
     }
   };
 
@@ -1007,12 +1036,13 @@ export default function ChatPage() {
 ====================================================== */
 
   const handleReactToMessage = async (messageId: string, emoji: string) => {
+    if (chatClosed) return;
     try {
       await api.post(`/v1/chat/message/${messageId}/react`, {
         emoji,
       });
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to react");
+    } catch (err: unknown) {
+      alert(errorMessage(err, "Failed to react"));
     }
   };
 
@@ -1020,8 +1050,8 @@ export default function ChatPage() {
    LONG PRESS
 ====================================================== */
 
-  const startLongPress = (messageId: string, canDelete: boolean) => {
-    if (!canDelete) {
+  const startLongPress = (messageId: string, canReply: boolean) => {
+    if (!canReply || chatClosed) {
       return;
     }
 
@@ -1090,7 +1120,6 @@ export default function ChatPage() {
     if (!hasEmittedTypingRef.current) {
       socket.emit("chat:typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = true;
@@ -1103,7 +1132,6 @@ export default function ChatPage() {
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("chat:stop-typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = false;
@@ -1140,10 +1168,10 @@ export default function ChatPage() {
           serviceTitle={serviceTitle}
           slotText={slotText}
           chatClosed={chatClosed}
+          terminalStatus={terminalStatus}
           onClose={() => navigate(-1)}
           getInitials={getInitials}
         />
-
         {/* CHAT BODY */}
 
         <div
@@ -1187,6 +1215,7 @@ export default function ChatPage() {
               userId={userId}
               deliveredMessages={deliveredMessages}
               handleReactToMessage={handleReactToMessage}
+              readOnly={chatClosed}
               setSelectedMessageId={setSelectedMessageId}
               setActionsOpen={setActionsOpen}
               startLongPress={startLongPress}
@@ -1198,16 +1227,25 @@ export default function ChatPage() {
               setImageViewerOpen={setImageViewerOpen}
               setSelectedImages={setSelectedImages}
               setSelectedImageIndex={setSelectedImageIndex}
+              getParticipantIdentity={getParticipantIdentity}
+              highlightedMessageId={highlightedMessageId}
+              onNavigateToMessage={navigateToMessage}
+              registerMessageElement={registerMessageElement}
             />
           </div>
         </div>
 
-        <ChatComposer
+        {!chatClosed && <ChatComposer
           input={input}
           handleInputChange={handleInputChange}
           handleKeyDown={handleKeyDown}
           handleSend={handleSend}
           replyingTo={replyingTo}
+          replyIdentity={
+            replyingTo
+              ? getParticipantIdentity(replyingTo.senderId, replyingTo.senderRole)
+              : null
+          }
           onCancelReply={() => setReplyingTo(null)}
           sending={sending}
           chatClosed={chatClosed}
@@ -1218,7 +1256,7 @@ export default function ChatPage() {
             setSelectedImageFiles(files);
             setImagePreviewOpen(true);
           }}
-        />
+        />}
 
         {/* SCROLLBAR */}
 
@@ -1252,10 +1290,16 @@ export default function ChatPage() {
         </style>
       </div>
 
-      <MessageActions
+      {!chatClosed && <MessageActions
         isOpen={actionsOpen}
-        canDelete={!!selectedMessageId}
+        canDelete={
+          !chatClosed &&
+          messages.find((message) => message._id === selectedMessageId)?.senderId ===
+            userId
+        }
+        readOnly={chatClosed}
         onReply={() => {
+          if (chatClosed) return;
           if (!selectedMessageId) {
             return;
           }
@@ -1277,7 +1321,7 @@ export default function ChatPage() {
           setActionsOpen(false);
           setSelectedMessageId(null);
         }}
-      />
+      />}
 
       <LocationPickerModal
         open={showLocationPicker}

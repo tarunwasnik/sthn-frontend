@@ -115,8 +115,13 @@ const operationsSections: NavSection[] = [
         icon: FileCheck,
       },
       {
-        label: "Profile Verification",
+        label: "AI Verification Queue",
         path: "/admin/operations/profile-verification",
+        icon: BadgeCheck,
+      },
+      {
+        label: "Admin Review Queue",
+        path: "/admin/operations/profile-verification/admin-review",
         icon: BadgeCheck,
       },
       {

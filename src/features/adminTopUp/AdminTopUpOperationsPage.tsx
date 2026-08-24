@@ -24,6 +24,7 @@ import type {
   WalletTopUpRetryAction,
 } from "./types";
 import { useAdminTopUpOperations, useAdminTopUps } from "./useAdminTopUps";
+import { formatMinorAmount } from "../walletConversion/money";
 
 function safeActionError(error: unknown): string {
   if (axios.isAxiosError(error)) {
@@ -63,11 +64,7 @@ function statusLabel(status: string): string {
 }
 
 function formatMinor(amount: number, currency: string): string {
-  return `${amount.toLocaleString()} ${currency}`;
-}
-
-function formatMinorFull(amount: number, currency: string): string {
-  return `${amount.toLocaleString()} minor units (${currency})`;
+  return formatMinorAmount(amount, currency);
 }
 
 function formatDateTime(value: string): string {
@@ -593,7 +590,7 @@ export default function AdminTopUpOperationsPage() {
                   <dl className="grid gap-4 sm:grid-cols-2">
                     <DetailField label="Amount">
                       <span className="font-semibold tabular-nums text-neutral-100">
-                        {formatMinorFull(selected.amount, selected.currency)}
+                        {formatMinor(selected.amount, selected.currency)}
                       </span>
                     </DetailField>
                     <DetailField label="Currency">

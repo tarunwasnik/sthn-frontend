@@ -2,14 +2,17 @@
 
 import MessageBubble from "./MessageBubble";
 import ChatImageGroup from "./ChatImageGroup";
+import type { ChatParticipantIdentity } from "./replyIdentity";
+import type { ChatMessage } from "./types";
 
 interface MessageListProps {
   loading: boolean;
   error: string | null;
-  messages: any[];
+  messages: ChatMessage[];
   userId: string | null;
   deliveredMessages: Set<string>;
   handleReactToMessage: (messageId: string, emoji: string) => void;
+  readOnly?: boolean;
   setSelectedMessageId: (id: string | null) => void;
   setActionsOpen: (open: boolean) => void;
 
@@ -23,9 +26,19 @@ interface MessageListProps {
 
   setImageViewerOpen: (open: boolean) => void;
 
-  setSelectedImages: (images: any[]) => void;
+  setSelectedImages: (images: ChatMessage[]) => void;
 
   setSelectedImageIndex: (index: number) => void;
+  getParticipantIdentity: (
+    senderId: string,
+    senderRole: "USER" | "CREATOR",
+  ) => ChatParticipantIdentity;
+  highlightedMessageId: string | null;
+  onNavigateToMessage: (messageId: string) => void;
+  registerMessageElement: (
+    messageId: string,
+    element: HTMLDivElement | null,
+  ) => void;
 }
 
 export default function MessageList({
@@ -35,6 +48,7 @@ export default function MessageList({
   userId,
   deliveredMessages,
   handleReactToMessage,
+  readOnly = false,
   setSelectedMessageId,
   setActionsOpen,
 
@@ -45,6 +59,10 @@ export default function MessageList({
   setImageViewerOpen,
   setSelectedImages,
   setSelectedImageIndex,
+  getParticipantIdentity,
+  highlightedMessageId,
+  onNavigateToMessage,
+  registerMessageElement,
 }: MessageListProps) {
   /* ======================================================
    BUILD RENDER ITEMS
@@ -53,13 +71,13 @@ export default function MessageList({
   const renderItems: Array<
     | {
         type: "message";
-        message: any;
+        message: ChatMessage;
         index: number;
       }
     | {
         type: "image-group";
         groupId: string;
-        messages: any[];
+        messages: ChatMessage[];
         startIndex: number;
       }
   > = [];
@@ -140,6 +158,7 @@ export default function MessageList({
                 userId={userId}
                 deliveredMessages={deliveredMessages}
                 handleReactToMessage={handleReactToMessage}
+                readOnly={readOnly}
                 setSelectedMessageId={setSelectedMessageId}
                 setActionsOpen={setActionsOpen}
                 setMapPickerOpen={setMapPickerOpen}
@@ -147,10 +166,14 @@ export default function MessageList({
                 setImageViewerOpen={setImageViewerOpen}
                 setSelectedImages={setSelectedImages}
                 setSelectedImageIndex={setSelectedImageIndex}
+                getParticipantIdentity={getParticipantIdentity}
+                isHighlighted={highlightedMessageId === msg._id}
+                onNavigateToMessage={onNavigateToMessage}
+                registerMessageElement={registerMessageElement}
                 onContextMenu={(e) => {
-                  const canDelete = msg.senderId === userId && !msg.isDeleted;
+                  const canReply = !readOnly && !msg.isDeleted;
 
-                  if (!canDelete) {
+                  if (!canReply) {
                     return;
                   }
 
@@ -175,6 +198,8 @@ export default function MessageList({
 
                 setImageViewerOpen(true);
               }}
+              highlightedMessageId={highlightedMessageId}
+              registerMessageElement={registerMessageElement}
             />
           );
         })}

@@ -4,20 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
-import api from "../api/axios";
-
 import DashboardLayout from "../layouts/DashboardLayout";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
-
-import { getConversations } from "../api/chat";
-
-import type { Conversation } from "../api/chat";
-
+import ChatWindow from "../components/chat/ChatWindow";
+import { useMessaging } from "../hooks/useMessaging";
 import { socket } from "../lib/socket";
 
-import ChatWindow from "../components/chat/ChatWindow";
-
 export default function MessagesPage() {
+  const { conversations, loading, markConversationSeen } = useMessaging();
   const navigate = useNavigate();
 
   const location = useLocation();
@@ -26,42 +20,15 @@ export default function MessagesPage() {
 
   const isCreator = location.pathname.includes("/creator");
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
   const [searchQuery, setSearchQuery] = useState("");
-
-  const [loading, setLoading] = useState(true);
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null,
   );
 
   const [chatOpen, setChatOpen] = useState(false);
-
-  /* ======================================================
-     FETCH
-  ====================================================== */
-
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-
-      const data = await getConversations();
-
-      setConversations(data);
-    } catch (err) {
-      console.error("Failed to load conversations", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchConversations();
-  }, []);
-
   /* ======================================================
    AUTO OPEN CHAT FROM BOOKING
 ====================================================== */
@@ -94,122 +61,9 @@ export default function MessagesPage() {
       setSelectedBookingId(bookingId);
 
       setChatOpen(true);
-      if (exists) {
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.bookingId === bookingId
-              ? {
-                  ...c,
-                  unreadCount: 0,
-                }
-              : c,
-          ),
-        );
-
-        api.post(`/v1/chat/${bookingId}/seen`);
-
-        socket.emit("chat:seen", {
-          bookingId,
-        });
-      }
+      if (exists) void markConversationSeen(bookingId);
     }
   }, [loading, searchParams]);
-
-  /* ======================================================
-   JOIN CONVERSATION ROOMS
-====================================================== */
-
-  useEffect(() => {
-    if (conversations.length === 0) {
-      return;
-    }
-
-    conversations.forEach((c) => {
-      console.log("MESSAGES PAGE JOIN", c.bookingId);
-
-      socket.emit("join-booking", c.bookingId);
-    });
-  }, [conversations.length]);
-
-  /* ======================================================
-   REALTIME
-====================================================== */
-
-  useEffect(() => {
-    const handleMessage = (msg: any) => {
-      console.log("MESSAGES PAGE RECEIVED", msg);
-
-      setConversations((prev) => {
-        const index = prev.findIndex((c) => c.bookingId === msg.bookingId);
-
-        if (index === -1) {
-          console.log("CONVERSATION NOT FOUND -> REFETCH");
-
-          fetchConversations();
-          return prev;
-        }
-
-        const updated = [...prev];
-
-        const isActiveConversation =
-          chatOpen && selectedBookingId === msg.bookingId;
-
-        updated[index] = {
-          ...updated[index],
-
-          lastMessage: msg.message,
-
-          lastMessageAt: msg.createdAt,
-
-          unreadCount: isActiveConversation
-            ? 0
-            : updated[index].unreadCount + 1,
-        };
-
-        if (index !== 0) {
-          const [moved] = updated.splice(index, 1);
-
-          updated.unshift(moved);
-        }
-
-        return updated;
-      });
-    };
-
-    /*const handleSeen = (
-    data: {
-      bookingId: string;
-    }
-  ) => {
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.bookingId ===
-        data.bookingId
-          ? {
-              ...c,
-              unreadCount: 0,
-            }
-          : c
-      )
-    );
-  };*/
-
-    socket.on("chat:message", handleMessage);
-
-    //socket.on(
-    //  "chat:seen",
-    // handleSeen
-    //);
-
-    return () => {
-      socket.off("chat:message", handleMessage);
-
-      //socket.off(
-      // "chat:seen",
-      // handleSeen
-      //);
-    };
-  }, [chatOpen, selectedBookingId]);
 
   /* ======================================================
    PRESENCE
@@ -245,14 +99,15 @@ export default function MessagesPage() {
 
     socket.on("presence:update", handlePresenceUpdate);
 
-    console.log("REQUESTING PRESENCE");
-
-    socket.emit("presence:get");
+    const requestPresence = () => socket.emit("presence:get");
+    socket.on("connect", requestPresence);
+    if (socket.connected) requestPresence();
 
     return () => {
       socket.off("presence:init", handlePresenceInit);
 
       socket.off("presence:update", handlePresenceUpdate);
+      socket.off("connect", requestPresence);
     };
   }, []);
 
@@ -275,30 +130,8 @@ export default function MessagesPage() {
 
     setChatOpen(true);
 
-    /* ==========================================
-     CLEAR UNREAD IMMEDIATELY
-  ========================================== */
+    void markConversationSeen(bookingId);
 
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.bookingId === bookingId
-          ? {
-              ...c,
-              unreadCount: 0,
-            }
-          : c,
-      ),
-    );
-
-    /* ==========================================
-     MARK AS SEEN
-  ========================================== */
-
-    api.post(`/v1/chat/${bookingId}/seen`);
-
-    socket.emit("chat:seen", {
-      bookingId,
-    });
   };
 
   const closeChat = () => {

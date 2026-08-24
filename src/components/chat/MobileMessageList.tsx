@@ -2,13 +2,15 @@
 
 import MessageBubble from "./MessageBubble";
 import ChatImageGroup from "./ChatImageGroup";
+import type { ChatMessage } from "./types";
+import type { ChatParticipantIdentity } from "./replyIdentity";
 
 interface MobileMessageListProps {
   loading: boolean;
 
   error: string | null;
 
-  messages: any[];
+  messages: ChatMessage[];
 
   userId: string | null;
 
@@ -20,7 +22,9 @@ interface MobileMessageListProps {
 
   setActionsOpen: (open: boolean) => void;
 
-  startLongPress: (messageId: string, canDelete: boolean) => void;
+  readOnly?: boolean;
+
+  startLongPress: (messageId: string, canReply: boolean) => void;
 
   endLongPress: () => void;
 
@@ -40,9 +44,20 @@ interface MobileMessageListProps {
 
   setImageViewerOpen: (open: boolean) => void;
 
-  setSelectedImages: (images: any[]) => void;
+  setSelectedImages: (images: ChatMessage[]) => void;
 
   setSelectedImageIndex: (index: number) => void;
+
+  getParticipantIdentity: (
+    senderId: string,
+    senderRole: "USER" | "CREATOR",
+  ) => ChatParticipantIdentity;
+  highlightedMessageId: string | null;
+  onNavigateToMessage: (messageId: string) => void;
+  registerMessageElement: (
+    messageId: string,
+    element: HTMLDivElement | null,
+  ) => void;
 }
 
 export default function MobileMessageList({
@@ -54,6 +69,7 @@ export default function MobileMessageList({
   handleReactToMessage,
   setSelectedMessageId,
   setActionsOpen,
+  readOnly = false,
 
   startLongPress,
   endLongPress,
@@ -65,6 +81,10 @@ export default function MobileMessageList({
   setImageViewerOpen,
   setSelectedImages,
   setSelectedImageIndex,
+  getParticipantIdentity,
+  highlightedMessageId,
+  onNavigateToMessage,
+  registerMessageElement,
 }: MobileMessageListProps) {
   /* ======================================================
    BUILD RENDER ITEMS
@@ -73,13 +93,13 @@ export default function MobileMessageList({
   const renderItems: Array<
     | {
         type: "message";
-        message: any;
+        message: ChatMessage;
         index: number;
       }
     | {
         type: "image-group";
         groupId: string;
-        messages: any[];
+        messages: ChatMessage[];
         startIndex: number;
       }
   > = [];
@@ -160,6 +180,7 @@ export default function MobileMessageList({
                 userId={userId}
                 deliveredMessages={deliveredMessages}
                 handleReactToMessage={handleReactToMessage}
+                readOnly={readOnly}
                 setSelectedMessageId={setSelectedMessageId}
                 setActionsOpen={setActionsOpen}
                 setMapPickerOpen={setMapPickerOpen}
@@ -167,10 +188,14 @@ export default function MobileMessageList({
                 setImageViewerOpen={setImageViewerOpen}
                 setSelectedImages={setSelectedImages}
                 setSelectedImageIndex={setSelectedImageIndex}
+                getParticipantIdentity={getParticipantIdentity}
+                isHighlighted={highlightedMessageId === msg._id}
+                onNavigateToMessage={onNavigateToMessage}
+                registerMessageElement={registerMessageElement}
                 onTouchStart={() =>
                   startLongPress(
                     msg._id,
-                    msg.senderId === userId && !msg.isDeleted,
+                    !readOnly && !msg.isDeleted,
                   )
                 }
                 onTouchEnd={endLongPress}
@@ -190,6 +215,8 @@ export default function MobileMessageList({
 
                 setImageViewerOpen(true);
               }}
+              highlightedMessageId={highlightedMessageId}
+              registerMessageElement={registerMessageElement}
             />
           );
         })}

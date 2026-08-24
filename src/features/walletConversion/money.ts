@@ -42,11 +42,10 @@ export function formatMinorAmount(
   currency: string,
   metadata?: CurrencyMetadataDto,
 ): string {
-  const minorUnits = metadata?.minorUnits ?? 2;
-  const value = amount / 10 ** minorUnits;
-  const display = value.toLocaleString(undefined, {
-    minimumFractionDigits: minorUnits,
-    maximumFractionDigits: minorUnits,
-  });
-  return metadata?.symbol ? `${metadata.symbol}${display}` : `${display} ${currency}`;
+  const fallbackFractionDigits = new Intl.NumberFormat(undefined, { style: "currency", currency }).resolvedOptions().maximumFractionDigits;
+  const minorUnits = metadata?.minorUnits ?? fallbackFractionDigits;
+  const value = Math.abs(amount) / 10 ** minorUnits;
+  const display = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: minorUnits });
+  if (metadata?.symbol) return `${amount < 0 ? "-" : ""}${metadata.symbol}${display}`;
+  return new Intl.NumberFormat(undefined, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: minorUnits }).format(amount / 10 ** minorUnits);
 }

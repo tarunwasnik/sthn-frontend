@@ -10,8 +10,28 @@ export const socket: Socket = io(
   {
     withCredentials: true,
     transports: ["websocket"],
+    autoConnect: false,
+    reconnectionAttempts: 3,
   }
 );
+
+export const connectAuthenticatedSocket = (token: string): void => {
+  if (socket.connected && socket.auth?.token === token) {
+    return;
+  }
+
+  if (socket.connected) {
+    socket.disconnect();
+  }
+
+  socket.auth = { token };
+  socket.connect();
+};
+
+export const disconnectAuthenticatedSocket = (): void => {
+  socket.auth = {};
+  socket.disconnect();
+};
 
 socket.on("connect", () => {
   console.log(

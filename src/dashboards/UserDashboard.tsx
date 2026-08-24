@@ -35,17 +35,17 @@ export default function UserDashboard() {
         const userData = userRes.data;
 
         /* ================= PROFILE ================= */
-        const profileRes = await api.get(`/v1/users/${userData.id}`);
+        const profileRes = await api.get("/v1/profile/me");
 
         console.log("PROFILE DATA:", profileRes.data);
 
         setUser(userData);
 
         setProfile({
-          profileStatus: profileRes.data.profile?.profileStatus,
+          profileStatus: profileRes.data.profileStatus,
 
-          username: profileRes.data.profile?.username,
-          rejectionReason: profileRes.data.profile?.rejectionReason,
+          username: profileRes.data.username,
+          rejectionReason: profileRes.data.rejectionReason,
         });
 
       } catch (err) {

@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import { getUserBookingsAPI } from "../api/userBooking";
 import api from "../api/axios";
+import axios from "axios";
 
 import CompleteButton from "../components/CompleteButton";
 import ReviewModal from "../components/ReviewModal";
@@ -220,15 +221,16 @@ export default function UserBookingDetail() {
     try {
       setCancelling(true);
 
-      await api.post("/v1/bookings/user/cancel", {
-        bookingId: booking._id,
-      });
+      await api.post(`/v1/bookings/${booking._id}/cancel`);
 
       await fetchBooking();
 
       setShowModal(false);
-    } catch {
-      alert("Failed to cancel booking");
+    } catch (error) {
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.message
+        : null;
+      alert(typeof message === "string" ? message : "Failed to cancel booking");
     } finally {
       setCancelling(false);
     }

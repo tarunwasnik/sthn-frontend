@@ -12,6 +12,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import api from "../api/axios";
+import { useMessaging } from "../hooks/useMessaging";
 
 type Props = {
   children: ReactNode;
@@ -24,6 +25,7 @@ type Profile = {
 
 export default function UserDashboardLayout({ children }: Props) {
   const navigate = useNavigate();
+  const { totalUnread } = useMessaging();
 
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -32,13 +34,9 @@ export default function UserDashboardLayout({ children }: Props) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const authRes = await api.get("/auth/me");
+        const profileRes = await api.get("/v1/profile/me");
 
-        const userId = authRes.data.id;
-
-        const profileRes = await api.get(`/v1/users/${userId}`);
-
-        setProfile(profileRes.data.profile);
+        setProfile(profileRes.data);
       } catch (err) {
         console.error("Failed to load profile", err);
       }
@@ -144,6 +142,7 @@ export default function UserDashboardLayout({ children }: Props) {
               to="/dashboard/user/messages"
               icon={<MessageCircle size={18} />}
               label="Messages"
+              unreadCount={totalUnread}
             />
 
             <SidebarItem
@@ -374,6 +373,7 @@ export default function UserDashboardLayout({ children }: Props) {
                     to="/dashboard/user/messages"
                     icon={<MessageCircle size={18} />}
                     label="Messages"
+                    unreadCount={totalUnread}
                     close={() => setShowMore(false)}
                   />
 
@@ -424,9 +424,10 @@ interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   end?: boolean;
+  unreadCount?: number;
 }
 
-function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
+function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -460,6 +461,11 @@ function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
     >
       {icon}
       <span className="text-sm">{label}</span>
+      {unreadCount > 0 && (
+        <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </NavLink>
   );
 }
@@ -490,10 +496,11 @@ interface SheetItemProps {
   to: string;
   icon: React.ReactNode;
   label: string;
+  unreadCount?: number;
   close: () => void;
 }
 
-function SheetItem({ to, icon, label, close }: SheetItemProps) {
+function SheetItem({ to, icon, label, unreadCount = 0, close }: SheetItemProps) {
   const navigate = useNavigate();
 
   return (
@@ -518,7 +525,14 @@ function SheetItem({ to, icon, label, close }: SheetItemProps) {
         transition
       "
     >
-      <div className="text-[rgba(255,255,255,0.70)]">{icon}</div>
+      <div className="relative text-[rgba(255,255,255,0.70)]">
+        {icon}
+        {unreadCount > 0 && (
+          <span className="absolute -right-3 -top-2 rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-semibold leading-none text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </div>
 
       <span className="text-[#F8FAFC]">{label}</span>
     </button>

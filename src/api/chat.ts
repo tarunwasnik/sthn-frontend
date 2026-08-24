@@ -7,6 +7,7 @@ import api from "./axios";
 
 export interface Conversation {
   bookingId: string;
+  actorRole: "USER" | "CREATOR";
   service?: { 
     _id: string; 
     title: string; 

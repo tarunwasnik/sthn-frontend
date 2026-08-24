@@ -18,6 +18,7 @@ import {
   UserRoute,
 } from "./components/RouteGuards";
 import ProfileVerificationQueue from "./pages/admin/ProfileVerificationQueue";
+import AdminReviewQueue from "./pages/admin/AdminReviewQueue";
 import EntryLoader from "./pages/EntryLoader";
 import Onboarding from "./pages/Onboarding";
 
@@ -36,6 +37,7 @@ import AdminSettlementOperationsPage from "./features/adminSettlement/AdminSettl
 import AdminPaymentOperationsPage from "./features/adminPayment/AdminPaymentOperationsPage";
 import AdminFxOperationsPage from "./features/adminFx/AdminFxOperationsPage";
 import AdminDisputeOperationsPage from "./features/adminDispute/AdminDisputeOperationsPage";
+import ParticipantDisputeDetailPage from "./pages/ParticipantDisputeDetailPage";
 
 /* Dashboards */
 import UserDashboard from "./dashboards/UserDashboard";
@@ -148,6 +150,14 @@ export default function App() {
           }
         />
         <Route
+          path="/admin/operations/profile-verification/admin-review"
+          element={
+            <AdminRoute>
+              <AdminReviewQueue />
+            </AdminRoute>
+          }
+        />
+        <Route
           path="/admin/operations/wallet-top-ups"
           element={
             <AdminRoute>
@@ -192,6 +202,7 @@ export default function App() {
         <Route path="/dashboard/user/settings" element={<UserRoute><Navigate to="/dashboard/user/settings/creator" replace /></UserRoute>} />
         <Route path="/dashboard/user/settings/creator" element={<UserRoute><AccountSettingsPage actor="user" section="creator" /></UserRoute>} />
         <Route path="/dashboard/user/settings/disputes" element={<UserRoute><AccountSettingsPage actor="user" section="disputes" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/disputes/:disputeId" element={<UserRoute><ParticipantDisputeDetailPage actor="user" /></UserRoute>} />
         <Route path="/dashboard/user/disputes" element={<UserRoute><Navigate to="/dashboard/user/settings/disputes" replace /></UserRoute>} />
 
         <Route path="/dashboard/user/messages" element={<UserRoute><MessagesPage /></UserRoute>} />
@@ -238,6 +249,7 @@ export default function App() {
         <Route path="/dashboard/creator/settings" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/creator" replace /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings/creator" element={<CreatorRoute><AccountSettingsPage actor="creator" section="creator" /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings/disputes" element={<CreatorRoute><AccountSettingsPage actor="creator" section="disputes" /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings/disputes/:disputeId" element={<CreatorRoute><ParticipantDisputeDetailPage actor="creator" /></CreatorRoute>} />
         <Route path="/dashboard/creator/disputes" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/disputes" replace /></CreatorRoute>} />
 
         {/* CHAT */}

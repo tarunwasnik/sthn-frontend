@@ -1,6 +1,8 @@
 // frontend/src/components/chat/ChatComposer.tsx
 
 import { useRef, type KeyboardEvent } from "react";
+import ReplyReference from "./ReplyReference";
+import type { ChatParticipantIdentity } from "./replyIdentity";
 
 interface ChatComposerProps {
   input: string;
@@ -12,12 +14,15 @@ interface ChatComposerProps {
   handleSend: () => void;
 
   replyingTo?: {
+    _id: string;
+    senderId: string;
     senderRole: "USER" | "CREATOR";
 
     type?: "text" | "location" | "document" | "image" | "voice" | "video";
 
     message: string;
   } | null;
+  replyIdentity?: ChatParticipantIdentity | null;
   onCancelReply?: () => void;
 
   sending: boolean;
@@ -46,6 +51,7 @@ export default function ChatComposer({
   onImageSelect,
 
   replyingTo,
+  replyIdentity,
   onCancelReply,
 }: ChatComposerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -82,22 +88,14 @@ export default function ChatComposer({
       py-2
     "
         >
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-blue-400">
-              Replying to{" "}
-              {replyingTo.senderRole === "USER" ? "User" : "Creator"}
-            </p>
-
-            <p className="mt-1 truncate text-sm text-white/70">
-              {replyingTo.type === "image"
-                ? "🖼️ Image"
-                : replyingTo.type === "document"
-                  ? "📄 Document"
-                  : replyingTo.type === "location"
-                    ? "📍 Location"
-                    : replyingTo.message}
-            </p>
-          </div>
+          {replyIdentity && (
+            <div className="min-w-0 flex-1">
+              <ReplyReference
+                identity={replyIdentity}
+                reply={{ ...replyingTo, messageId: replyingTo._id }}
+              />
+            </div>
+          )}
 
           <button
             type="button"

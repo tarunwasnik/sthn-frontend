@@ -6,6 +6,7 @@ interface ChatHeaderProps {
   serviceTitle: string;
   slotText: string;
   chatClosed: boolean;
+  terminalStatus?: "CANCELLED" | "COMPLETED" | null;
   onClose?: () => void;
   getInitials: (name: string) => string;
 }
@@ -16,6 +17,7 @@ export default function ChatHeader({
   serviceTitle,
   slotText,
   chatClosed,
+  terminalStatus,
   onClose,
   getInitials,
 }: ChatHeaderProps) {
@@ -128,7 +130,7 @@ export default function ChatHeader({
               "
             >
               {chatClosed
-                ? "Chat closed"
+                ? `${terminalStatus === "CANCELLED" ? "Cancelled" : "Completed"} · Read only`
                 : slotText || "Booking active"}
             </p>
 

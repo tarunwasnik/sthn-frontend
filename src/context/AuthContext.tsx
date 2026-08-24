@@ -1,6 +1,9 @@
 // frontend/src/context/AuthContext.tsx
 
-import { socket } from "../lib/socket";
+import {
+  connectAuthenticatedSocket,
+  disconnectAuthenticatedSocket,
+} from "../lib/socket";
 
 import { useEffect, useState, useCallback } from "react";
 
@@ -92,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    disconnectAuthenticatedSocket();
     clearAccessToken();
     clearAuthState();
   };
@@ -113,10 +117,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [clearAuthState]);
 
   useEffect(() => {
-    if (!userId) {
+    const token = getAccessToken();
+    if (!userId || !token) {
+      disconnectAuthenticatedSocket();
       return;
     }
-    socket.emit("user-online", userId);
+
+    connectAuthenticatedSocket(token);
+
+    return () => {
+      disconnectAuthenticatedSocket();
+    };
   }, [userId]);
 
   return (

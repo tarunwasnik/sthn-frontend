@@ -1,11 +1,12 @@
 // frontend/src/pages/Onboarding.tsx
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import api from "../api/axios";
 import { UPLOAD_PRESET } from "../config/cloudinary";
 import { useAuth } from "../hooks/useAuth";
+import FaceVerificationOverlay from "../components/faceVerification/FaceVerificationOverlay";
 
 
 
@@ -32,7 +33,13 @@ const Onboarding = () => {
   const { bootstrap } = useAuth();
 
   const [username, setUsername] = useState("");
+  const [realName, setRealName] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
+  const [mobileCountryCode, setMobileCountryCode] = useState("+91");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
+  const [languages, setLanguages] = useState("");
   const [bio, setBio] = useState("");
   const [interests, setInterests] = useState("");
 
@@ -50,6 +57,10 @@ const Onboarding = () => {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
+  const [verifiedAvatar, setVerifiedAvatar] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const faceCaptureComplete = Boolean(avatarUrl && verifiedAvatar === avatarUrl);
 
   /* AVATAR UPLOAD */
   const handleAvatarChange = async (file: File) => {
@@ -59,6 +70,7 @@ const Onboarding = () => {
     try {
       const url = await uploadToCloudinary(file);
       setAvatarUrl(url);
+      setVerifiedAvatar(null);
     } catch {
       setError("Avatar upload failed");
     } finally {
@@ -132,6 +144,11 @@ const Onboarding = () => {
       return;
     }
 
+    if (!faceCaptureComplete) {
+      setError("Complete live face verification for the current avatar before submitting.");
+      return;
+    }
+
     if (!coverUrl) {
       setError("Cover is required");
       return;
@@ -148,7 +165,16 @@ const Onboarding = () => {
     try {
       await api.post("/v1/profile/me", {
         username,
+        realName,
         dateOfBirth,
+        mobileCountryCode,
+        mobileNumber,
+        country,
+        city,
+        languages: languages
+          .split(",")
+          .map((language) => language.trim())
+          .filter(Boolean),
         bio,
         interests: interests
           .split(",")
@@ -178,6 +204,16 @@ const Onboarding = () => {
     }
   };
 
+  const beginFaceVerification = () => {
+    if (!formRef.current?.reportValidity()) return;
+    if (!avatarUrl || !coverUrl || uploadedUrls.length < 2 || uploadedUrls.length > 6) {
+      setError("Add your avatar, cover, and 2–6 gallery photos before face verification.");
+      return;
+    }
+    setError("");
+    setFaceVerificationOpen(true);
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
 
@@ -202,7 +238,7 @@ const Onboarding = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
 
           {/* Username */}
           <input
@@ -213,6 +249,11 @@ const Onboarding = () => {
             className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
           />
 
+          <div>
+            <input required value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="Real name" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+            <p className="mt-1 text-xs text-gray-400">Private — used for account purposes and not shown publicly.</p>
+          </div>
+
           {/* DOB */}
           <input
             type="date"
@@ -221,6 +262,24 @@ const Onboarding = () => {
             onChange={(e) => setDateOfBirth(e.target.value)}
             className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
           />
+          <p className="-mt-3 text-xs text-gray-400">Private — only your age is shown on your public profile.</p>
+
+          <div className="grid grid-cols-3 gap-3">
+            <input required value={mobileCountryCode} onChange={(e) => setMobileCountryCode(e.target.value)} placeholder="+91" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+            <input required value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Mobile number" className="col-span-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+          </div>
+          <p className="-mt-3 text-xs text-gray-400">Private — used for important account, booking, wallet, and security notifications. It is not shown publicly.</p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <input required value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Country" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+            <input required value={city} onChange={(e) => setCity(e.target.value)} placeholder="City" className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+          </div>
+          <p className="-mt-3 text-xs text-gray-400">Public — shown on your profile.</p>
+
+          <div>
+            <input required value={languages} onChange={(e) => setLanguages(e.target.value)} placeholder="Languages, separated by commas" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white" />
+            <p className="mt-1 text-xs text-gray-400">Public — helps Creators understand communication compatibility.</p>
+          </div>
 
           {/* Bio */}
           <textarea
@@ -264,6 +323,7 @@ const Onboarding = () => {
       onClick={() => {
         setAvatarPreview(null);
         setAvatarUrl(null);
+        setVerifiedAvatar(null);
       }}
       className="absolute top-0 right-0 bg-black/60 text-white text-xs px-1 rounded"
     >
@@ -347,14 +407,26 @@ const Onboarding = () => {
           </div>
 
           <button
+            type={faceCaptureComplete ? "submit" : "button"}
+            onClick={faceCaptureComplete ? undefined : beginFaceVerification}
             disabled={loading || uploading}
             className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl disabled:opacity-50"
           >
-            {loading ? "Submitting..." : "Submit Profile"}
+            {loading ? "Submitting..." : faceCaptureComplete ? "Submit Profile" : "Face Verification"}
           </button>
 
         </form>
       </div>
+      {faceVerificationOpen && avatarUrl && (
+        <FaceVerificationOverlay
+          avatar={avatarUrl}
+          onComplete={(completedAvatar) => {
+            setVerifiedAvatar(completedAvatar);
+            setFaceVerificationOpen(false);
+          }}
+          onClose={() => setFaceVerificationOpen(false)}
+        />
+      )}
     </div>
   );
 };

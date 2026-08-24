@@ -6,19 +6,23 @@ import "leaflet/dist/leaflet.css";
 import type { MouseEvent } from "react";
 import api from "../../api/axios";
 import ChatImage from "./ChatImage";
+import ReplyReference from "./ReplyReference";
+import type { ChatParticipantIdentity } from "./replyIdentity";
+import { hasReplyReference, type ChatMessage } from "./types";
 
 interface MessageBubbleProps {
-  msg: any;
+  msg: ChatMessage;
 
   index: number;
 
-  messages: any[];
+  messages: ChatMessage[];
 
   userId: string | null;
 
   deliveredMessages: Set<string>;
 
   handleReactToMessage: (messageId: string, emoji: string) => void;
+  readOnly?: boolean;
 
   setSelectedMessageId: (id: string | null) => void;
 
@@ -41,9 +45,20 @@ interface MessageBubbleProps {
 
   setImageViewerOpen: (open: boolean) => void;
 
-  setSelectedImages: (images: any[]) => void;
+  setSelectedImages: (images: ChatMessage[]) => void;
 
   setSelectedImageIndex: (index: number) => void;
+
+  getParticipantIdentity: (
+    senderId: string,
+    senderRole: "USER" | "CREATOR",
+  ) => ChatParticipantIdentity;
+  isHighlighted?: boolean;
+  onNavigateToMessage?: (messageId: string) => void;
+  registerMessageElement?: (
+    messageId: string,
+    element: HTMLDivElement | null,
+  ) => void;
 }
 
 export default function MessageBubble({
@@ -53,10 +68,15 @@ export default function MessageBubble({
   userId,
   deliveredMessages,
   handleReactToMessage,
+  readOnly = false,
 
   setImageViewerOpen,
   setSelectedImages,
   setSelectedImageIndex,
+  getParticipantIdentity,
+  isHighlighted = false,
+  onNavigateToMessage,
+  registerMessageElement,
   setMapPickerOpen,
   setSelectedMapLocation,
   onContextMenu,
@@ -188,36 +208,6 @@ export default function MessageBubble({
         return "📄";
     }
   };
-  const getReplyPreview = () => {
-    if (!msg.replyTo) {
-      return null;
-    }
-
-    if (msg.replyTo.isDeleted) {
-      return "This message was deleted";
-    }
-
-    switch (msg.replyTo.type) {
-      case "image":
-        return "🖼️ Image";
-
-      case "document":
-        return "📄 Document";
-
-      case "location":
-        return "📍 Location";
-
-      case "voice":
-        return "🎤 Voice message";
-
-      case "video":
-        return "🎥 Video";
-
-      default:
-        return msg.replyTo.message || "Message";
-    }
-  };
-
   const downloadDocument = async () => {
     try {
       const response = await api.get(`/v1/chat/document/${msg._id}/download`, {
@@ -271,6 +261,8 @@ export default function MessageBubble({
   return (
     <>
       <div
+        ref={(element) => registerMessageElement?.(msg._id, element)}
+        data-message-id={msg._id}
         onContextMenu={onContextMenu}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -294,6 +286,7 @@ export default function MessageBubble({
                           px-3.5
                           py-2
                           border
+                          ${isHighlighted ? "ring-1 ring-blue-400/80 bg-blue-400/[0.08]" : ""}
                           ${
                             isMine
                               ? `
@@ -311,33 +304,15 @@ export default function MessageBubble({
                           }
                         `}
         >
-          {msg.replyTo && (
-            <div
-              className="
-      mb-2
-      rounded-lg
-      
-      
-      bg-white/5
-      px-3
-      py-2
-    "
-            >
-              <p className="text-[11px] font-medium text-blue-400">
-                {msg.replyTo.senderRole === "USER" ? "User" : "Creator"}
-              </p>
-
-              <p
-                className="
-        mt-0.5
-        truncate
-        text-[12px]
-        text-white/65
-      "
-              >
-                {getReplyPreview()}
-              </p>
-            </div>
+          {hasReplyReference(msg.replyTo) && (
+            <ReplyReference
+              identity={getParticipantIdentity(
+                msg.replyTo.senderId,
+                msg.replyTo.senderRole,
+              )}
+              reply={msg.replyTo}
+              onNavigate={onNavigateToMessage}
+            />
           )}
 
           {msg.isDeleted ? (
@@ -561,7 +536,7 @@ export default function MessageBubble({
             )}
           </div>
 
-          {!msg.isDeleted &&
+          {!readOnly && !msg.isDeleted &&
             !["location", "document", "image"].includes(msg.type) && (
               <button
                 onClick={() => handleReactToMessage(msg._id, "👍")}

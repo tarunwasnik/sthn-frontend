@@ -9,20 +9,28 @@ import { UPLOAD_PRESET } from "../../config/cloudinary";
 
 interface UserProfile {
   username: string;
+  realName?: string | null;
   bio: string;
   interests: string[];
   profilePhotos: string[];
   avatar: string;
   cover: string;
   dateOfBirth: string;
+  country?: string | null;
+  city?: string | null;
+  languages?: string[];
   profileStatus: string;
   age?: number;
 }
 
 interface FormState {
+  realName: string;
   bio: string;
   interests: string;
   dateOfBirth: string;
+  country: string;
+  city: string;
+  languages: string;
   previewImages: string[];
 }
 
@@ -54,9 +62,13 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const [formData, setFormData] = useState<FormState>({
+    realName: "",
     bio: "",
     interests: "",
     dateOfBirth: "",
+    country: "",
+    city: "",
+    languages: "",
     previewImages: [],
   });
 
@@ -81,6 +93,7 @@ export default function UserProfilePage() {
       setProfile(data);
 
       setFormData({
+        realName: data?.realName || "",
         bio: data?.bio || "",
         interests: Array.isArray(data?.interests)
           ? data.interests.join(", ")
@@ -89,6 +102,9 @@ export default function UserProfilePage() {
           typeof data?.dateOfBirth === "string"
             ? data.dateOfBirth.split("T")[0]
             : "",
+        country: data?.country || "",
+        city: data?.city || "",
+        languages: Array.isArray(data?.languages) ? data.languages.join(", ") : "",
         previewImages: data?.profilePhotos || [],
       });
 
@@ -127,6 +143,7 @@ export default function UserProfilePage() {
 
     try {
       await api.patch("/v1/profile/me", {
+        realName: formData.realName,
         bio: formData.bio,
         interests: formData.interests
           .split(",")
@@ -136,6 +153,9 @@ export default function UserProfilePage() {
         avatar,
         cover,
         dateOfBirth: formData.dateOfBirth,
+        country: formData.country,
+        city: formData.city,
+        languages: formData.languages.split(",").map((language) => language.trim()).filter(Boolean),
       });
 
       alert("Profile updated");
@@ -194,6 +214,7 @@ export default function UserProfilePage() {
 
   const avatarImage = avatar !== null ? avatar : formData.previewImages?.[0];
   const coverImage = cover !== null ? cover : formData.previewImages?.[1];
+  const isPendingVerification = profile.profileStatus === "pending_verification";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617] text-white">
@@ -206,12 +227,14 @@ export default function UserProfilePage() {
             ← Back
           </button>
 
-          <button
-            onClick={() => setEditing(!editing)}
-            className="px-4 py-2 bg-teal-500 hover:bg-teal-600 rounded-lg"
-          >
-            {editing ? "Cancel" : "Edit Profile"}
-          </button>
+          {!isPendingVerification && (
+            <button
+              onClick={() => setEditing(!editing)}
+              className="px-4 py-2 bg-teal-500 hover:bg-teal-600 rounded-lg"
+            >
+              {editing ? "Cancel" : "Edit Profile"}
+            </button>
+          )}
         </div>
 
         {/* HERO */}
@@ -242,6 +265,12 @@ export default function UserProfilePage() {
         </div>
 
         <div className="space-y-8 pt-12">
+
+          {isPendingVerification && (
+            <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-200">
+              Your submitted profile is awaiting verification and cannot be edited until a decision is made.
+            </div>
+          )}
 
           {/* ABOUT */}
           <div className="bg-[#071c1c] rounded-xl p-6">
@@ -407,6 +436,29 @@ export default function UserProfilePage() {
           {/* PERSONAL INFO */}
           <div className="bg-[#071c1c] rounded-xl p-6">
             <h3 className="text-lg font-semibold mb-4">Personal Info</h3>
+
+            <div className="mb-5 grid gap-4 md:grid-cols-2">
+              <div>
+                <span className="text-sm text-gray-400">Real name</span>
+                {editing ? <input value={formData.realName} onChange={(e) => setFormData({ ...formData, realName: e.target.value })} className="mt-1 w-full bg-[#020617] p-2 rounded" /> : <p>{formData.realName || "-"}</p>}
+                <p className="mt-1 text-xs text-gray-500">Private</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-400">Country</span>
+                {editing ? <input value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} className="mt-1 w-full bg-[#020617] p-2 rounded" /> : <p>{formData.country || "-"}</p>}
+                <p className="mt-1 text-xs text-gray-500">Public</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-400">City</span>
+                {editing ? <input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="mt-1 w-full bg-[#020617] p-2 rounded" /> : <p>{formData.city || "-"}</p>}
+                <p className="mt-1 text-xs text-gray-500">Public</p>
+              </div>
+              <div className="md:col-span-2">
+                <span className="text-sm text-gray-400">Languages</span>
+                {editing ? <input value={formData.languages} onChange={(e) => setFormData({ ...formData, languages: e.target.value })} placeholder="English, Hindi" className="mt-1 w-full bg-[#020617] p-2 rounded" /> : <p>{formData.languages || "-"}</p>}
+                <p className="mt-1 text-xs text-gray-500">Public</p>
+              </div>
+            </div>
 
             <div className="flex justify-between">
               <span className="text-gray-400">DOB</span>

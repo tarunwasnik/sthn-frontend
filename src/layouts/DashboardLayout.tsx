@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api/axios";
+import { useMessaging } from "../hooks/useMessaging";
 
 interface Props {
   children: ReactNode;
@@ -22,6 +23,7 @@ interface Props {
 
 export default function DashboardLayout({ children }: Props) {
   const navigate = useNavigate();
+  const { totalUnread } = useMessaging();
 
   const [avatar, setAvatar] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
@@ -113,6 +115,7 @@ export default function DashboardLayout({ children }: Props) {
               to="/dashboard/creator/messages"
               icon={<MessageCircle size={18} />}
               label="Messages"
+              unreadCount={totalUnread}
             />
 
             <SidebarItem
@@ -263,6 +266,7 @@ export default function DashboardLayout({ children }: Props) {
             to="/dashboard/creator/messages"
             icon={<MessageCircle size={20} />}
             label="Messages"
+            unreadCount={totalUnread}
           />
 
           <button
@@ -400,9 +404,10 @@ interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   end?: boolean;
+  unreadCount?: number;
 }
 
-function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
+function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -437,11 +442,16 @@ function SidebarItem({ to, icon, label, end = false }: NavItemProps) {
       {icon}
 
       <span className="text-sm">{label}</span>
+      {unreadCount > 0 && (
+        <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </NavLink>
   );
 }
 
-function BottomNavItem({ to, icon, label, end = false }: NavItemProps) {
+function BottomNavItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemProps) {
   return (
     <NavLink
       to={to}
@@ -456,7 +466,14 @@ function BottomNavItem({ to, icon, label, end = false }: NavItemProps) {
         `
       }
     >
-      <div className="mb-0.5">{icon}</div>
+      <div className="relative mb-0.5">
+        {icon}
+        {unreadCount > 0 && (
+          <span className="absolute -right-3 -top-2 rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-semibold leading-none text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </div>
 
       <span>{label}</span>
     </NavLink>

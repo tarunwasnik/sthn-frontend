@@ -1,6 +1,7 @@
 //frontend/src/components/chat/ChatWindow.tsx
 
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 
 import MessageList from "./MessageList";
 import ChatComposer from "./ChatComposer";
@@ -19,6 +20,9 @@ import MapPickerModal from "./MapPickerModal";
 import MessageActions from "./MessageActions";
 import LocationPickerModal from "./LocationPickerModal";
 import ImagePreviewModal from "./ImagePreviewModal";
+import { useChatParticipantIdentity } from "./replyIdentity";
+import { normalizeReplyReference } from "./types";
+import { useReplyNavigation } from "./useReplyNavigation";
 
 import "leaflet/dist/leaflet.css";
 
@@ -117,6 +121,40 @@ interface ChatWindowProps {
   onClose?: () => void;
 }
 
+interface ChatBookingSummary {
+  _id: string;
+  status: string;
+  slots?: Array<{
+    startTime: string;
+    endTime: string;
+  }>;
+}
+
+const errorMessage = (error: unknown, fallback: string) =>
+  axios.isAxiosError<{ message?: string }>(error)
+    ? error.response?.data?.message || fallback
+    : fallback;
+
+const isChatBookingSummary = (value: unknown): value is ChatBookingSummary => {
+  if (typeof value !== "object" || value === null) return false;
+
+  const booking = value as { _id?: unknown; status?: unknown; slots?: unknown };
+
+  return (
+    typeof booking._id === "string" &&
+    typeof booking.status === "string" &&
+    (booking.slots === undefined || Array.isArray(booking.slots))
+  );
+};
+
+const findBooking = (bookings: unknown, bookingId: string) =>
+  Array.isArray(bookings)
+    ? bookings.find(
+        (booking): booking is ChatBookingSummary =>
+          isChatBookingSummary(booking) && booking._id === bookingId,
+      ) || null
+    : null;
+
 interface ChatImageGroupEvent {
   bookingId: string;
   messages: ChatMessage[];
@@ -127,7 +165,7 @@ export default function ChatWindow({
   embedded = false,
   onClose,
 }: ChatWindowProps) {
-  const { role, userId } = useAuth();
+  const { userId, role } = useAuth();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -146,6 +184,7 @@ export default function ChatWindow({
 
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [conversation, setConversation] = useState<Conversation | null>(null);
+  const getParticipantIdentity = useChatParticipantIdentity(userId, conversation);
 
   const [loading, setLoading] = useState(true);
 
@@ -168,12 +207,19 @@ export default function ChatWindow({
   );
 
   const [chatClosed, setChatClosed] = useState(false);
+  const [terminalStatus, setTerminalStatus] = useState<"CANCELLED" | "COMPLETED" | null>(null);
+  const terminalReadOnly = terminalStatus !== null;
 
   const [slotText, setSlotText] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    highlightedMessageId,
+    navigateToMessage,
+    registerMessageElement,
+  } = useReplyNavigation(messagesContainerRef);
 
   const shouldAutoScrollRef = useRef(true);
 
@@ -186,6 +232,12 @@ export default function ChatWindow({
   const [selectedImageFiles, setSelectedImageFiles] = useState<File[]>([]);
 
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  const currentBookingSenderRole = () =>
+    conversation?.actorRole ??
+    messages.find((message) => String(message.senderId) === String(userId))
+      ?.senderRole ??
+    "USER";
 
   /* ======================================================
      FETCH CHAT
@@ -201,15 +253,20 @@ export default function ChatWindow({
 
       console.log("CHAT HISTORY", res.data.chats);
 
-      setMessages(res.data.chats || []);
+      setMessages(
+        (res.data.chats || []).map((chat: ChatMessage) =>
+          normalizeReplyReference(chat),
+        ),
+      );
 
-      await api.post(`/v1/chat/${bookingId}/seen`);
+      // History is authoritative and remains readable after a booking reaches
+      // a terminal state. Marking messages seen is a separate mutation which
+      // the backend intentionally rejects for terminal conversations, so it
+      // must not replace already-loaded history with an error state.
+      await api.post(`/v1/chat/${bookingId}/seen`).catch(() => undefined);
 
-      socket.emit("chat:seen", {
-        bookingId,
-      });
-    } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load chat");
+    } catch (error: unknown) {
+      setError(errorMessage(error, "Failed to load chat"));
     } finally {
       setLoading(false);
     }
@@ -227,7 +284,7 @@ export default function ChatWindow({
         conversations.find((c) => c.bookingId === bookingId) || null;
 
       setConversation(matched);
-    } catch (err) {
+    } catch {
       console.error("Failed to fetch conversation");
     }
   };
@@ -238,21 +295,30 @@ export default function ChatWindow({
 
   const fetchBookingDetails = async () => {
     try {
-      let booking = null;
+      const bookingResponses = await Promise.allSettled([
+        api.get("/v1/bookings/user"),
+        api.get("/v1/creator/bookings"),
+      ]);
 
-      if (role === "creator") {
-        const creatorRes = await api.get("/v1/creator/bookings");
-
-        booking = creatorRes.data.bookings.find(
-          (b: any) => b._id === bookingId,
-        );
-      } else {
-        const userRes = await api.get("/v1/bookings/user");
-
-        booking = userRes.data.bookings.find((b: any) => b._id === bookingId);
-      }
+      const booking = bookingResponses.reduce<ChatBookingSummary | null>(
+        (matchedBooking, response) =>
+          matchedBooking ||
+          (response.status === "fulfilled"
+            ? findBooking(response.value.data.bookings, bookingId)
+            : null),
+        null,
+      );
 
       if (!booking) return;
+
+      if (booking.status === "CANCELLED" || booking.status === "COMPLETED") {
+        setTerminalStatus(booking.status);
+        setChatClosed(true);
+        return;
+      }
+
+      setTerminalStatus(null);
+      setChatClosed(false);
 
       const slots = booking.slots || [];
 
@@ -278,7 +344,7 @@ export default function ChatWindow({
           setChatClosed(true);
         }
       }
-    } catch (err) {
+    } catch {
       console.error("Failed to fetch booking details");
     }
   };
@@ -308,52 +374,42 @@ export default function ChatWindow({
   useEffect(() => {
     if (!bookingId) return;
 
-    console.log("CHAT WINDOW JOIN", bookingId);
-
-    socket.emit("join-booking", bookingId);
+    const joinBooking = () => socket.emit("join-booking", bookingId);
+    socket.on("connect", joinBooking);
+    if (socket.connected) joinBooking();
 
     const handleMessage = (msg: ChatMessage) => {
+      const incoming = normalizeReplyReference(msg);
+
+      if (incoming.bookingId !== bookingId) {
+        return;
+      }
+
       const addMessage = () => {
         setMessages((prev) => {
-          const exists = prev.find((m) => m._id === msg._id);
+          const exists = prev.find((m) => m._id === incoming._id);
 
           if (exists) {
             return prev;
           }
 
-          const isMine = msg.senderId === userId;
+          const isMine = incoming.senderId === userId;
 
           if (isMine) {
             return prev;
           }
 
-          return [...prev, msg];
+          return [...prev, incoming];
         });
       };
 
-      if (msg.type === "image" && msg.attachment?.url) {
-        const image = new Image();
-
-        image.src = msg.attachment.url;
-
-        image.onload = () => {
-          addMessage();
-        };
-
-        image.onerror = () => {
-          // Don't lose the message if preloading fails.
-          addMessage();
-        };
-      } else {
-        addMessage();
-      }
+      addMessage();
 
       api.post(`/v1/chat/${bookingId}/seen`);
 
       socket.emit("chat:delivered", {
         bookingId,
-        messageId: msg._id,
-        userId,
+        messageId: incoming._id,
       });
     };
 
@@ -366,26 +422,9 @@ export default function ChatWindow({
         return;
       }
 
-      const incoming = data.messages.filter((msg) => msg.senderId !== userId);
-
-      await Promise.all(
-        incoming.map((msg) => {
-          const imageUrl = msg.attachment?.url;
-
-          if (msg.type === "image" && imageUrl) {
-            return new Promise<void>((resolve) => {
-              const image = new Image();
-
-              image.src = imageUrl;
-
-              image.onload = () => resolve();
-              image.onerror = () => resolve();
-            });
-          }
-
-          return Promise.resolve();
-        }),
-      );
+      const incoming = data.messages
+        .map((message) => normalizeReplyReference(message))
+        .filter((message) => message.senderId !== userId);
 
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m._id));
@@ -405,7 +444,6 @@ export default function ChatWindow({
         socket.emit("chat:delivered", {
           bookingId,
           messageId: msg._id,
-          userId,
         });
       });
     };
@@ -418,6 +456,10 @@ export default function ChatWindow({
   ====================================================== */
 
     const handleSeen = (data: { bookingId: string; seenBy: string }) => {
+      if (data.bookingId !== bookingId) {
+        return;
+      }
+
       console.log("CHAT SEEN EVENT", data);
 
       setMessages((prev) =>
@@ -579,7 +621,8 @@ export default function ChatWindow({
     socket.on("chat:stop-typing", handleStopTyping);
 
     return () => {
-      console.log("CHAT WINDOW UNMOUNT", bookingId);
+      socket.emit("leave-booking", bookingId);
+      socket.off("connect", joinBooking);
 
       socket.off("chat:message", handleMessage);
 
@@ -659,7 +702,6 @@ export default function ChatWindow({
     if (hasEmittedTypingRef.current) {
       socket.emit("chat:stop-typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = false;
@@ -682,7 +724,7 @@ export default function ChatWindow({
 
       senderId: userId ?? "temp",
 
-      senderRole: role === "creator" ? "CREATOR" : "USER",
+      senderRole: currentBookingSenderRole(),
 
       message: messageText,
       replyTo: replyingTo
@@ -716,13 +758,15 @@ export default function ChatWindow({
       const saved = res.data.chat;
 
       setMessages((prev) =>
-        prev.map((msg) => (msg._id === tempMessage._id ? saved : msg)),
+        prev.map((msg) =>
+          msg._id === tempMessage._id ? normalizeReplyReference(saved) : msg,
+        ),
       );
       setReplyingTo(null);
-    } catch (err: any) {
+    } catch (error: unknown) {
       setMessages((prev) => prev.filter((m) => m._id !== tempMessage._id));
 
-      const msg = err?.response?.data?.message || "Failed to send message";
+      const msg = errorMessage(error, "Failed to send message");
 
       if (
         msg.toLowerCase().includes("chat is closed") ||
@@ -758,7 +802,7 @@ export default function ChatWindow({
         location,
         replyTo: replyingTo?._id,
       });
-      setMessages((prev) => [...prev, data.chat]);
+      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
 
       setReplyingTo(null);
 
@@ -802,7 +846,7 @@ export default function ChatWindow({
         },
       );
 
-      setMessages((prev) => [...prev, data.chat]);
+      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
       setReplyingTo(null);
 
       requestAnimationFrame(() => {
@@ -810,8 +854,8 @@ export default function ChatWindow({
           behavior: "smooth",
         });
       });
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to upload document");
+    } catch (error: unknown) {
+      alert(errorMessage(error, "Failed to upload document"));
     } finally {
       setSending(false);
     }
@@ -843,7 +887,7 @@ export default function ChatWindow({
 
           senderId: userId,
 
-          senderRole: role === "creator" ? "CREATOR" : "USER",
+          senderRole: currentBookingSenderRole(),
 
           type: "image",
 
@@ -987,7 +1031,7 @@ export default function ChatWindow({
 
             message: chat.message,
 
-            replyTo: chat.replyTo,
+            replyTo: normalizeReplyReference(chat).replyTo,
 
             groupId: chat.groupId,
 
@@ -1046,8 +1090,8 @@ export default function ChatWindow({
       setActionsOpen(false);
 
       setSelectedMessageId(null);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete message");
+    } catch (error: unknown) {
+      alert(errorMessage(error, "Failed to delete message"));
     }
   };
 
@@ -1060,8 +1104,8 @@ export default function ChatWindow({
       await api.post(`/v1/chat/message/${messageId}/react`, {
         emoji,
       });
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to react");
+    } catch (error: unknown) {
+      alert(errorMessage(error, "Failed to react"));
     }
   };
 
@@ -1111,7 +1155,6 @@ export default function ChatWindow({
     if (!hasEmittedTypingRef.current) {
       socket.emit("chat:typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = true;
@@ -1124,7 +1167,6 @@ export default function ChatWindow({
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("chat:stop-typing", {
         bookingId,
-        userId,
       });
 
       hasEmittedTypingRef.current = false;
@@ -1173,6 +1215,7 @@ export default function ChatWindow({
         serviceTitle={serviceTitle}
         slotText={slotText}
         chatClosed={chatClosed}
+        terminalStatus={terminalStatus}
         onClose={onClose}
         getInitials={getInitials}
       />
@@ -1218,6 +1261,7 @@ export default function ChatWindow({
             userId={userId}
             deliveredMessages={deliveredMessages}
             handleReactToMessage={handleReactToMessage}
+            readOnly={chatClosed}
             setSelectedMessageId={setSelectedMessageId}
             setActionsOpen={setActionsOpen}
             isTyping={isTyping}
@@ -1227,29 +1271,47 @@ export default function ChatWindow({
             setImageViewerOpen={setImageViewerOpen}
             setSelectedImages={setSelectedImages}
             setSelectedImageIndex={setSelectedImageIndex}
+            getParticipantIdentity={getParticipantIdentity}
+            highlightedMessageId={highlightedMessageId}
+            onNavigateToMessage={navigateToMessage}
+            registerMessageElement={registerMessageElement}
           />
         </div>
       </div>
 
       {/* INPUT */}
 
-      <ChatComposer
-        input={input}
-        handleInputChange={handleInputChange}
-        handleKeyDown={handleKeyDown}
-        handleSend={handleSend}
-        sending={sending}
-        chatClosed={chatClosed}
-        replyingTo={replyingTo}
-        onCancelReply={() => setReplyingTo(null)}
-        showLocationButton={true}
-        onLocationClick={() => setShowLocationPicker(true)}
-        onDocumentSelect={handleSendDocument}
-        onImageSelect={(files) => {
-          setSelectedImageFiles(files);
-          setImagePreviewOpen(true);
-        }}
-      />
+      {terminalReadOnly ? (
+        <div className="mt-2 shrink-0 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+          <p className="text-sm font-medium text-white/85">Read-only conversation</p>
+          <p className="mt-1 text-xs text-white/55">
+            This booking has ended. Messages are preserved for reference.
+          </p>
+        </div>
+      ) : (
+        <ChatComposer
+          input={input}
+          handleInputChange={handleInputChange}
+          handleKeyDown={handleKeyDown}
+          handleSend={handleSend}
+          sending={sending}
+          chatClosed={chatClosed}
+          replyingTo={replyingTo}
+          replyIdentity={
+            replyingTo
+              ? getParticipantIdentity(replyingTo.senderId, replyingTo.senderRole)
+              : null
+          }
+          onCancelReply={() => setReplyingTo(null)}
+          showLocationButton={true}
+          onLocationClick={() => setShowLocationPicker(true)}
+          onDocumentSelect={handleSendDocument}
+          onImageSelect={(files) => {
+            setSelectedImageFiles(files);
+            setImagePreviewOpen(true);
+          }}
+        />
+      )}
 
       {/* SCROLLBAR */}
 
@@ -1281,9 +1343,12 @@ export default function ChatWindow({
     }
   `}
       </style>
-      <MessageActions
+      {!chatClosed && <MessageActions
         isOpen={actionsOpen}
-        canDelete={!!selectedMessageId}
+        canDelete={
+          messages.find((message) => message._id === selectedMessageId)?.senderId ===
+          userId
+        }
         onReply={() => {
           if (!selectedMessageId) {
             return;
@@ -1306,7 +1371,7 @@ export default function ChatWindow({
           setActionsOpen(false);
           setSelectedMessageId(null);
         }}
-      />
+      />}
 
       <LocationPickerModal
         open={showLocationPicker}
