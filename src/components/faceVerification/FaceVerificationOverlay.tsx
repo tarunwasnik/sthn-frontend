@@ -140,7 +140,9 @@ export default function FaceVerificationOverlay({ avatar, onComplete, onClose }:
     if (!navigator.mediaDevices?.getUserMedia) { setState("ERROR"); setError("This browser does not support camera access."); return; }
     setState("REQUESTING_CAMERA"); setError(""); resetBaseline(); resetChallengeState(null); problemSinceRef.current = null; lastFaceSeenAtRef.current = null; lastInferenceAtRef.current = 0;
     try {
-      const started = await startFaceVerificationSession(avatar); setAuthoritativeSession(started); const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      const started = await startFaceVerificationSession(avatar); setAuthoritativeSession(started);
+      if (started.captureComplete || started.status === "CAPTURE_COMPLETE") { setState("SUCCESS"); window.setTimeout(() => { onComplete(avatar); onClose(); }, 1_200); return; }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       streamRef.current = stream; if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       try { const files = await FilesetResolver.forVisionTasks(wasmUrl); landmarkRef.current = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: modelUrl }, runningMode: "VIDEO", numFaces: 2, outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true }); }
       catch { stopCamera(); setState("ERROR"); setError("Face guidance could not initialize. Please start a fresh verification."); return; }
