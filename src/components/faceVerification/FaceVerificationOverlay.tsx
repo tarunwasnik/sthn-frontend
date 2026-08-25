@@ -23,25 +23,31 @@ export default function FaceVerificationOverlay({ avatar, onComplete, onClose }:
   const [redFeedback, setRedFeedback] = useState(false); const videoRef = useRef<HTMLVideoElement>(null); const streamRef = useRef<MediaStream | null>(null);
   const landmarkRef = useRef<FaceLandmarker | null>(null); const timerRef = useRef<number | null>(null); const animationRef = useRef<number | null>(null); const uploadingRef = useRef(false); const stableSinceRef = useRef<number | null>(null);
   const problemSinceRef = useRef<number | null>(null);
+  const latestSessionRef = useRef<FaceVerificationSessionDto | null>(null);
+  const setAuthoritativeSession = useCallback((next: FaceVerificationSessionDto) => { latestSessionRef.current = next; setSession(next); }, []);
   const stopCamera = useCallback(() => { if (animationRef.current) cancelAnimationFrame(animationRef.current); if (timerRef.current) window.clearTimeout(timerRef.current); streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; }, []);
   const cancelAndClose = useCallback(async () => { stopCamera(); if (session && !session.captureComplete) { try { await cancelFaceVerificationSession(session.sessionReference); } catch { /* local cleanup must still complete */ } } onClose(); }, [onClose, session, stopCamera]);
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const capture = useCallback(async (index: number) => {
-    if (!session || uploadingRef.current || !videoRef.current) return;
+  const capture = useCallback(async () => {
+    const activeSession = latestSessionRef.current;
+    if (!activeSession || uploadingRef.current || !videoRef.current) return;
+    const index = activeSession.acceptedCaptureCount;
+    if (index < 0 || index >= activeSession.requiredCaptureCount) return;
     uploadingRef.current = true; setState("UPLOADING");
     const canvas = document.createElement("canvas"); const source = videoRef.current; const scale = Math.min(1, 960 / Math.max(source.videoWidth, source.videoHeight));
     canvas.width = Math.max(1, Math.round(source.videoWidth * scale)); canvas.height = Math.max(1, Math.round(source.videoHeight * scale)); canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
     if (!blob) { uploadingRef.current = false; setState("CAPTURING"); setError("Could not capture a camera frame. Please try again."); return; }
     try {
-      const result = await uploadFaceVerificationCapture(session.sessionReference, index, blob); setSession(result.session); uploadingRef.current = false;
+      const result = await uploadFaceVerificationCapture(activeSession.sessionReference, index, blob); setAuthoritativeSession(result.session); uploadingRef.current = false;
       if (result.session.captureComplete || result.session.status === "CAPTURE_COMPLETE") { setState("SUCCESS"); stopCamera(); window.setTimeout(() => { onComplete(avatar); onClose(); }, 1200); return; }
       stableSinceRef.current = null; setState("CAPTURING");
     } catch (captureError) { uploadingRef.current = false; setState("CAPTURING"); setError(messageForError(captureError)); setRedFeedback(true); window.setTimeout(() => setRedFeedback(false), 450); }
-  }, [avatar, onClose, onComplete, session, stopCamera]);
+  }, [avatar, onClose, onComplete, setAuthoritativeSession, stopCamera]);
 
-  const runGuidance = useCallback((current: FaceVerificationSessionDto) => {
+  const runGuidance = useCallback(() => {
+    if (animationRef.current) cancelAnimationFrame(animationRef.current);
     const inspect = (now: number) => {
       const video = videoRef.current; if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || uploadingRef.current) { animationRef.current = requestAnimationFrame(inspect); return; }
       let suitable = true; let nextGuidance = "Hold still and follow the instruction.";
@@ -51,8 +57,8 @@ export default function FaceVerificationOverlay({ avatar, onComplete, onClose }:
         else if (landmark.faceLandmarks.length > 1) { suitable = false; nextGuidance = "Make sure only you are visible."; }
       }
       setGuidance(nextGuidance); setRedFeedback(!suitable);
-      if (suitable) { problemSinceRef.current = null; stableSinceRef.current ??= now; if (now - stableSinceRef.current >= 1200) void capture(current.acceptedCaptureCount); }
-      else { stableSinceRef.current = null; problemSinceRef.current ??= now; if (now - problemSinceRef.current >= 2 * 60 * 1000) { stopCamera(); void cancelFaceVerificationSession(current.sessionReference); setState("ERROR"); setError("Camera guidance could not be corrected in time. Start a fresh verification when ready."); return; } }
+      if (suitable) { problemSinceRef.current = null; stableSinceRef.current ??= now; if (now - stableSinceRef.current >= 1200) void capture(); }
+      else { stableSinceRef.current = null; problemSinceRef.current ??= now; const activeSession = latestSessionRef.current; if (now - problemSinceRef.current >= 2 * 60 * 1000 && activeSession) { stopCamera(); void cancelFaceVerificationSession(activeSession.sessionReference); setState("ERROR"); setError("Camera guidance could not be corrected in time. Start a fresh verification when ready."); return; } }
       animationRef.current = requestAnimationFrame(inspect);
     };
     animationRef.current = requestAnimationFrame(inspect);
@@ -62,14 +68,14 @@ export default function FaceVerificationOverlay({ avatar, onComplete, onClose }:
     if (!navigator.mediaDevices?.getUserMedia) { setState("ERROR"); setError("This browser does not support camera access."); return; }
     setState("REQUESTING_CAMERA"); setError("");
     try {
-      const started = await startFaceVerificationSession(avatar); setSession(started);
+      const started = await startFaceVerificationSession(avatar); setAuthoritativeSession(started);
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       streamRef.current = stream; if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }
       try { const files = await FilesetResolver.forVisionTasks(wasmUrl); landmarkRef.current = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: modelUrl }, runningMode: "VIDEO", numFaces: 2, outputFaceBlendshapes: true }); } catch { setGuidance("Keep your face centered, well lit, and steady."); }
       setState("COUNTDOWN");
     } catch (cameraError) { stopCamera(); setState("ERROR"); setError(messageForError(cameraError)); }
   };
-  useEffect(() => { if (state !== "COUNTDOWN") return; if (countdown === 0) { if (session) { setState("CAPTURING"); runGuidance(session); } return; } const id = window.setTimeout(() => setCountdown((value) => value - 1), 1000); return () => window.clearTimeout(id); }, [countdown, runGuidance, session, state]);
+  useEffect(() => { if (state !== "COUNTDOWN") return; if (countdown === 0) { if (latestSessionRef.current) { setState("CAPTURING"); runGuidance(); } return; } const id = window.setTimeout(() => setCountdown((value) => value - 1), 1000); return () => window.clearTimeout(id); }, [countdown, runGuidance, state]);
   useEffect(() => { if (state !== "CAPTURING" || !session) return; const remaining = new Date(session.expiresAt).getTime() - Date.now(); if (remaining <= 0) { stopCamera(); setState("ERROR"); setError("Your verification session expired. Start a new one to continue."); return; } const id = window.setTimeout(() => { stopCamera(); setState("ERROR"); setError("Your verification session expired. Start a new one to continue."); }, remaining); return () => window.clearTimeout(id); }, [session, state, stopCamera]);
 
   const index = session?.acceptedCaptureCount ?? 0; const challenge = session?.challenges[index];
