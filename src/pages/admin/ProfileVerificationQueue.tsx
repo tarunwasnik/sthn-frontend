@@ -63,6 +63,7 @@ interface Profile {
     adminReviewRequiredAt: string | null;
     adminReviewReasonCode: string | null;
     adminReviewReason: string | null;
+    lifecycleStage: "SUBMITTED" | "PROCESSING" | "AI_COMPLETED_AWAITING_ADMIN" | "MANUAL_REVIEW";
   };
 }
 
@@ -355,6 +356,8 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
                   <AdminTableHeaderCell>Request Status</AdminTableHeaderCell>
 
+                  <AdminTableHeaderCell>Automation</AdminTableHeaderCell>
+
                   {isAdminReviewQueue && <AdminTableHeaderCell>Escalation</AdminTableHeaderCell>}
 
                   <AdminTableHeaderCell align="right">
@@ -425,6 +428,10 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
                     <AdminTableCell>
                       <AdminStatusBadge status={profile.verificationRequest.status} />
+                    </AdminTableCell>
+
+                    <AdminTableCell>
+                      <AdminStatusBadge status={profile.verificationRequest.lifecycleStage} />
                     </AdminTableCell>
 
                     {isAdminReviewQueue && (

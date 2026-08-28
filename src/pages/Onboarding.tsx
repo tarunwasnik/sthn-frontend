@@ -1,6 +1,6 @@
 // frontend/src/pages/Onboarding.tsx
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import api from "../api/axios";
@@ -59,8 +59,56 @@ const Onboarding = () => {
   const [error, setError] = useState("");
   const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
   const [verifiedAvatar, setVerifiedAvatar] = useState<string | null>(null);
+  const [isRejectedResubmission, setIsRejectedResubmission] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
   const faceCaptureComplete = Boolean(avatarUrl && verifiedAvatar === avatarUrl);
+
+  useEffect(() => {
+    let active = true;
+    const loadExistingProfile = async () => {
+      try {
+        const { data } = await api.get<{
+          username: string; realName?: string | null; dateOfBirth?: string; mobileCountryCode?: string | null;
+          mobileNumber?: string | null; country?: string | null; city?: string | null; languages?: string[];
+          bio?: string; interests?: string[]; avatar?: string; cover?: string; profilePhotos?: string[];
+          profileStatus?: string; rejectionReason?: string | null;
+        }>("/v1/profile/me");
+        if (!active) return;
+        if (data.profileStatus === "pending_verification") {
+          navigate("/profile", { replace: true });
+          return;
+        }
+        if (data.profileStatus === "verified") {
+          navigate("/dashboard/user", { replace: true });
+          return;
+        }
+        if (data.profileStatus !== "rejected" && data.profileStatus !== "incomplete") return;
+        if (data.profileStatus === "rejected") {
+          setIsRejectedResubmission(true);
+          setRejectionReason(data.rejectionReason ?? null);
+        }
+        setUsername(data.username ?? "");
+        setRealName(data.realName ?? "");
+        setDateOfBirth(data.dateOfBirth?.split("T")[0] ?? "");
+        setMobileCountryCode(data.mobileCountryCode ?? "+91");
+        setMobileNumber(data.mobileNumber ?? "");
+        setCountry(data.country ?? ""); setCity(data.city ?? "");
+        setLanguages((data.languages ?? []).join(", "));
+        setBio(data.bio ?? ""); setInterests((data.interests ?? []).join(", "));
+        setAvatarUrl(data.avatar ?? null); setAvatarPreview(data.avatar ?? null);
+        setCoverUrl(data.cover ?? null); setCoverPreview(data.cover ?? null);
+        setUploadedUrls(data.profilePhotos ?? []); setPreviews(data.profilePhotos ?? []);
+      } catch (caught) {
+        if (!axios.isAxiosError(caught) || caught.response?.status !== 404) setError("Unable to load your profile for onboarding.");
+      } finally {
+        if (active) setProfileLoading(false);
+      }
+    };
+    void loadExistingProfile();
+    return () => { active = false; };
+  }, [navigate]);
 
   /* AVATAR UPLOAD */
   const handleAvatarChange = async (file: File) => {
@@ -214,6 +262,8 @@ const Onboarding = () => {
     setFaceVerificationOpen(true);
   };
 
+  if (profileLoading) return <div className="min-h-screen grid place-items-center text-white">Loading profile…</div>;
+
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
 
@@ -225,12 +275,20 @@ const Onboarding = () => {
       <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8">
 
         <h2 className="text-2xl font-bold mb-2">
-          Complete Your Profile
+          {isRejectedResubmission ? "Resubmit Your Profile for Verification" : "Complete Your Profile"}
         </h2>
 
         <p className="text-gray-400 text-sm mb-6">
-          Submit your profile for verification
+          {isRejectedResubmission ? "Your profile details were retained. Complete a fresh live face verification before resubmitting." : "Submit your profile for verification"}
         </p>
+
+        {isRejectedResubmission && (
+          <div className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
+            <p className="font-medium">Your previous verification needs changes.</p>
+            {rejectionReason && <p className="mt-1">{rejectionReason}</p>}
+            <p className="mt-1 text-amber-100/80">Your profile data is retained, but a new live face verification is required for this resubmission.</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 rounded-md bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
@@ -246,6 +304,7 @@ const Onboarding = () => {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
+            disabled={isRejectedResubmission}
             className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
           />
 

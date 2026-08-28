@@ -20,6 +20,7 @@ interface UserProfile {
   city?: string | null;
   languages?: string[];
   profileStatus: string;
+  verification?: { stage: "NOT_SUBMITTED" | "SUBMITTED" | "PROCESSING" | "AI_COMPLETED_AWAITING_ADMIN" | "MANUAL_REVIEW" | "REJECTED" | "VERIFIED"; submittedAt: string | null };
   age?: number;
 }
 
@@ -215,6 +216,14 @@ export default function UserProfilePage() {
   const avatarImage = avatar !== null ? avatar : formData.previewImages?.[0];
   const coverImage = cover !== null ? cover : formData.previewImages?.[1];
   const isPendingVerification = profile.profileStatus === "pending_verification";
+  const isRejectedVerification = profile.profileStatus === "rejected";
+  const verificationMessage = profile.verification?.stage === "PROCESSING"
+    ? "Automated checks are in progress. Your profile cannot be edited until a decision is made."
+    : profile.verification?.stage === "AI_COMPLETED_AWAITING_ADMIN"
+      ? "Automated checks are complete and your verification is awaiting Admin review."
+      : profile.verification?.stage === "MANUAL_REVIEW"
+        ? "Your verification is under manual review. No action is required from you right now."
+        : "Your submitted profile is awaiting verification and cannot be edited until a decision is made.";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617] text-white">
@@ -227,7 +236,7 @@ export default function UserProfilePage() {
             ← Back
           </button>
 
-          {!isPendingVerification && (
+          {!isPendingVerification && !isRejectedVerification && (
             <button
               onClick={() => setEditing(!editing)}
               className="px-4 py-2 bg-teal-500 hover:bg-teal-600 rounded-lg"
@@ -268,7 +277,22 @@ export default function UserProfilePage() {
 
           {isPendingVerification && (
             <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-sm text-yellow-200">
-              Your submitted profile is awaiting verification and cannot be edited until a decision is made.
+              <p className="font-semibold">Verification in progress</p>
+              <p className="mt-1">{verificationMessage}</p>
+            </div>
+          )}
+
+          {isRejectedVerification && (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
+              <p className="font-semibold">Verification needs resubmission</p>
+              <p className="mt-1 text-amber-100/80">Your profile details are retained. Review them and complete a fresh live face verification before submitting a new review attempt.</p>
+              <button
+                type="button"
+                onClick={() => navigate("/onboarding")}
+                className="mt-3 rounded-lg bg-amber-300 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-200"
+              >
+                Fix and resubmit verification
+              </button>
             </div>
           )}
 
