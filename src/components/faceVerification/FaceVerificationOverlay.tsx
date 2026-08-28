@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult, type NormalizedLandmark } from "@mediapipe/tasks-vision";
 import axios from "axios";
-import { FaceVerificationChallenge, FaceVerificationSessionDto, cancelFaceVerificationSession, startFaceVerificationSession, uploadFaceVerificationCapture } from "../../api/faceVerification";
+import { cancelFaceVerificationSession, startFaceVerificationSession, uploadFaceVerificationCapture } from "../../api/faceVerification";
+import type { FaceVerificationChallenge, FaceVerificationSessionDto } from "../../api/faceVerification";
 
 type UiState = "INSTRUCTIONS" | "REQUESTING_CAMERA" | "COUNTDOWN" | "CAPTURING" | "UPLOADING" | "SUCCESS" | "ERROR";
 type BlinkPhase = "WAITING_FOR_OPEN" | "WAITING_FOR_CLOSE" | "WAITING_FOR_REOPEN" | "DETECTED";

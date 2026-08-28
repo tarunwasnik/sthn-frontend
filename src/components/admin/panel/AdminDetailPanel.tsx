@@ -34,7 +34,7 @@ export default function AdminDetailPanel({
 
       {/* Panel */}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-xl flex-col border-l border-slate-800 bg-slate-950 shadow-2xl transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-6xl flex-col border-l border-slate-800 bg-slate-950 shadow-2xl transition-transform duration-300 lg:w-[60vw] ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import { getAdminVerificationCapture, getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
+import type { AdminVerificationDetail } from "../../api/adminProfileVerification.api";
 
 import AdminLayout from "../../components/admin/layout/AdminLayout";
 import AdminPageHeader from "../../components/admin/layout/AdminPageHeader";
@@ -30,6 +32,7 @@ import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
 import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
 import AdminRejectDialog from "../../components/admin/feedback/AdminRejectDialog";
+import ProfileVerificationDetailContent from "../../components/admin/panel/ProfileVerificationDetailContent";
 
 interface Profile {
   _id: string;
@@ -89,6 +92,8 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [verificationDetail, setVerificationDetail] = useState<AdminVerificationDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
@@ -97,6 +102,15 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const [rejectionReason, setRejectionReason] = useState("");
 
   const [reasonError, setReasonError] = useState("");
+
+  const openVerificationDetail = async (profile: Profile) => {
+    setSelectedProfile(profile);
+    setVerificationDetail(null);
+    setDetailLoading(true);
+    try { setVerificationDetail(await getAdminVerificationDetail(profile.verificationRequest.verificationReference)); }
+    catch { setError("Unable to load this verification submission."); }
+    finally { setDetailLoading(false); }
+  };
 
   const fetchProfiles = async () => {
     try {
@@ -132,6 +146,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       if (selectedProfile?._id === confirmProfile._id) {
         setSelectedProfile(null);
+        setVerificationDetail(null);
       }
 
       setConfirmAction(null);
@@ -167,6 +182,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       if (selectedProfile?._id === confirmProfile._id) {
         setSelectedProfile(null);
+        setVerificationDetail(null);
       }
 
       setReasonError("");
@@ -228,6 +244,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
       withGallery,
     };
   }, [profiles]);
+  const detailActionable = verificationDetail !== null && ["PENDING", "PROCESSING", "ADMIN_REVIEW_REQUIRED"].includes(verificationDetail.verificationRequest.status) && !verificationDetail.verificationRequest.expiredAt;
 
   if (loading) {
     return (
@@ -351,7 +368,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
                   <AdminTableRow
                     key={profile._id}
                     selected={selectedProfile?._id === profile._id}
-                    onClick={() => setSelectedProfile(profile)}
+                    onClick={() => void openVerificationDetail(profile)}
                   >
                     <AdminTableCell>
                       <div className="flex items-center gap-3">
@@ -473,11 +490,11 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       <AdminDetailPanel
         open={selectedProfile !== null}
-        onClose={() => setSelectedProfile(null)}
+        onClose={() => { setSelectedProfile(null); setVerificationDetail(null); }}
         title={selectedProfile?.username ?? "User"}
         subtitle={selectedProfile?.userId.email}
         footer={
-          selectedProfile && (
+          selectedProfile && detailActionable && (
             <div className="flex justify-end gap-3">
               <AdminButton
                 variant="success"
@@ -512,7 +529,11 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
           )
         }
       >
-        {selectedProfile && (
+        {detailLoading ? (
+          <AdminLoadingState title="Loading verification detail..." description="Retrieving the authoritative current submission." />
+        ) : verificationDetail ? (
+          <ProfileVerificationDetailContent detail={verificationDetail} />
+        ) : selectedProfile && (
           <div className="space-y-6">
             {selectedProfile.cover && (
               <img
