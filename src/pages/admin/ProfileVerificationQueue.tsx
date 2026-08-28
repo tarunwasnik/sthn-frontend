@@ -95,6 +95,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [verificationDetail, setVerificationDetail] = useState<AdminVerificationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
@@ -107,9 +108,10 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const openVerificationDetail = async (profile: Profile) => {
     setSelectedProfile(profile);
     setVerificationDetail(null);
+    setDetailError(null);
     setDetailLoading(true);
     try { setVerificationDetail(await getAdminVerificationDetail(profile.verificationRequest.verificationReference)); }
-    catch { setError("Unable to load this verification submission."); }
+    catch { setDetailError("Unable to load this verification submission. Please retry."); }
     finally { setDetailLoading(false); }
   };
 
@@ -497,7 +499,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       <AdminDetailPanel
         open={selectedProfile !== null}
-        onClose={() => { setSelectedProfile(null); setVerificationDetail(null); }}
+        onClose={() => { setSelectedProfile(null); setVerificationDetail(null); setDetailError(null); }}
         title={selectedProfile?.username ?? "User"}
         subtitle={selectedProfile?.userId.email}
         footer={
@@ -540,6 +542,16 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
           <AdminLoadingState title="Loading verification detail..." description="Retrieving the authoritative current submission." />
         ) : verificationDetail ? (
           <ProfileVerificationDetailContent detail={verificationDetail} />
+        ) : detailError ? (
+          <div className="rounded-xl border border-red-900 bg-red-950/40 p-5">
+            <p className="font-medium text-red-200">{detailError}</p>
+            <AdminButton
+              className="mt-4"
+              onClick={() => selectedProfile && void openVerificationDetail(selectedProfile)}
+            >
+              Retry detail
+            </AdminButton>
+          </div>
         ) : selectedProfile && (
           <div className="space-y-6">
             {selectedProfile.cover && (
