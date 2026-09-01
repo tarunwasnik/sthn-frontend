@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import { getAdminVerificationCapture, getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
 import type { AdminVerificationDetail } from "../../api/adminProfileVerification.api";
+import type { AdminVerificationJobStatus, AdminVerificationRequestStatus } from "../../api/adminProfileVerification.api";
+import { automationLabel, requestStatusLabel } from "../../utils/adminProfileVerificationPresentation";
 
 import AdminLayout from "../../components/admin/layout/AdminLayout";
 import AdminPageHeader from "../../components/admin/layout/AdminPageHeader";
@@ -56,7 +58,7 @@ interface Profile {
   };
   verificationRequest: {
     verificationReference: string;
-    status: string;
+    status: AdminVerificationRequestStatus;
     attemptNumber: number;
     profileSubmissionVersion: number;
     submittedAt: string;
@@ -64,6 +66,7 @@ interface Profile {
     adminReviewReasonCode: string | null;
     adminReviewReason: string | null;
     lifecycleStage: "SUBMITTED" | "PROCESSING" | "AI_COMPLETED_AWAITING_ADMIN" | "MANUAL_REVIEW";
+    job: { status: AdminVerificationJobStatus; attemptCount: number; maxRetryCount: number } | null;
   };
 }
 
@@ -429,11 +432,11 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
                     </AdminTableCell>
 
                     <AdminTableCell>
-                      <AdminStatusBadge status={profile.verificationRequest.status} />
+                      <AdminStatusBadge status={requestStatusLabel(profile.verificationRequest.status)} />
                     </AdminTableCell>
 
                     <AdminTableCell>
-                      <AdminStatusBadge status={profile.verificationRequest.lifecycleStage} />
+                      <AdminStatusBadge status={automationLabel({ requestStatus: profile.verificationRequest.status, job: profile.verificationRequest.job })} />
                     </AdminTableCell>
 
                     {isAdminReviewQueue && (
@@ -579,7 +582,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
                 </p>
 
                 <div className="mt-3">
-                  <AdminStatusBadge status={selectedProfile.verificationRequest.status} />
+                  <AdminStatusBadge status={requestStatusLabel(selectedProfile.verificationRequest.status)} />
                 </div>
               </div>
             </div>

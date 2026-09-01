@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getAdminVerificationCapture } from "../../../api/adminProfileVerification.api";
 import type { AdminVerificationDetail } from "../../../api/adminProfileVerification.api";
+import { automationLabel, conclusionLabel, decisionLabel, faceMatchExplanation, requestStatusLabel } from "../../../utils/adminProfileVerificationPresentation";
 import AdminStatusBadge from "../table/AdminStatusBadge";
 import AdminImagePreview from "./AdminImagePreview";
 
@@ -17,7 +18,7 @@ const Field = ({
     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
       {label}
     </p>
-    <p className="mt-1 break-words text-sm text-slate-200">{value || "—"}</p>
+    <p className="mt-1 break-words text-sm text-slate-200">{value === null || value === undefined || value === "" ? "—" : value}</p>
   </div>
 );
 export default function ProfileVerificationDetailContent({
@@ -94,6 +95,10 @@ export default function ProfileVerificationDetailContent({
     verificationRequest: request,
     faceSession,
   } = detail;
+  const analysis = detail.shadowIdentityAnalysis;
+  const automation = automationLabel({ requestStatus: request.status, job: detail.job });
+  const decision = decisionLabel({ status: request.status, decisionAuthority: request.decisionAuthority });
+  const analysisExplanation = faceMatchExplanation({ ...analysis, reasonCode: analysis.reasonCode ?? request.adminReviewReasonCode, reason: analysis.reason ?? request.adminReviewReason });
   return (
     <div className="space-y-7">
       <section className="rounded-xl border border-slate-800 p-4">
@@ -101,7 +106,7 @@ export default function ProfileVerificationDetailContent({
           Subject / verification summary
         </h3>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <AdminStatusBadge status={request.status} />
+          <AdminStatusBadge status={requestStatusLabel(request.status)} />
           <AdminStatusBadge status={profile.profileStatus} />
           <span className="text-sm text-slate-400">
             Attempt #{request.attemptNumber} · V
@@ -188,6 +193,8 @@ export default function ProfileVerificationDetailContent({
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field label="Reference" value={request.verificationReference} />
+          <Field label="Request lifecycle" value={requestStatusLabel(request.status)} />
+          <Field label="Automation" value={automation} />
           <Field label="Submitted" value={date(request.submittedAt)} />
           <Field
             label="Processing started"
@@ -202,7 +209,8 @@ export default function ProfileVerificationDetailContent({
             value={request.adminReviewReasonCode}
           />
           <Field label="Escalation reason" value={request.adminReviewReason} />
-          <Field label="Decision" value={request.decision} />
+          <Field label="Decision" value={decision} />
+          <Field label="Decision authority" value={request.decisionAuthority} />
           <Field label="Decision reason" value={request.decisionReason} />
           <Field label="Decided" value={date(request.decidedAt)} />
           <Field label="Expired" value={date(request.expiredAt)} />
@@ -286,58 +294,47 @@ export default function ProfileVerificationDetailContent({
       </section>
       <section className="rounded-xl border border-cyan-900/60 bg-slate-950 p-4">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">
-          AI shadow analysis
+          AI Verification
         </h3>
-        <p className="mt-1 text-sm text-slate-400">
-          Advisory only — Admin decision remains authoritative.
-        </p>
-        {detail.shadowIdentityAnalysis.status === "NOT_CONFIGURED" ? (
+        {analysis.status === "NOT_CONFIGURED" ? (
           <p className="mt-3 text-sm text-slate-300">
-            Identity model not configured. No shadow identity result is
-            available for this attempt.
+            Automated verification has not produced a face-match result for this attempt.
           </p>
         ) : (
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Processing status"
-              value={detail.shadowIdentityAnalysis.status}
-            />
-            <Field
-              label="Conclusion"
-              value={detail.shadowIdentityAnalysis.conclusion}
-            />
-            {detail.shadowIdentityAnalysis.similarity !== null && (
+            <Field label="Status" value={analysis.status} />
+            <Field label="Conclusion" value={conclusionLabel(analysis.conclusion)} />
+            {analysis.usableCaptureCount !== null && <Field label="Usable captures" value={`${analysis.usableCaptureCount} / ${faceSession.requiredCaptureCount}`} />}
+            {analysis.similarity !== null && (
               <Field
                 label="Similarity score"
-                value={detail.shadowIdentityAnalysis.similarity}
+                value={analysis.similarity.toFixed(4)}
               />
             )}{" "}
-            {detail.shadowIdentityAnalysis.threshold !== null && (
+            {analysis.threshold !== null && (
               <Field
-                label="Configured threshold"
-                value={detail.shadowIdentityAnalysis.threshold}
+                label="Approval threshold"
+                value={analysis.threshold.toFixed(4)}
               />
             )}
+            <Field label="Threshold result" value={analysisExplanation} />
             <Field
               label="Model"
               value={
-                detail.shadowIdentityAnalysis.model
-                  ? `${detail.shadowIdentityAnalysis.model.identifier} / ${detail.shadowIdentityAnalysis.model.version}`
+                analysis.model
+                  ? analysis.model.identifier
                   : null
               }
             />
-            <Field
-              label="Processed"
-              value={date(detail.shadowIdentityAnalysis.processedAt)}
-            />
-            <Field
-              label="Reason code"
-              value={detail.shadowIdentityAnalysis.reasonCode}
-            />
-            <Field
-              label="Reason"
-              value={detail.shadowIdentityAnalysis.reason}
-            />
+            <Field label="Model version" value={analysis.model?.version ?? null} />
+            <Field label="Processed" value={date(analysis.processedAt)} />
+            <Field label="Reason" value={analysis.reasonCode ?? analysis.reason} />
+            <Field label="Decision" value={decision} />
+            {request.aiDecisionSnapshot && <>
+              <Field label="AI decision similarity" value={request.aiDecisionSnapshot.similarity.toFixed(4)} />
+              <Field label="AI decision threshold" value={request.aiDecisionSnapshot.threshold.toFixed(4)} />
+              <Field label="AI decision time" value={date(request.aiDecisionSnapshot.decidedAt)} />
+            </>}
           </div>
         )}
       </section>
