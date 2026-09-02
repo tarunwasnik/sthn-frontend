@@ -17,13 +17,17 @@ export const automationLabel = (input: { requestStatus: VerificationRequestStatu
 };
 
 export const faceMatchExplanation = (analysis: { conclusion: string | null; threshold: number | null; similarity: number | null; reasonCode: string | null; reason: string | null }) => {
+  if (Number.isFinite(analysis.similarity) && Number.isFinite(analysis.threshold)) {
+    return analysis.similarity! >= analysis.threshold!
+      ? "Similarity satisfied the automatic-approval threshold."
+      : "Similarity did not satisfy the automatic-approval threshold. Admin review required.";
+  }
   if (analysis.reasonCode === "THRESHOLD_NOT_CONFIGURED") return "Automatic approval threshold was not configured. Admin review required.";
   if (analysis.reasonCode === "REFERENCE_FACE_NOT_FOUND" || analysis.reasonCode === "MULTIPLE_REFERENCE_FACES") return "No usable reference face could be established from the selected avatar.";
   if (analysis.reasonCode === "MODEL_FAILURE") return "Automated face verification could not complete because the model pipeline failed.";
   if (analysis.reasonCode === "PROCESSING_TIMEOUT") return "Automated verification timed out and requires Admin review.";
   if (analysis.reasonCode === "INSUFFICIENT_USABLE_CAPTURES") return "Too few usable live captures were available to determine a face match. Admin review required.";
   if (analysis.reasonCode === "FACE_MATCH_UNCERTAIN") return "Automated verification could not determine a result. Admin review required.";
-  if (analysis.threshold !== null && analysis.similarity !== null) return analysis.similarity >= analysis.threshold ? "Similarity satisfied the automatic-approval threshold." : "Similarity did not satisfy the automatic-approval threshold. Admin review required.";
   return analysis.reason ?? "Automated verification result is not available.";
 };
 
