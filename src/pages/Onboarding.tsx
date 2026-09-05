@@ -252,14 +252,38 @@ const Onboarding = () => {
     }
   };
 
-  const beginFaceVerification = () => {
+  const onboardingPayload = () => ({
+    username,
+    realName,
+    dateOfBirth,
+    mobileCountryCode,
+    mobileNumber,
+    country,
+    city,
+    languages: languages.split(",").map((language) => language.trim()).filter(Boolean),
+    bio,
+    interests: interests.split(",").map((interest) => interest.trim()).filter(Boolean),
+    profilePhotos: uploadedUrls,
+    avatar: avatarUrl,
+    cover: coverUrl,
+  });
+
+  const beginFaceVerification = async () => {
     if (!formRef.current?.reportValidity()) return;
     if (!avatarUrl || !coverUrl || uploadedUrls.length < 2 || uploadedUrls.length > 6) {
       setError("Add your avatar, cover, and 2–6 gallery photos before face verification.");
       return;
     }
-    setError("");
-    setFaceVerificationOpen(true);
+    setError(""); setLoading(true);
+    try {
+      if (!isRejectedResubmission) await api.put("/v1/profile/me/draft", onboardingPayload());
+      setFaceVerificationOpen(true);
+    } catch (err: unknown) {
+      const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
+      setError((typeof responseData?.message === "string" && responseData.message) || "Unable to save your onboarding draft.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (profileLoading) return <div className="min-h-screen grid place-items-center text-white">Loading profile…</div>;
