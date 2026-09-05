@@ -202,8 +202,8 @@ const Onboarding = () => {
       return;
     }
 
-    if (uploadedUrls.length < 2 || uploadedUrls.length > 6) {
-      setError("You must add between 2 and 6 gallery images.");
+    if (uploadedUrls.length !== 6) {
+      setError("You must add exactly 6 gallery images.");
       return;
     }
 
@@ -270,8 +270,8 @@ const Onboarding = () => {
 
   const beginFaceVerification = async () => {
     if (!formRef.current?.reportValidity()) return;
-    if (!avatarUrl || !coverUrl || uploadedUrls.length < 2 || uploadedUrls.length > 6) {
-      setError("Add your avatar, cover, and 2–6 gallery photos before face verification.");
+    if (!avatarUrl || !coverUrl || uploadedUrls.length !== 6) {
+      setError("Add your avatar, cover, and exactly 6 gallery photos before face verification.");
       return;
     }
     setError(""); setLoading(true);
@@ -453,7 +453,7 @@ const Onboarding = () => {
           {/* GALLERY */}
           <div>
             <label className="text-sm text-gray-300 mb-2 block">
-              Profile Photos (2–6 required)
+              Profile Photos (exactly 6 required)
             </label>
 
             <input
