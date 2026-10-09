@@ -21,100 +21,15 @@ import MessageActions from "./MessageActions";
 import LocationPickerModal from "./LocationPickerModal";
 import ImagePreviewModal from "./ImagePreviewModal";
 import { useChatParticipantIdentity } from "./replyIdentity";
-import { normalizeReplyReference } from "./types";
+import {
+  normalizeChatMessage,
+  type ChatMessage,
+  type ChatMessagePayload,
+} from "./types";
 import { useReplyNavigation } from "./useReplyNavigation";
 
 import "leaflet/dist/leaflet.css";
 
-interface ChatMessage {
-  _id: string;
-
-  bookingId: string;
-
-  senderId: string;
-
-  senderRole: "USER" | "CREATOR";
-
-  type?: "text" | "location" | "document" | "image" | "voice" | "video";
-
-  groupId?: string;
-
-  replyTo?: {
-    messageId: string;
-
-    senderId: string;
-
-    senderRole: "USER" | "CREATOR";
-
-    type: "text" | "location" | "document" | "image" | "voice" | "video";
-
-    message: string;
-
-    attachment?: {
-      url: string;
-
-      fileName: string;
-
-      mimeType: string;
-
-      resourceType: "raw" | "image" | "video";
-    };
-  };
-
-  location?: {
-    latitude: number;
-
-    longitude: number;
-
-    name: string;
-
-    address: string;
-
-    placeId?: string;
-  };
-
-  attachment?: {
-    url: string;
-
-    publicId: string;
-
-    fileName: string;
-
-    originalFileName: string;
-
-    mimeType: string;
-
-    fileSize: number;
-
-    resourceType: "raw" | "image" | "video";
-  };
-
-  message: string;
-
-  seenBy: string[];
-
-  isDeleted?: boolean;
-
-  deletedAt?: string;
-
-  reactions?: {
-    userId: string;
-
-    emoji: string;
-  }[];
-
-  /* Optimistic Upload */
-
-  isUploading?: boolean;
-
-  uploadProgress?: number;
-
-  uploadFailed?: boolean;
-
-  tempPreviewUrl?: string;
-
-  createdAt: string;
-}
 interface ChatWindowProps {
   bookingId: string;
   embedded?: boolean;
@@ -157,7 +72,7 @@ const findBooking = (bookings: unknown, bookingId: string) =>
 
 interface ChatImageGroupEvent {
   bookingId: string;
-  messages: ChatMessage[];
+  messages: ChatMessagePayload[];
 }
 
 export default function ChatWindow({
@@ -165,7 +80,7 @@ export default function ChatWindow({
   embedded = false,
   onClose,
 }: ChatWindowProps) {
-  const { userId, role } = useAuth();
+  const { userId } = useAuth();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
@@ -249,13 +164,15 @@ export default function ChatWindow({
 
       setError(null);
 
-      const res = await api.get(`/v1/chat/${bookingId}/messages`);
+      const res = await api.get<{ chats: ChatMessagePayload[] }>(
+        `/v1/chat/${bookingId}/messages`,
+      );
 
       console.log("CHAT HISTORY", res.data.chats);
 
       setMessages(
-        (res.data.chats || []).map((chat: ChatMessage) =>
-          normalizeReplyReference(chat),
+        (res.data.chats || []).map((chat: ChatMessagePayload) =>
+          normalizeChatMessage(chat),
         ),
       );
 
@@ -378,8 +295,8 @@ export default function ChatWindow({
     socket.on("connect", joinBooking);
     if (socket.connected) joinBooking();
 
-    const handleMessage = (msg: ChatMessage) => {
-      const incoming = normalizeReplyReference(msg);
+    const handleMessage = (msg: ChatMessagePayload) => {
+      const incoming = normalizeChatMessage(msg);
 
       if (incoming.bookingId !== bookingId) {
         return;
@@ -423,7 +340,7 @@ export default function ChatWindow({
       }
 
       const incoming = data.messages
-        .map((message) => normalizeReplyReference(message))
+        .map((message) => normalizeChatMessage(message))
         .filter((message) => message.senderId !== userId);
 
       setMessages((prev) => {
@@ -726,6 +643,8 @@ export default function ChatWindow({
 
       senderRole: currentBookingSenderRole(),
 
+      type: "text",
+
       message: messageText,
       replyTo: replyingTo
         ? {
@@ -750,16 +669,19 @@ export default function ChatWindow({
     setMessages((prev) => [...prev, tempMessage]);
 
     try {
-      const res = await api.post(`/v1/chat/${bookingId}/messages`, {
-        message: messageText,
-        replyTo: replyingTo?._id,
-      });
+      const res = await api.post<{ chat: ChatMessagePayload }>(
+        `/v1/chat/${bookingId}/messages`,
+        {
+          message: messageText,
+          replyTo: replyingTo?._id,
+        },
+      );
 
       const saved = res.data.chat;
 
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === tempMessage._id ? normalizeReplyReference(saved) : msg,
+          msg._id === tempMessage._id ? normalizeChatMessage(saved) : msg,
         ),
       );
       setReplyingTo(null);
@@ -797,12 +719,15 @@ export default function ChatWindow({
     try {
       setSending(true);
 
-      const { data } = await api.post(`/v1/chat/${bookingId}/messages`, {
-        type: "location",
-        location,
-        replyTo: replyingTo?._id,
-      });
-      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
+      const { data } = await api.post<{ chat: ChatMessagePayload }>(
+        `/v1/chat/${bookingId}/messages`,
+        {
+          type: "location",
+          location,
+          replyTo: replyingTo?._id,
+        },
+      );
+      setMessages((prev) => [...prev, normalizeChatMessage(data.chat)]);
 
       setReplyingTo(null);
 
@@ -836,7 +761,7 @@ export default function ChatWindow({
       formData.append("file", file);
       formData.append("replyTo", replyingTo?._id ?? "");
 
-      const { data } = await api.post(
+      const { data } = await api.post<{ chat: ChatMessagePayload }>(
         `/v1/chat/${bookingId}/documents`,
         formData,
         {
@@ -846,7 +771,7 @@ export default function ChatWindow({
         },
       );
 
-      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
+      setMessages((prev) => [...prev, normalizeChatMessage(data.chat)]);
       setReplyingTo(null);
 
       requestAnimationFrame(() => {
@@ -961,7 +886,7 @@ export default function ChatWindow({
     formData.append("replyTo", replyingTo?._id ?? "");
 
     try {
-      const { data } = await api.post(
+      const { data } = await api.post<{ messages: ChatMessagePayload[] }>(
         `/v1/chat/${bookingId}/images`,
         formData,
         {
@@ -998,7 +923,9 @@ export default function ChatWindow({
         },
       );
 
-      const chats = data.messages as ChatMessage[];
+      const chats = data.messages.map((chat) =>
+        normalizeChatMessage(chat),
+      );
 
       setMessages((prev) => {
         const next = [...prev];
@@ -1031,7 +958,7 @@ export default function ChatWindow({
 
             message: chat.message,
 
-            replyTo: normalizeReplyReference(chat).replyTo,
+            replyTo: chat.replyTo,
 
             groupId: chat.groupId,
 

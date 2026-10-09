@@ -209,6 +209,8 @@ export default function MessageBubble({
     }
   };
   const downloadDocument = async () => {
+    if (!msg.attachment) return;
+
     try {
       const response = await api.get(`/v1/chat/document/${msg._id}/download`, {
         responseType: "blob",
@@ -486,8 +488,7 @@ export default function MessageBubble({
                 </div>
               </div>
             </div>
-          ) : (msg.type === "image" || msg.type === "IMAGE") &&
-            msg.attachment ? (
+          ) : msg.type === "image" && msg.attachment ? (
             <ChatImage
               variant="single"
               msg={msg}

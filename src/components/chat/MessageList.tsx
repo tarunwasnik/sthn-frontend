@@ -85,8 +85,8 @@ export default function MessageList({
   for (let i = 0; i < messages.length; i++) {
     const current = messages[i];
 
-    const isImage =
-      (current.type === "image" || current.type === "IMAGE") && current.groupId;
+    const groupId = current.groupId;
+    const isImage = current.type === "image" && typeof groupId === "string";
 
     if (!isImage) {
       renderItems.push({
@@ -106,8 +106,7 @@ export default function MessageList({
       const next = messages[j];
 
       const sameGroup =
-        (next.type === "image" || next.type === "IMAGE") &&
-        next.groupId === current.groupId;
+        next.type === "image" && next.groupId === groupId;
 
       if (!sameGroup) {
         break;
@@ -127,7 +126,7 @@ export default function MessageList({
     } else {
       renderItems.push({
         type: "image-group",
-        groupId: current.groupId,
+        groupId,
         messages: group,
         startIndex: i,
       });

@@ -1,11 +1,12 @@
 //frontend/src/components/chat/ChatImageGroup.tsx
 
 import ChatImage from "./ChatImage";
+import type { ChatMessage } from "./types";
 
 interface ChatImageGroupProps {
-  messages: any[];
+  messages: ChatMessage[];
 
-  onOpenImage: (messages: any[], index: number) => void;
+  onOpenImage: (messages: ChatMessage[], index: number) => void;
   highlightedMessageId?: string | null;
   registerMessageElement?: (messageId: string, element: HTMLDivElement | null) => void;
 }

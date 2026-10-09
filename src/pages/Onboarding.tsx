@@ -1,12 +1,13 @@
 // frontend/src/pages/Onboarding.tsx
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import api from "../api/axios";
 import { UPLOAD_PRESET } from "../config/cloudinary";
 import { useAuth } from "../hooks/useAuth";
 import FaceVerificationOverlay from "../components/faceVerification/FaceVerificationOverlay";
+import { useLiveTextModeration } from "../hooks/useLiveTextModeration";
 
 
 
@@ -64,6 +65,16 @@ const Onboarding = () => {
   const [profileLoading, setProfileLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
   const faceCaptureComplete = Boolean(avatarUrl && verifiedAvatar === avatarUrl);
+  const moderatedInterests = useMemo(
+    () => interests.split(",").map((interest) => interest.trim()).filter(Boolean),
+    [interests],
+  );
+  const moderationPayload = useMemo(() => bio.trim()
+    ? { domain: "USER_PROFILE" as const, bio, interests: moderatedInterests }
+    : null, [bio, moderatedInterests]);
+  const textModeration = useLiveTextModeration(moderationPayload);
+  const bioBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "bio";
+  const interestsBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "interests";
 
   useEffect(() => {
     let active = true;
@@ -207,6 +218,12 @@ const Onboarding = () => {
       return;
     }
 
+    const moderation = await textModeration.checkNow();
+    if (moderation?.decision !== "ALLOW" || !moderation.admissionToken) {
+      setError(moderation?.message || "Please check your profile text before submitting.");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
@@ -231,6 +248,7 @@ const Onboarding = () => {
         profilePhotos: uploadedUrls,
         avatar: avatarUrl,
         cover: coverUrl,
+        textModerationAdmission: moderation.admissionToken,
       });
 
       const entry = await bootstrap();
@@ -369,17 +387,26 @@ const Onboarding = () => {
             required
             value={bio}
             onChange={(e) => setBio(e.target.value)}
+            onBlur={() => { void textModeration.checkNow(); }}
             placeholder="Bio"
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
+            aria-invalid={bioBlocked}
+            className={`w-full px-3 py-2 rounded-lg bg-white/5 border text-white ${bioBlocked ? "border-red-500" : "border-white/10"}`}
           />
+          {bioBlocked && <p className="-mt-4 text-xs text-red-400">{textModeration.result?.message}</p>}
 
           {/* Interests */}
           <input
             value={interests}
             onChange={(e) => setInterests(e.target.value)}
+            onBlur={() => { void textModeration.checkNow(); }}
             placeholder="Photography, Music..."
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
+            aria-invalid={interestsBlocked}
+            className={`w-full px-3 py-2 rounded-lg bg-white/5 border text-white ${interestsBlocked ? "border-red-500" : "border-white/10"}`}
           />
+          {interestsBlocked && <p className="-mt-4 text-xs text-red-400">{textModeration.result?.message}</p>}
+          {textModeration.status === "UNAVAILABLE" && (
+            <p className="-mt-4 text-xs text-amber-300">{textModeration.result?.message}</p>
+          )}
 
           {/* AVATAR */}
           <div>

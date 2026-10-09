@@ -26,98 +26,12 @@ import LocationPickerModal from "../components/chat/LocationPickerModal";
 import MapPickerModal from "../components/chat/MapPickerModal";
 import ImagePreviewModal from "../components/chat/ImagePreviewModal";
 import { useChatParticipantIdentity } from "../components/chat/replyIdentity";
-import { normalizeReplyReference } from "../components/chat/types";
+import {
+  normalizeChatMessage,
+  type ChatMessage,
+  type ChatMessagePayload,
+} from "../components/chat/types";
 import { useReplyNavigation } from "../components/chat/useReplyNavigation";
-
-interface ChatMessage {
-  _id: string;
-
-  bookingId: string;
-
-  senderId: string;
-
-  senderRole: "USER" | "CREATOR";
-
-  type?: "text" | "location" | "document" | "image" | "voice" | "video";
-
-  groupId?: string;
-
-  replyTo?: {
-    messageId: string;
-
-    senderId: string;
-
-    senderRole: "USER" | "CREATOR";
-
-    type: "text" | "location" | "document" | "image" | "voice" | "video";
-
-    message: string;
-
-    attachment?: {
-      url: string;
-
-      fileName: string;
-
-      mimeType: string;
-
-      resourceType: "raw" | "image" | "video";
-    };
-  };
-
-  location?: {
-    latitude: number;
-
-    longitude: number;
-
-    name: string;
-
-    address: string;
-
-    placeId?: string;
-  };
-
-  attachment?: {
-    url: string;
-
-    publicId: string;
-
-    fileName: string;
-
-    originalFileName: string;
-
-    mimeType: string;
-
-    fileSize: number;
-
-    resourceType: "raw" | "image" | "video";
-  };
-
-  message: string;
-
-  seenBy: string[];
-
-  isDeleted?: boolean;
-
-  deletedAt?: string;
-
-  reactions?: {
-    userId: string;
-
-    emoji: string;
-  }[];
-
-  /* Optimistic Upload */
-
-  isUploading?: boolean;
-
-  uploadProgress?: number;
-
-  uploadFailed?: boolean;
-
-  tempPreviewUrl?: string;
-
-  createdAt: string;
-}
 
 type ChatBookingSummary = { _id: string; status: string; slots?: Array<{ startTime: string; endTime: string }> };
 const errorMessage = (error: unknown, fallback: string) => axios.isAxiosError(error) && typeof error.response?.data?.message === "string" ? error.response.data.message : fallback;
@@ -215,11 +129,13 @@ export default function ChatPage() {
 
       setError(null);
 
-      const res = await api.get(`/v1/chat/${bookingId}/messages`);
+      const res = await api.get<{ chats: ChatMessagePayload[] }>(
+        `/v1/chat/${bookingId}/messages`,
+      );
 
       setMessages(
-        (res.data.chats || []).map((chat: ChatMessage) =>
-          normalizeReplyReference(chat),
+        (res.data.chats || []).map((chat: ChatMessagePayload) =>
+          normalizeChatMessage(chat),
         ),
       );
 
@@ -327,8 +243,8 @@ export default function ChatPage() {
     socket.on("connect", joinBooking);
     if (socket.connected) joinBooking();
 
-    const handleMessage = (msg: ChatMessage) => {
-      const incoming = normalizeReplyReference(msg);
+    const handleMessage = (msg: ChatMessagePayload) => {
+      const incoming = normalizeChatMessage(msg);
 
       if (incoming.bookingId !== bookingId) return;
 
@@ -364,14 +280,14 @@ export default function ChatPage() {
 
     const handleImageGroup = (data: {
       bookingId: string;
-      messages: ChatMessage[];
+      messages: ChatMessagePayload[];
     }) => {
       if (data.bookingId !== bookingId) {
         return;
       }
 
       const incoming = data.messages
-        .map((message) => normalizeReplyReference(message))
+        .map((message) => normalizeChatMessage(message))
         .filter((message) => message.senderId !== userId);
       setMessages((prev) => {
         const existingIds = new Set(prev.map((message) => message._id));
@@ -633,13 +549,16 @@ export default function ChatPage() {
     try {
       setSending(true);
 
-      const { data } = await api.post(`/v1/chat/${bookingId}/messages`, {
-        type: "location",
-        location,
-        replyTo: replyingTo?._id,
-      });
+      const { data } = await api.post<{ chat: ChatMessagePayload }>(
+        `/v1/chat/${bookingId}/messages`,
+        {
+          type: "location",
+          location,
+          replyTo: replyingTo?._id,
+        },
+      );
 
-      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
+      setMessages((prev) => [...prev, normalizeChatMessage(data.chat)]);
       setReplyingTo(null);
 
       setShowLocationPicker(false);
@@ -673,7 +592,7 @@ export default function ChatPage() {
       formData.append("file", file);
       formData.append("replyTo", replyingTo?._id ?? "");
 
-      const { data } = await api.post(
+      const { data } = await api.post<{ chat: ChatMessagePayload }>(
         `/v1/chat/${bookingId}/documents`,
         formData,
         {
@@ -683,7 +602,7 @@ export default function ChatPage() {
         },
       );
 
-      setMessages((prev) => [...prev, normalizeReplyReference(data.chat)]);
+      setMessages((prev) => [...prev, normalizeChatMessage(data.chat)]);
       setReplyingTo(null);
 
       requestAnimationFrame(() => {
@@ -798,7 +717,7 @@ export default function ChatPage() {
     formData.append("replyTo", replyingTo?._id ?? "");
 
     try {
-      const { data } = await api.post(
+      const { data } = await api.post<{ messages: ChatMessagePayload[] }>(
         `/v1/chat/${bookingId}/images`,
         formData,
         {
@@ -835,7 +754,7 @@ export default function ChatPage() {
         },
       );
 
-      const chats = data.messages as ChatMessage[];
+      const chats = data.messages.map((chat) => normalizeChatMessage(chat));
 
       setMessages((prev) => {
         const next = [...prev];
@@ -874,7 +793,7 @@ export default function ChatPage() {
 
             location: chat.location,
 
-            replyTo: normalizeReplyReference(chat).replyTo,
+            replyTo: chat.replyTo,
 
             reactions: chat.reactions ?? [],
 
@@ -958,6 +877,8 @@ export default function ChatPage() {
 
       senderRole: currentBookingSenderRole(),
 
+      type: "text",
+
       message: messageText,
 
       replyTo: replyingTo
@@ -983,16 +904,19 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempMessage]);
 
     try {
-      const res = await api.post(`/v1/chat/${bookingId}/messages`, {
-        message: messageText,
-        replyTo: replyingTo?._id,
-      });
+      const res = await api.post<{ chat: ChatMessagePayload }>(
+        `/v1/chat/${bookingId}/messages`,
+        {
+          message: messageText,
+          replyTo: replyingTo?._id,
+        },
+      );
 
       const saved = res.data.chat;
 
       setMessages((prev) =>
         prev.map((msg) =>
-          msg._id === tempMessage._id ? normalizeReplyReference(saved) : msg,
+          msg._id === tempMessage._id ? normalizeChatMessage(saved) : msg,
         ),
       );
       setReplyingTo(null);

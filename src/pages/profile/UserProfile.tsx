@@ -1,9 +1,11 @@
 // frontend/src/pages/profile/UserProfile.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import { UPLOAD_PRESET } from "../../config/cloudinary";
+import { useLiveTextModeration } from "../../hooks/useLiveTextModeration";
 
 /* ================= TYPES ================= */
 
@@ -79,6 +81,16 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const moderatedInterests = useMemo(
+    () => formData.interests.split(",").map((interest) => interest.trim()).filter(Boolean),
+    [formData.interests],
+  );
+  const moderationPayload = useMemo(() => editing && formData.bio.trim()
+    ? { domain: "USER_PROFILE" as const, bio: formData.bio, interests: moderatedInterests }
+    : null, [editing, formData.bio, moderatedInterests]);
+  const textModeration = useLiveTextModeration(moderationPayload);
+  const bioBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "bio";
+  const interestsBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "interests";
 
   useEffect(() => {
     fetchProfile();
@@ -142,6 +154,12 @@ export default function UserProfilePage() {
       return;
     }
 
+    const moderation = await textModeration.checkNow();
+    if (moderation?.decision !== "ALLOW" || !moderation.admissionToken) {
+      alert(moderation?.message || "Please check your profile text before saving.");
+      return;
+    }
+
     try {
       await api.patch("/v1/profile/me", {
         realName: formData.realName,
@@ -157,14 +175,15 @@ export default function UserProfilePage() {
         country: formData.country,
         city: formData.city,
         languages: formData.languages.split(",").map((language) => language.trim()).filter(Boolean),
+        textModerationAdmission: moderation.admissionToken,
       });
 
       alert("Profile updated");
       setEditing(false);
       fetchProfile();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.response?.data?.message || "Update failed");
+      alert((axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) || "Update failed");
     }
   };
 
@@ -308,8 +327,11 @@ export default function UserProfilePage() {
                   onChange={(e) =>
                     setFormData({ ...formData, bio: e.target.value })
                   }
-                  className="w-full bg-[#020617] p-3 rounded"
+                  onBlur={() => { void textModeration.checkNow(); }}
+                  aria-invalid={bioBlocked}
+                  className={`w-full bg-[#020617] p-3 rounded border ${bioBlocked ? "border-red-500" : "border-transparent"}`}
                 />
+                {bioBlocked && <p className="mt-1 text-xs text-red-400">{textModeration.result?.message}</p>}
 
                 <input
                   value={formData.interests}
@@ -319,8 +341,12 @@ export default function UserProfilePage() {
                       interests: e.target.value,
                     })
                   }
-                  className="w-full mt-3 bg-[#020617] p-2 rounded"
+                  onBlur={() => { void textModeration.checkNow(); }}
+                  aria-invalid={interestsBlocked}
+                  className={`w-full mt-3 bg-[#020617] p-2 rounded border ${interestsBlocked ? "border-red-500" : "border-transparent"}`}
                 />
+                {interestsBlocked && <p className="mt-1 text-xs text-red-400">{textModeration.result?.message}</p>}
+                {textModeration.status === "UNAVAILABLE" && <p className="mt-2 text-xs text-amber-300">{textModeration.result?.message}</p>}
               </>
             ) : (
               <>

@@ -1,9 +1,10 @@
 // frontend/src/components/chat/ChatImage.tsx
 
 import { useEffect, useRef, useState } from "react";
+import type { ChatMessage } from "./types";
 
 interface ChatImageProps {
-  msg: any;
+  msg: ChatMessage;
 
   onOpen: () => void;
 
@@ -18,7 +19,7 @@ export default function ChatImage({
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   const [displaySrc, setDisplaySrc] = useState(
-    msg.tempPreviewUrl ?? msg.attachment.url,
+    msg.tempPreviewUrl ?? msg.attachment?.url ?? "",
   );
 
   useEffect(() => {

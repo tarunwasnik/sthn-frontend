@@ -16,7 +16,6 @@ const getReplyPreview = (reply: ReplyReferenceProps["reply"]) => {
 
   switch (reply.type) {
     case "image":
-    case "IMAGE":
       return "🖼️ Image";
     case "document":
       return "📄 Document";

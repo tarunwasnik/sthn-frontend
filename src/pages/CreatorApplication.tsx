@@ -1,10 +1,12 @@
 // frontend/src/pages/CreatorApplication.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { currencies } from "../constants/currencies";
 import { UPLOAD_PRESET } from "../config/cloudinary";
+import { useLiveTextModeration } from "../hooks/useLiveTextModeration";
 
 /* ================= CLOUDINARY ================= */
 
@@ -27,6 +29,22 @@ const uploadToCloudinary = async (file: File): Promise<string> => {
 
   return data.secure_url;
 };
+
+interface CreatorApplicationData {
+  displayName: string;
+  primaryCategory: string;
+  country: string;
+  city: string;
+  currency: string;
+  services: string[];
+  publicBio: string;
+  languages: string[];
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  media?: string[];
+  status: string;
+  rejectionReason?: string;
+}
 
 export default function CreatorApplication() {
   const navigate = useNavigate();
@@ -51,7 +69,7 @@ export default function CreatorApplication() {
 
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
 
-  const [application, setApplication] = useState<any>(null);
+  const [application, setApplication] = useState<CreatorApplicationData | null>(null);
 
   const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -65,6 +83,20 @@ export default function CreatorApplication() {
   const isVerified = profileStatus === "verified";
 
   const isResubmission = application?.status === "rejected";
+  const moderatedServices = useMemo(
+    () => form.services.split(",").map((service) => service.trim()).filter(Boolean),
+    [form.services],
+  );
+  const moderationPayload = useMemo(() => form.publicBio.trim()
+    ? {
+      domain: "CREATOR_APPLICATION" as const,
+      publicBio: form.publicBio,
+      services: moderatedServices,
+    }
+    : null, [form.publicBio, moderatedServices]);
+  const textModeration = useLiveTextModeration(moderationPayload);
+  const isBlocked = (field: "publicBio" | "services") =>
+    textModeration.status === "BLOCK" && textModeration.result?.target?.field === field;
 
   /* ================= FETCH PROFILE + APPLICATION ================= */
 
@@ -268,6 +300,12 @@ export default function CreatorApplication() {
       return;
     }
 
+    const moderation = await textModeration.checkNow();
+    if (moderation?.decision !== "ALLOW" || !moderation.admissionToken) {
+      setError(moderation?.message || "Please check your application text before submitting.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -283,6 +321,7 @@ export default function CreatorApplication() {
           .split(",")
           .map((service) => service.trim())
           .filter(Boolean),
+        textModerationAdmission: moderation.admissionToken,
 
         languages: form.languages
           .split(",")
@@ -291,9 +330,10 @@ export default function CreatorApplication() {
       });
 
       navigate("/dashboard/user");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message || "Failed to submit creator application.",
+        (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
+          "Failed to submit creator application.",
       );
     } finally {
       setLoading(false);
@@ -441,8 +481,11 @@ export default function CreatorApplication() {
             value={form.services}
             placeholder="Services"
             onChange={handleChange}
-            className="input"
+            onBlur={() => { void textModeration.checkNow(); }}
+            aria-invalid={isBlocked("services")}
+            className={`input ${isBlocked("services") ? "ring-1 ring-red-500" : ""}`}
           />
+          {isBlocked("services") && <p className="-mt-3 text-xs text-red-400">{textModeration.result?.message}</p>}
 
           <input
             name="languages"
@@ -457,8 +500,12 @@ export default function CreatorApplication() {
             value={form.publicBio}
             placeholder="Public Bio"
             onChange={handleChange}
-            className="input min-h-28 resize-y"
+            onBlur={() => { void textModeration.checkNow(); }}
+            aria-invalid={isBlocked("publicBio")}
+            className={`input min-h-28 resize-y ${isBlocked("publicBio") ? "ring-1 ring-red-500" : ""}`}
           />
+          {isBlocked("publicBio") && <p className="-mt-3 text-xs text-red-400">{textModeration.result?.message}</p>}
+          {textModeration.status === "UNAVAILABLE" && <p className="text-xs text-amber-300">{textModeration.result?.message}</p>}
 
           {/* ================= AVATAR ================= */}
 
