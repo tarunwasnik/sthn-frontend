@@ -15,10 +15,11 @@ export function useBookingDispute(bookingId?: string) {
   const [version, setVersion] = useState(0);
   useEffect(() => {
     if (!bookingId) { setState(null); setLoading(false); setError(null); return; }
+    const requestedBookingId: string = bookingId;
     let cancelled = false;
     async function load() {
       setLoading(true); setError(null);
-      try { const next = await getBookingDisputeState(bookingId); if (!cancelled) setState(next); }
+      try { const next = await getBookingDisputeState(requestedBookingId); if (!cancelled) setState(next); }
       catch (loadError) { if (!cancelled) { setState(null); setError(messageFor(loadError)); } }
       finally { if (!cancelled) setLoading(false); }
     }

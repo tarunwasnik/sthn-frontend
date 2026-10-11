@@ -74,7 +74,7 @@ function CreatorSettingsSection() {
   if (profileStatus !== "verified") {
     return <section className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5"><h2 className="font-semibold text-yellow-200">Profile verification required</h2><p className="mt-2 text-sm text-white/65">Your profile must be verified before you can apply as a Creator.</p><Link to="/profile" className="mt-4 inline-block text-sm font-semibold text-cyan-200 underline">View profile</Link></section>;
   }
-  if (applicationStatus === "submitted" || applicationStatus === "pending") {
+  if (applicationStatus === "submitted") {
     return <section className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-5"><h2 className="font-semibold text-yellow-200">Creator application pending</h2><p className="mt-2 text-sm text-white/65">Your application is under review. No further submission is available while it is pending.</p></section>;
   }
   if (applicationStatus === "rejected") {

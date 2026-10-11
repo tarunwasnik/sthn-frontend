@@ -39,8 +39,11 @@ export const decisionLabel = (input: { status: VerificationRequestStatus; decisi
   return input.status === "PENDING" ? "Awaiting automated verification" : "Automated verification in progress";
 };
 
-export const conclusionLabel = (conclusion: "LIKELY_MATCH" | "LIKELY_MISMATCH" | "UNABLE_TO_DETERMINE" | null) => ({
+const conclusionLabels = {
   LIKELY_MATCH: "Likely match",
   LIKELY_MISMATCH: "Likely mismatch",
   UNABLE_TO_DETERMINE: "Unable to determine",
-}[conclusion ?? ""] ?? null);
+} as const;
+
+export const conclusionLabel = (conclusion: keyof typeof conclusionLabels | null) =>
+  conclusion ? conclusionLabels[conclusion] : null;

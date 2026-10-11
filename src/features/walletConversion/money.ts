@@ -42,7 +42,7 @@ export function formatMinorAmount(
   currency: string,
   metadata?: CurrencyMetadataDto,
 ): string {
-  const fallbackFractionDigits = new Intl.NumberFormat(undefined, { style: "currency", currency }).resolvedOptions().maximumFractionDigits;
+  const fallbackFractionDigits = new Intl.NumberFormat(undefined, { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 0;
   const minorUnits = metadata?.minorUnits ?? fallbackFractionDigits;
   const value = Math.abs(amount) / 10 ** minorUnits;
   const display = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: minorUnits });

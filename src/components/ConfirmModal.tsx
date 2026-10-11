@@ -1,13 +1,18 @@
 //frontend/src/ConfirmModal.tsx
 
-import React from "react";
+type ConfirmModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+};
 
 export default function ConfirmModal({
   open,
   onClose,
   onConfirm,
   loading,
-}: any) {
+}: ConfirmModalProps) {
   if (!open) return null;
 
   return (

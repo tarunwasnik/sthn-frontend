@@ -16,7 +16,8 @@ export const socket: Socket = io(
 );
 
 export const connectAuthenticatedSocket = (token: string): void => {
-  if (socket.connected && socket.auth?.token === token) {
+  const currentAuth = socket.auth;
+  if (socket.connected && typeof currentAuth !== "function" && currentAuth.token === token) {
     return;
   }
 

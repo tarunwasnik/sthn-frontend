@@ -25,6 +25,7 @@ export function useBookingReview(bookingId?: string) {
       setError(null);
       return;
     }
+    const requestedBookingId: string = bookingId;
 
     let cancelled = false;
 
@@ -32,7 +33,7 @@ export function useBookingReview(bookingId?: string) {
       setLoading(true);
       setError(null);
       try {
-        const state = await getMyBookingReviewState(bookingId);
+        const state = await getMyBookingReviewState(requestedBookingId);
         if (!cancelled) setReviewState(state);
       } catch (loadError) {
         if (!cancelled) {

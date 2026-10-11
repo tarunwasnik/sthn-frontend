@@ -19,7 +19,7 @@ interface ConversationSeenUpdate {
   seenBy: unknown;
 }
 
-interface MessagingContextValue {
+export interface MessagingContextValue {
   conversations: Conversation[];
   loading: boolean;
   totalUnread: number;

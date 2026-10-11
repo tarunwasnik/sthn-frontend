@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
-import { getAdminVerificationCapture, getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
+import { getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
 import type { AdminVerificationDetail } from "../../api/adminProfileVerification.api";
 import type { AdminVerificationJobStatus, AdminVerificationRequestStatus } from "../../api/adminProfileVerification.api";
 import { automationLabel, requestStatusLabel } from "../../utils/adminProfileVerificationPresentation";

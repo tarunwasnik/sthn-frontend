@@ -1,8 +1,8 @@
 import { useContext } from "react";
 
-import { MessagingContext } from "../context/MessagingContext";
+import { MessagingContext, type MessagingContextValue } from "../context/MessagingContext";
 
-export function useMessaging() {
+export function useMessaging(): MessagingContextValue {
   const context = useContext(MessagingContext);
   if (!context) {
     throw new Error("useMessaging must be used within MessagingProvider");
