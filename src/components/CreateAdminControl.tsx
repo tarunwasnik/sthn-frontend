@@ -1,5 +1,21 @@
 import { useState, useMemo } from "react";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errorMessage";
+
+type ControlScope = "GLOBAL" | "ACTION" | "EMERGENCY";
+
+interface CreateControlPayload {
+  scope: ControlScope;
+  mode: string;
+  reason: string;
+  actionKey?: string;
+  appliesTo?: string;
+  expiresAt?: string;
+}
+
+function isControlScope(value: string): value is ControlScope {
+  return value === "GLOBAL" || value === "ACTION" || value === "EMERGENCY";
+}
 
 type Props = {
   onCreated: () => void;
@@ -11,7 +27,7 @@ export default function CreateAdminControl({
   onClose,
 }: Props) {
   const [scope, setScope] = useState<
-    "GLOBAL" | "ACTION" | "EMERGENCY"
+    ControlScope
   >("GLOBAL");
 
   const [mode, setMode] = useState("");
@@ -58,7 +74,7 @@ export default function CreateAdminControl({
 
     setError(null);
 
-    const payload: any = {
+    const payload: CreateControlPayload = {
       scope,
       mode,
       reason,
@@ -87,10 +103,9 @@ export default function CreateAdminControl({
 
       onCreated();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ||
-          "Failed to create control"
+        getApiErrorMessage(err, "Failed to create control")
       );
     } finally {
       setLoading(false);
@@ -120,9 +135,9 @@ export default function CreateAdminControl({
           <br />
           <select
             value={scope}
-            onChange={(e) =>
-              setScope(e.target.value as any)
-            }
+            onChange={(e) => {
+              if (isControlScope(e.target.value)) setScope(e.target.value);
+            }}
           >
             <option value="GLOBAL">GLOBAL</option>
             <option value="ACTION">ACTION</option>

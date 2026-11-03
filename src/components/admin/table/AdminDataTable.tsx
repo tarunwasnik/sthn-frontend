@@ -13,7 +13,7 @@ export default function AdminDataTable({
 }: AdminDataTableProps) {
   return (
     <div
-      className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-900 ${className}`}
+      className={`overflow-hidden rounded-[var(--radius-card)] border border-theme-border bg-theme-surface ${className}`}
     >
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">{children}</table>
@@ -29,7 +29,7 @@ interface SectionProps {
 
 export function AdminTableHead({ children, className = "" }: SectionProps) {
   return (
-    <thead className={`sticky top-0 z-10 bg-slate-950 ${className}`}>
+    <thead className={`sticky top-0 z-10 bg-theme-inset ${className}`}>
       {children}
     </thead>
   );
@@ -37,7 +37,7 @@ export function AdminTableHead({ children, className = "" }: SectionProps) {
 
 export function AdminTableBody({ children, className = "" }: SectionProps) {
   return (
-    <tbody className={`divide-y divide-slate-800 ${className}`}>
+    <tbody className={`divide-y divide-theme-border ${className}`}>
       {children}
     </tbody>
   );
@@ -59,8 +59,8 @@ export function AdminTableRow({
       onClick={onClick}
       className={`
         transition-colors
-        ${onClick ? "cursor-pointer hover:bg-slate-800/60" : ""}
-        ${selected ? "bg-blue-500/10" : ""}
+        ${onClick ? "cursor-pointer hover:bg-theme-inset" : ""}
+        ${selected ? "bg-theme-accent-tint" : ""}
       `}
     >
       {children}
@@ -89,7 +89,7 @@ export function AdminTableHeaderCell({
         font-semibold
         uppercase
         tracking-wider
-        text-slate-400
+        text-theme-muted
         ${
           align === "center"
             ? "text-center"
@@ -117,7 +117,7 @@ export function AdminTableCell({
         py-4
         align-middle
         text-sm
-        text-slate-200
+        text-theme-text
         ${
           align === "center"
             ? "text-center"

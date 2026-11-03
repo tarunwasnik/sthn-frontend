@@ -29,7 +29,7 @@ export default function SlotTimeline({
 
   if (!slots.length) {
     return (
-      <div className="text-white/40 text-sm">
+      <div className="text-sm text-theme-muted">
         No slots generated
       </div>
     );
@@ -52,16 +52,16 @@ export default function SlotTimeline({
               group
               flex justify-between items-center
               px-4 py-3
-              rounded-lg
-              border border-white/10
-              bg-white/[0.02]
-              hover:bg-white/[0.05]
-              transition
+              rounded-[var(--radius-control)]
+              border border-theme-border
+              bg-theme-inset
+              hover:bg-theme-surface-raised
+              transition-colors
             "
           >
 
             {/* TIME */}
-            <div className="font-medium text-white/90 text-sm">
+            <div className="text-sm font-medium text-theme-text">
               {formatTime(slot.startTime)} – {formatTime(slot.endTime)}
             </div>
 
@@ -73,14 +73,10 @@ export default function SlotTimeline({
                   onClick={() => disableSlot(slot._id)}
                   className="
                     text-[12px] font-semibold
-                    text-yellow-400
-                    hover:text-yellow-300
-                    relative
-                    after:absolute after:left-0 after:-bottom-0.5
-                    after:h-[1px] after:w-0
-                    after:bg-yellow-400
-                    hover:after:w-full
-                    after:transition-all
+                    text-theme-warning
+                    hover:opacity-75
+                    transition-opacity
+                    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                   "
                 >
                   Disable
@@ -92,14 +88,10 @@ export default function SlotTimeline({
                   onClick={() => enableSlot(slot._id)}
                   className="
                     text-[12px] font-semibold
-                    text-green-400
-                    hover:text-green-300
-                    relative
-                    after:absolute after:left-0 after:-bottom-0.5
-                    after:h-[1px] after:w-0
-                    after:bg-green-400
-                    hover:after:w-full
-                    after:transition-all
+                    text-theme-success
+                    hover:opacity-75
+                    transition-opacity
+                    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                   "
                 >
                   Enable
@@ -111,14 +103,10 @@ export default function SlotTimeline({
                   onClick={() => deleteSlot(slot._id)}
                   className="
                     text-[12px] font-semibold
-                    text-red-400
-                    hover:text-red-300
-                    relative
-                    after:absolute after:left-0 after:-bottom-0.5
-                    after:h-[1px] after:w-0
-                    after:bg-red-400
-                    hover:after:w-full
-                    after:transition-all
+                    text-theme-danger
+                    hover:opacity-75
+                    transition-opacity
+                    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                   "
                 >
                   Delete
@@ -126,7 +114,7 @@ export default function SlotTimeline({
               )}
 
               {isLockedOrBooked && (
-                <span className="text-[11px] text-white/40">
+                <span className="text-[11px] text-theme-muted">
                   {slot.status}
                 </span>
               )}

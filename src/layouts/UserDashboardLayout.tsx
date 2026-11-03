@@ -7,12 +7,15 @@ import {
   Search,
   Calendar,
   MessageCircle,
+  Bell,
   Wallet,
   Settings,
   ChevronDown,
 } from "lucide-react";
 import api from "../api/axios";
 import { useMessaging } from "../hooks/useMessaging";
+import { useNotifications } from "../hooks/useNotifications";
+import ThemeQuickToggle from "../components/theme/ThemeQuickToggle";
 
 type Props = {
   children: ReactNode;
@@ -26,6 +29,7 @@ type Profile = {
 export default function UserDashboardLayout({ children }: Props) {
   const navigate = useNavigate();
   const { totalUnread } = useMessaging();
+  const { unreadCount: notificationUnread } = useNotifications();
 
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -64,30 +68,19 @@ export default function UserDashboardLayout({ children }: Props) {
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div
-      className="
-        h-screen
-        flex
-        text-[#F8FAFC]
-        overflow-x-hidden
-      "
-      style={{
-        background:
-          "radial-gradient(circle at top center, #1A1A1A 0%, #111111 40%, #050505 100%)",
-      }}
-    >
+    <div className="flex h-[100dvh] overflow-x-hidden bg-theme-bg text-theme-text">
       {/* SIDEBAR */}
       <aside
         className="
           hidden
           md:flex
           w-64
-          h-screen
+          h-[100dvh]
           shrink-0
           flex-col
-          bg-[#0B0B0C]
+          bg-theme-surface
           border-r
-          border-[rgba(255,255,255,0.08)]
+          border-theme-border
         "
       >
         <div>
@@ -95,14 +88,14 @@ export default function UserDashboardLayout({ children }: Props) {
             className="
               p-6
               border-b
-              border-[rgba(255,255,255,0.08)]
+              border-theme-border
             "
           >
             <h1
               className="
                 text-xl
-                font-bold
-                text-[#F8FAFC]
+              font-semibold
+              text-theme-text
               "
             >
               STHN
@@ -111,7 +104,7 @@ export default function UserDashboardLayout({ children }: Props) {
             <p
               className="
                 text-sm
-                text-[rgba(255,255,255,0.50)]
+                text-theme-muted
               "
             >
               User Panel
@@ -146,6 +139,13 @@ export default function UserDashboardLayout({ children }: Props) {
             />
 
             <SidebarItem
+              to="/dashboard/user/notifications"
+              icon={<Bell size={18} />}
+              label="Notifications"
+              unreadCount={notificationUnread}
+            />
+
+            <SidebarItem
               to="/dashboard/user/wallet"
               icon={<Wallet size={18} />}
               label="Wallet"
@@ -165,7 +165,7 @@ export default function UserDashboardLayout({ children }: Props) {
       <div
         className="
           flex-1
-          h-screen
+          h-[100dvh]
           flex
           flex-col
           relative
@@ -186,8 +186,8 @@ export default function UserDashboardLayout({ children }: Props) {
             sm:px-4
             md:px-6
             border-b
-            border-[rgba(255,255,255,0.08)]
-            bg-[#111111]
+            border-theme-border
+            bg-theme-surface
             relative
             z-10
           "
@@ -197,24 +197,27 @@ export default function UserDashboardLayout({ children }: Props) {
               text-sm
               md:text-lg
               font-semibold
-              text-[#E5E7EB]
+              text-theme-text
             "
           >
             User Dashboard
           </h2>
 
-          <div
+          <div className="flex items-center gap-2">
+          <ThemeQuickToggle className="hidden md:inline-flex" />
+          <button
+            type="button"
+            aria-label="Open profile"
             onClick={() => navigate("/profile")}
             className="
               w-9
               h-9
               rounded-full
-              bg-[rgba(255,255,255,0.05)]
+              bg-theme-inset
               border
-              border-[rgba(255,255,255,0.08)]
+              border-theme-border
               overflow-hidden
-              cursor-pointer
-              hover:bg-[rgba(255,255,255,0.08)]
+              hover:bg-theme-accent-tint
               transition
             "
           >
@@ -236,12 +239,13 @@ export default function UserDashboardLayout({ children }: Props) {
                   items-center
                   justify-center
                   text-xs
-                  text-[rgba(255,255,255,0.55)]
+                  text-theme-muted
                 "
               >
                 {initials}
               </div>
             )}
+          </button>
           </div>
         </header>
 
@@ -257,7 +261,7 @@ export default function UserDashboardLayout({ children }: Props) {
             md:px-6
             py-4
             md:py-6
-            pb-32
+            pb-[calc(8rem+env(safe-area-inset-bottom))]
             md:pb-6
             relative
             z-10
@@ -270,22 +274,24 @@ export default function UserDashboardLayout({ children }: Props) {
         <nav
           className="
             fixed
-            bottom-3
+            bottom-[max(0.75rem,env(safe-area-inset-bottom))]
             left-1/2
             -translate-x-1/2
             w-[95%]
             max-w-md
-            bg-[#151515]
+            bg-theme-surface-raised
             border
-            border-[rgba(255,255,255,0.08)]
-            rounded-2xl
+            border-theme-border
+            rounded-[var(--radius-card)]
             flex
             justify-around
             items-center
-            py-3
+            min-h-[68px]
+            px-2
+            py-2
             text-xs
             md:hidden
-            shadow-[0_10px_30px_rgba(0,0,0,0.35)]
+            shadow-sm
             z-[900]
           "
         >
@@ -321,7 +327,7 @@ export default function UserDashboardLayout({ children }: Props) {
               flex-col
               items-center
               justify-center
-              text-[rgba(255,255,255,0.50)]
+              text-theme-muted
             "
           >
             <span className="text-lg">⋯</span>
@@ -337,7 +343,7 @@ export default function UserDashboardLayout({ children }: Props) {
               className="
                 fixed
                 inset-0
-                bg-black/70
+                bg-black/50
                 z-[1000]
               "
             />
@@ -345,13 +351,13 @@ export default function UserDashboardLayout({ children }: Props) {
             <div className="fixed inset-x-0 bottom-0 z-[1001]">
               <div
                 className="
-                  bg-[#151515]
+                  bg-theme-surface-raised
                   border-t
-                  border-[rgba(255,255,255,0.08)]
-                  rounded-t-2xl
+                  border-theme-border
+                  rounded-t-[var(--radius-dialog-mobile)]
                   px-5
                   pt-5
-                  pb-10
+                  pb-[calc(2.5rem+env(safe-area-inset-bottom))]
                   max-h-[75vh]
                   overflow-y-auto
                   relative
@@ -362,7 +368,7 @@ export default function UserDashboardLayout({ children }: Props) {
                     className="
                       w-10
                       h-1
-                      bg-[rgba(255,255,255,0.20)]
+                      bg-theme-border-strong
                       rounded-full
                     "
                   />
@@ -374,6 +380,14 @@ export default function UserDashboardLayout({ children }: Props) {
                     icon={<MessageCircle size={18} />}
                     label="Messages"
                     unreadCount={totalUnread}
+                    close={() => setShowMore(false)}
+                  />
+
+                  <SheetItem
+                    to="/dashboard/user/notifications"
+                    icon={<Bell size={18} />}
+                    label="Notifications"
+                    unreadCount={notificationUnread}
                     close={() => setShowMore(false)}
                   />
 
@@ -397,12 +411,12 @@ export default function UserDashboardLayout({ children }: Props) {
                     flex
                     items-center
                     justify-center
-                    rounded-full
-                    bg-[rgba(255,255,255,0.05)]
+                    rounded-[var(--radius-control)]
+                    bg-theme-inset
                     border
-                    border-[rgba(255,255,255,0.08)]
-                    text-[rgba(255,255,255,0.55)]
-                    hover:bg-[rgba(255,255,255,0.10)]
+                    border-theme-border
+                    text-theme-muted
+                    hover:bg-theme-accent-tint
                     transition
                   "
                 >
@@ -439,21 +453,21 @@ function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemP
         space-x-3
         px-3
         py-2.5
-        rounded-xl
+        rounded-[var(--radius-navigation)]
         transition
         border
         ${
           isActive
             ? `
-              bg-[rgba(255,255,255,0.06)]
-              text-white
-              border-[rgba(255,255,255,0.08)]
+              bg-theme-accent-tint
+              text-theme-accent
+              border-transparent
             `
             : `
-              text-[rgba(255,255,255,0.60)]
+              text-theme-muted
               border-transparent
-              hover:bg-[rgba(255,255,255,0.04)]
-              hover:text-[#E5E7EB]
+              hover:bg-theme-inset
+              hover:text-theme-text
             `
         }
       `
@@ -462,7 +476,7 @@ function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemP
       {icon}
       <span className="text-sm">{label}</span>
       {unreadCount > 0 && (
-        <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+        <span className="ml-auto rounded-full bg-theme-accent px-1.5 py-0.5 text-[10px] font-semibold leading-none text-theme-primary-text">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}
@@ -481,7 +495,7 @@ function BottomNavItem({ to, icon, label, end = false }: NavItemProps) {
         flex-col
         items-center
         justify-center
-        ${isActive ? "text-white" : "text-[rgba(255,255,255,0.50)]"}
+        ${isActive ? "text-theme-accent" : "text-theme-muted hover:text-theme-text"}
       `
       }
     >
@@ -510,10 +524,10 @@ function SheetItem({ to, icon, label, unreadCount = 0, close }: SheetItemProps) 
         close();
       }}
       className="
-        bg-[rgba(255,255,255,0.04)]
+        bg-theme-inset
         border
-        border-[rgba(255,255,255,0.08)]
-        rounded-xl
+        border-theme-border
+        rounded-[var(--radius-card)]
         py-4
         flex
         flex-col
@@ -521,20 +535,20 @@ function SheetItem({ to, icon, label, unreadCount = 0, close }: SheetItemProps) 
         justify-center
         gap-2
         text-sm
-        hover:bg-[rgba(255,255,255,0.08)]
+        hover:bg-theme-accent-tint
         transition
       "
     >
-      <div className="relative text-[rgba(255,255,255,0.70)]">
+      <div className="relative text-theme-muted">
         {icon}
         {unreadCount > 0 && (
-          <span className="absolute -right-3 -top-2 rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-semibold leading-none text-white">
+          <span className="absolute -right-3 -top-2 rounded-full bg-theme-accent px-1 py-0.5 text-[9px] font-semibold leading-none text-theme-primary-text">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </div>
 
-      <span className="text-[#F8FAFC]">{label}</span>
+      <span className="text-theme-text">{label}</span>
     </button>
   );
 }

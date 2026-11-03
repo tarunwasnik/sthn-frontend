@@ -25,12 +25,9 @@ export default function ChatHeader({
     <div
       className="
         shrink-0
-        rounded-[24px]
-        border border-white/10
-        bg-gradient-to-br
-        from-white/[0.045]
-        to-white/[0.015]
-        backdrop-blur-xl
+        rounded-[var(--radius-card)]
+        border border-theme-border
+        bg-theme-surface
         px-3 sm:px-5
         py-2
         mb-2
@@ -43,9 +40,10 @@ export default function ChatHeader({
             onClick={onClose}
             className="
               shrink-0
-              text-white/80
-              hover:text-white
+              text-theme-muted
+              hover:text-theme-text
               transition-colors
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             ←
@@ -66,7 +64,7 @@ export default function ChatHeader({
                 h-9
                 rounded-full
                 object-cover
-                border border-white/10
+                border border-theme-border
               "
             />
 
@@ -77,8 +75,8 @@ export default function ChatHeader({
                 w-9
                 h-9
                 rounded-full
-                bg-white/[0.06]
-                border border-white/10
+                bg-theme-inset
+                border border-theme-border
                 flex
                 items-center
                 justify-center
@@ -113,7 +111,7 @@ export default function ChatHeader({
             <p
               className="
                 text-[10px]
-                text-white/40
+                text-theme-muted
                 truncate
                 leading-none
               "
@@ -125,7 +123,7 @@ export default function ChatHeader({
               className="
                 text-[11px]
                 sm:text-xs
-                text-white/50
+                text-theme-muted
                 truncate
               "
             >

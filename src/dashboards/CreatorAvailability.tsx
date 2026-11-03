@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errorMessage";
 import SlotTimeline from "../components/availability/SlotTimeline";
 import TimeSelect from "../components/common/TimeSelect";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -74,7 +75,9 @@ export default function CreatorAvailability() {
     setServices(
       (res.data.services || []).filter((s: Service) => s.isActive)
     );
-  } catch {}
+  } catch {
+    // Existing screen behavior keeps initial list-fetch failures non-blocking.
+  }
 };
 
   const fetchAvailabilities = async () => {
@@ -85,7 +88,9 @@ export default function CreatorAvailability() {
         }
       });
       setAvailabilities(res.data.availabilities || []);
-    } catch {}
+    } catch {
+      // Existing screen behavior keeps initial list-fetch failures non-blocking.
+    }
   };
 
   const fetchSlots = async (availabilityId: string) => {
@@ -93,7 +98,9 @@ export default function CreatorAvailability() {
       const res = await api.get(`/v1/creator/availability/${availabilityId}/slots`);
       setSlots(res.data.slots || []);
       setActiveAvailability(availabilityId);
-    } catch {}
+    } catch {
+      // Existing screen behavior keeps slot-fetch failures non-blocking.
+    }
   };
 
   const toggleSlots = (availabilityId: string) => {
@@ -136,7 +143,7 @@ export default function CreatorAvailability() {
       setMessage(null);
     }, 4000);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
   console.log(
     "CREATE ERROR:",
@@ -145,19 +152,18 @@ export default function CreatorAvailability() {
 
   console.log(
     "RESPONSE:",
-    error?.response
+    error
   );
 
   console.log(
     "DATA:",
-    error?.response?.data
+    error
   );
 
   setMessage({
     type: "error",
     text:
-      error?.response?.data?.message ||
-      "Failed to create availability",
+      getApiErrorMessage(error, "Failed to create availability"),
   });
 
   setTimeout(() => {
@@ -189,13 +195,12 @@ export default function CreatorAvailability() {
 
     await fetchAvailabilities();
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     setMessage({
       type: "error",
       text:
-        error?.response?.data?.message ||
-        "Failed to cancel availability",
+      getApiErrorMessage(error, "Failed to cancel availability"),
     });
 
   } finally {
@@ -239,13 +244,12 @@ export default function CreatorAvailability() {
       setMessage(null);
     }, 4000);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     setMessage({
       type: "error",
       text:
-        error?.response?.data?.message ||
-        "Failed to delete availability",
+      getApiErrorMessage(error, "Failed to delete availability"),
     });
 
     setTimeout(() => {
@@ -278,13 +282,12 @@ export default function CreatorAvailability() {
 
     await fetchAvailabilities();
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     setMessage({
       type: "error",
       text:
-        error?.response?.data?.message ||
-        "Failed to disable slot",
+      getApiErrorMessage(error, "Failed to disable slot"),
     });
 
   } finally {
@@ -318,13 +321,12 @@ export default function CreatorAvailability() {
 
     await fetchAvailabilities();
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     setMessage({
       type: "error",
       text:
-        error?.response?.data?.message ||
-        "Failed to enable slot",
+      getApiErrorMessage(error, "Failed to enable slot"),
     });
 
   } finally {
@@ -365,13 +367,12 @@ export default function CreatorAvailability() {
 
     await fetchAvailabilities();
 
-  } catch (error: any) {
+  } catch (error: unknown) {
 
     setMessage({
       type: "error",
       text:
-        error?.response?.data?.message ||
-        "Failed to delete slot",
+      getApiErrorMessage(error, "Failed to delete slot"),
     });
 
   } finally {
@@ -404,21 +405,20 @@ export default function CreatorAvailability() {
       max-w-md
       px-4
       py-3
-      rounded-xl
+      rounded-[var(--radius-card)]
       border
-      shadow-2xl
-      backdrop-blur-xl
+      shadow-sm
       ${
         message.type === "success"
           ? `
-            bg-emerald-500/15
-            border-emerald-500/30
-            text-emerald-300
+            bg-theme-success-tint
+            border-theme-success
+            text-theme-success
           `
           : `
-            bg-red-500/15
-            border-red-500/30
-            text-red-300
+            bg-theme-danger-tint
+            border-theme-danger
+            text-theme-danger
           `
       }
     `}
@@ -427,41 +427,40 @@ export default function CreatorAvailability() {
   </div>
 )}
 
-      <div className="max-w-7xl mx-auto px-4 space-y-6 text-white">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 text-theme-text">
 
         {/* HEADER */}
         <div>
           <h1 className="text-xl font-semibold">Your Availability</h1>
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-theme-muted">
             Set when you're available for bookings
           </p>
         </div>
 
 
         {/* TOGGLE */}
-        <div className="flex items-center gap-3">
+        <label className="flex items-center gap-3 text-sm text-theme-muted">
           <input
             type="checkbox"
             checked={showCancelled}
             onChange={() => setShowCancelled(!showCancelled)}
+            className="h-4 w-4 rounded border-theme-border text-theme-accent focus:ring-theme-accent"
           />
-          <span className="text-sm text-white/60">
-            History
-          </span>
-        </div>
+          History
+        </label>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* LEFT PANEL */}
           <div className="lg:col-span-1">
 
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 space-y-4 sticky top-6">
+            <div className="sticky top-6 space-y-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4">
 
               <div>
-                <h2 className="text-sm font-semibold">
+                <h2 className="text-sm font-semibold text-theme-text">
                   Create Time Slots
                 </h2>
-                <p className="text-xs text-white/50">
+                <p className="text-xs text-theme-muted">
                   Choose a date and time range. Slots will be generated automatically.
                 </p>
               </div>
@@ -469,27 +468,25 @@ export default function CreatorAvailability() {
               <div className="space-y-4">
 
                 <div className="space-y-1">
-                  <p className="text-xs text-white/40">Service</p>
+                  <p className="text-xs text-theme-muted">Service</p>
                   <select
                     value={form.serviceId}
+                    aria-label="Service"
                     onChange={(e) =>
                       setForm({ ...form, serviceId: e.target.value })
                     }
                     className="
   w-full
-  bg-white/5
-  border border-white/10
-  rounded-xl
+  bg-theme-inset
+  border border-theme-border
+  rounded-[var(--radius-control)]
   p-3
-  text-white
-  outline-none
-  focus:outline-none
-  focus:ring-0
-  focus:border-white/10
-  transition
+  text-theme-text
+  transition-colors
+  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
  "
                   >
-                    <option value="" className="bg-[#0b0f1a] text-white">
+                    <option value="" className="bg-theme-surface text-theme-text">
   Select Service
  </option>
 
@@ -497,7 +494,7 @@ export default function CreatorAvailability() {
   <option
     key={s._id}
     value={s._id}
-   className="bg-[#0f0f0f] text-white"
+   className="bg-theme-surface text-theme-text"
   >
     {s.title}
   </option>
@@ -508,10 +505,11 @@ export default function CreatorAvailability() {
  {/*TIMEZONE*/}
 
  <div className="space-y-1">
-  <p className="text-xs text-white/40">Timezone</p>
+  <p className="text-xs text-theme-muted">Timezone</p>
 
   <select
     value={form.timezone}
+    aria-label="Timezone"
     onChange={(e) =>
       setForm({
         ...form,
@@ -520,30 +518,28 @@ export default function CreatorAvailability() {
     }
     className="
       w-full
-      bg-white/5
-      border border-white/10
-      rounded-xl
+      bg-theme-inset
+      border border-theme-border
+      rounded-[var(--radius-control)]
       px-4
       py-3
-      text-white
-      outline-none
-      focus:outline-none
-      focus:ring-0
-      focus:border-white/10
+      text-theme-text
+      transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
     "
   >
     {TIMEZONES.map((tz) => (
   <option
     key={tz.value}
     value={tz.value}
-    className="bg-[#0f0f0f] text-white"
+    className="bg-theme-surface text-theme-text"
   >
     {tz.label}
   </option>
  ))}
   </select>
 
-  <p className="text-[11px] text-white/40">
+  <p className="text-[11px] text-theme-muted">
     Users will automatically see these slots in their local timezone.
   </p>
  </div>
@@ -552,20 +548,21 @@ export default function CreatorAvailability() {
 
 
                 <div className="space-y-1">
-                  <p className="text-xs text-white/40">Date</p>
+                  <p className="text-xs text-theme-muted">Date</p>
                   <input
                     type="date"
+                    aria-label="Availability date"
                     value={form.date}
                     onChange={(e) =>
                       setForm({ ...form, date: e.target.value })
                     }
-                    className="w-full bg-white/5 border border-white/10 rounded-xl p-3"
+                    className="w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                   />
                 </div>
 
 
                 <div className="space-y-1">
-                  <p className="text-xs text-white/40">Time Range</p>
+                  <p className="text-xs text-theme-muted">Time Range</p>
                   <div className="grid grid-cols-2 gap-2">
                     <TimeSelect value={form.startTime} onChange={(t) => setForm({ ...form, startTime: t })} />
                     <TimeSelect value={form.endTime} onChange={(t) => setForm({ ...form, endTime: t })} />
@@ -575,10 +572,10 @@ export default function CreatorAvailability() {
                 <button
                   onClick={handleCreate}
                   disabled={!isValid}
-                  className={`w-full rounded-xl py-3 ${
+                  className={`w-full rounded-[var(--radius-control)] py-3 text-sm font-medium transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${
                     isValid
-                      ? "bg-white/10 hover:bg-white/20"
-                      : "bg-white/5 text-white/30"
+                      ? "bg-theme-primary text-theme-primary-text hover:opacity-90"
+                      : "cursor-not-allowed bg-theme-inset text-theme-muted"
                   }`}
                 >
                   Create Availability
@@ -595,7 +592,7 @@ export default function CreatorAvailability() {
 
             {availabilities.length === 0 ? (
 
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center text-white/40">
+              <div className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 text-center text-theme-muted">
                 No availability created yet
                 <p className="text-xs mt-2">
                   Create your first time slots to start accepting bookings
@@ -608,7 +605,7 @@ export default function CreatorAvailability() {
 
                 <div
                   key={a._id}
-                 className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 space-y-4"
+                 className="space-y-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4"
                 >
 
                   <div className="flex justify-between items-start">
@@ -622,11 +619,11 @@ export default function CreatorAvailability() {
         gap-2
         px-4
         py-2
-        rounded-xl
-        bg-cyan-500/10
+        rounded-[var(--radius-control)]
+        bg-theme-accent-tint
         border
-        border-cyan-500/20
-        text-cyan-300
+        border-theme-accent
+        text-theme-accent
         text-sm
         font-medium
         mb-3
@@ -636,15 +633,15 @@ export default function CreatorAvailability() {
       <span>{a.serviceTitle || "Unknown Service"}</span>
     </div>
 
-    <div className="font-semibold">
+    <div className="font-semibold text-theme-text">
       {new Date(a.date).toDateString()}
     </div>
 
-    <div className="text-white/60 text-sm">
+    <div className="text-sm text-theme-muted">
       {a.startTime} - {a.endTime}
     </div>
 
-    <div className="text-xs text-white/40">
+    <div className="text-xs text-theme-muted">
   Status: {
     showCancelled && a.status === "ACTIVE"
       ? "EXPIRED"
@@ -660,13 +657,16 @@ export default function CreatorAvailability() {
     <button
       onClick={() => cancelAvailability(a._id)}
       className="
-        bg-amber-500/20
-        hover:bg-amber-500/30
-        text-amber-300
+        border border-theme-warning
+        bg-theme-warning-tint
+        hover:opacity-85
+        text-theme-warning
         px-3
         py-2
-        rounded-lg
+        rounded-[var(--radius-control)]
         text-xs
+        transition-opacity
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       Cancel
@@ -677,13 +677,16 @@ export default function CreatorAvailability() {
     <button
       onClick={() => deleteAvailability(a._id)}
       className="
-        bg-red-500/20
-        hover:bg-red-500/30
-        text-red-300
+        border border-theme-danger
+        bg-theme-danger-tint
+        hover:opacity-85
+        text-theme-danger
         px-3
         py-2
-        rounded-lg
+        rounded-[var(--radius-control)]
         text-xs
+        transition-opacity
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       Delete
@@ -704,7 +707,7 @@ export default function CreatorAvailability() {
                   {a.status === "ACTIVE" && (
                     <button
                       onClick={() => toggleSlots(a._id)}
-                      className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 rounded-xl py-2"
+                      className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-control)] border border-theme-border bg-theme-inset py-2 text-theme-text transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                     >
                       View Slots
                       {activeAvailability === a._id
@@ -746,23 +749,23 @@ function Stat({
   value: number;
 }) {
   const colors: Record<string, string> = {
-    Total: "text-white/70",
-    Available: "text-emerald-300",
-    Locked: "text-amber-300",
-    Booked: "text-sky-300",
-    Disabled: "text-red-300",
+    Total: "text-theme-text",
+    Available: "text-theme-success",
+    Locked: "text-theme-warning",
+    Booked: "text-theme-info",
+    Disabled: "text-theme-danger",
   };
 
   const color =
-    colors[label] || "text-white";
+    colors[label] || "text-theme-text";
 
   return (
     <div
       className="
-        bg-white/5
+        bg-theme-inset
         border
-        border-white/10
-        rounded-xl
+        border-theme-border
+        rounded-[var(--radius-control)]
         p-3
         text-center
       "

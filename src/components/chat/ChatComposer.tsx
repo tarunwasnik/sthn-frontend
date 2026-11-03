@@ -63,12 +63,9 @@ export default function ChatComposer({
       className="
         mt-2
         shrink-0
-        rounded-[20px]
-        border border-white/10
-        bg-gradient-to-br
-        from-white/[0.045]
-        to-white/[0.015]
-        backdrop-blur-xl
+        rounded-[var(--radius-card)]
+        border border-theme-border
+        bg-theme-surface
         px-2
         py-1.5
       "
@@ -80,10 +77,10 @@ export default function ChatComposer({
       flex
       items-start
       justify-between
-      rounded-xl
+      rounded-[var(--radius-control)]
       border
-      border-white/10
-      bg-white/[0.05]
+      border-theme-border
+      bg-theme-inset
       px-3
       py-2
     "
@@ -102,8 +99,9 @@ export default function ChatComposer({
             onClick={onCancelReply}
             className="
         ml-3
-        text-white/60
-        hover:text-white
+        text-theme-muted
+        hover:text-theme-text
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
           >
             ✕
@@ -191,14 +189,14 @@ image/*,
             h-[40px]
             w-[40px]
             shrink-0
-            rounded-[18px]
+            rounded-[var(--radius-control)]
             border
-            border-white/10
-            bg-white/[0.07]
-            hover:bg-white/[0.1]
+            border-theme-border
+            bg-theme-inset
+            hover:bg-theme-surface-raised
             active:scale-[0.98]
             transition-all
-            disabled:opacity-40
+            disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             text-lg
           "
           title="Send image"
@@ -215,14 +213,14 @@ image/*,
             h-[40px]
             w-[40px]
             shrink-0
-            rounded-[18px]
+            rounded-[var(--radius-control)]
             border
-            border-white/10
-            bg-white/[0.07]
-            hover:bg-white/[0.1]
+            border-theme-border
+            bg-theme-inset
+            hover:bg-theme-surface-raised
             active:scale-[0.98]
             transition-all
-            disabled:opacity-40
+            disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             text-lg
           "
           title="Send document"
@@ -240,14 +238,14 @@ image/*,
               h-[40px]
               w-[40px]
               shrink-0
-              rounded-[18px]
+              rounded-[var(--radius-control)]
               border
-              border-white/10
-              bg-white/[0.07]
-              hover:bg-white/[0.1]
+              border-theme-border
+              bg-theme-inset
+              hover:bg-theme-surface-raised
               active:scale-[0.98]
               transition-all
-              disabled:opacity-40
+              disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
               text-lg
             "
             title="Share location"
@@ -269,16 +267,15 @@ image/*,
           className="
             flex-1
             min-w-0
-            bg-white/[0.04]
-            border border-white/10
-            rounded-[18px]
+            bg-theme-inset
+            border border-theme-border
+            rounded-[var(--radius-control)]
             px-4
             py-2.5
             text-[14px]
-            text-white
-            placeholder:text-white/35
-            focus:outline-none
-            focus:border-white/15
+            text-theme-text
+            placeholder:text-theme-muted
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             transition-all
             disabled:opacity-50
           "
@@ -292,13 +289,14 @@ image/*,
             h-[40px]
             px-4
             shrink-0
-            rounded-[18px]
-            border border-white/10
-            bg-white/[0.07]
-            hover:bg-white/[0.1]
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-primary
+            text-theme-primary-text
+            hover:opacity-90
             active:scale-[0.98]
             transition-all
-            disabled:opacity-40
+            disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             text-[13px]
             font-medium
           "

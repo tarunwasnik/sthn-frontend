@@ -34,23 +34,23 @@ export default function AdminDetailPanel({
 
       {/* Panel */}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-6xl flex-col border-l border-slate-800 bg-slate-950 shadow-2xl transition-transform duration-300 lg:w-[60vw] ${
+        className={`fixed right-0 top-0 z-50 flex h-screen w-full max-w-6xl flex-col border-l border-theme-border bg-theme-surface shadow-2xl transition-transform duration-300 lg:w-[60vw] ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-800 p-6">
+        <div className="flex items-start justify-between border-b border-theme-border p-6">
           <div>
-            <h2 className="text-xl font-semibold text-white">{title}</h2>
+            <h2 className="text-xl font-semibold text-theme-text">{title}</h2>
 
             {subtitle && (
-              <p className="mt-1 text-sm text-slate-400">{subtitle}</p>
+              <p className="mt-1 text-sm text-theme-muted">{subtitle}</p>
             )}
           </div>
 
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            className="rounded-[var(--radius-control)] p-2 text-theme-muted transition hover:bg-theme-inset hover:text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             <X size={20} />
           </button>
@@ -61,7 +61,7 @@ export default function AdminDetailPanel({
 
         {/* Footer */}
         {footer && (
-          <div className="border-t border-slate-800 bg-slate-900 p-5">
+          <div className="border-t border-theme-border bg-theme-inset p-5">
             {footer}
           </div>
         )}

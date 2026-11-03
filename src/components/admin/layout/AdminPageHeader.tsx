@@ -13,14 +13,14 @@ export default function AdminPageHeader({
   children,
 }: AdminPageHeaderProps) {
   return (
-    <div className="mb-6 flex flex-col gap-5 border-b border-slate-800 pb-5 lg:flex-row lg:items-start lg:justify-between">
+    <div className="mb-6 flex flex-col gap-5 border-b border-theme-border pb-5 lg:flex-row lg:items-start lg:justify-between">
       <div className="min-w-0">
-        <h1 className="text-3xl font-bold tracking-tight text-white">
+        <h1 className="text-3xl font-bold tracking-tight text-theme-text">
           {title}
         </h1>
 
         {description && (
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-theme-muted">
             {description}
           </p>
         )}

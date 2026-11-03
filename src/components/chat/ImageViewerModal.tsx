@@ -94,6 +94,7 @@ export default function ImageViewerModal({
           text-2xl
           text-white
           hover:bg-white/20
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
         "
       >
         ✕
@@ -113,6 +114,7 @@ export default function ImageViewerModal({
             text-5xl
             text-white/80
             hover:text-white
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           ‹
@@ -146,6 +148,7 @@ export default function ImageViewerModal({
             text-5xl
             text-white/80
             hover:text-white
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           ›

@@ -60,14 +60,9 @@ export default function CreatorCard({
         .filter(Boolean) || [];
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={handleClick}
-      onKeyDown={(e) =>
-        e.key === "Enter" &&
-        handleClick()
-      }
       className="
         group
         relative
@@ -75,18 +70,20 @@ export default function CreatorCard({
         max-w-[280px]
         min-w-0
         overflow-hidden
-        rounded-[26px]
-        border border-white/10
-        bg-gradient-to-br
-        from-white/[0.045]
-        to-white/[0.015]
-        backdrop-blur-xl
-        transition-all duration-300
-        hover:border-white/15
+        rounded-[var(--radius-card)]
+        border border-theme-border
+        bg-theme-surface
+        text-left
+        shadow-sm
+        transition-transform
+        hover:border-theme-border-strong
         hover:-translate-y-[2px]
-        hover:bg-white/[0.05]
         cursor-pointer
         mx-auto
+        focus-visible:outline
+        focus-visible:outline-2
+        focus-visible:outline-offset-2
+        focus-visible:outline-theme-accent
       "
     >
       {/* Card Wrapper */}
@@ -98,7 +95,7 @@ export default function CreatorCard({
             relative
             h-[78%]
             overflow-hidden
-            bg-[#0D0D0D]
+            bg-theme-inset
             flex items-center justify-center
           "
         >
@@ -108,7 +105,7 @@ export default function CreatorCard({
               creator.avatarUrl ??
               "/avatars/default.png"
             }
-            alt={creator.displayName}
+            alt=""
             className="
               absolute
               inset-0
@@ -125,7 +122,7 @@ export default function CreatorCard({
           <div
             className="
               absolute inset-0
-              bg-black/35
+            bg-black/30
             "
           />
 
@@ -169,14 +166,14 @@ export default function CreatorCard({
                 right-3
                 z-20
                 rounded-full
-                border border-emerald-400/20
-                bg-black/50
+                border border-theme-success
+                bg-theme-surface/90
                 backdrop-blur-md
                 px-2.5
                 py-1
                 text-[10px]
                 font-medium
-                text-emerald-300
+                text-theme-success
               "
             >
               ● Available
@@ -190,9 +187,7 @@ export default function CreatorCard({
           className="
             flex-1
             p-3.5
-            bg-gradient-to-b
-            from-[#0B0B0B]
-            to-[#090909]
+            bg-theme-surface
             flex
             flex-col
             justify-between
@@ -209,13 +204,13 @@ export default function CreatorCard({
                     text-[16px]
                     font-semibold
                     tracking-tight
-                    text-white
+                    text-theme-text
                   "
                 >
                   {creator.displayName}
 
                   {creator.age && (
-                    <span className="ml-1 text-xs font-medium text-white/50">
+                    <span className="ml-1 text-xs font-medium text-theme-muted">
                       {creator.age}
                     </span>
                   )}
@@ -227,7 +222,7 @@ export default function CreatorCard({
                       mt-1
                       truncate
                       text-[11px]
-                      text-white/50
+                      text-theme-muted
                     "
                   >
                     {location}
@@ -240,8 +235,8 @@ export default function CreatorCard({
                 <p
                   className="
                     text-[15px]
-                    font-bold
-                    text-emerald-300
+                    font-semibold
+                    text-theme-text
                     leading-none
                   "
                 >
@@ -254,7 +249,7 @@ export default function CreatorCard({
                   className="
                     mt-[2px]
                     text-[10px]
-                    text-white/35
+                    text-theme-muted
                   "
                 >
                   Starting price
@@ -274,13 +269,13 @@ export default function CreatorCard({
             inline-flex
             items-center
             rounded-full
-            border border-white/10
-            bg-white/[0.06]
+            border border-theme-border
+            bg-theme-inset
             px-2.5
             py-1
             text-[10px]
             font-medium
-            text-white/65
+            text-theme-muted
             max-w-[110px]
             truncate
           "
@@ -294,13 +289,13 @@ export default function CreatorCard({
         inline-flex
         items-center
         rounded-full
-        border border-white/10
-        bg-white/[0.04]
+        border border-theme-border
+        bg-theme-inset
         px-2.5
         py-1
         text-[10px]
         font-medium
-        text-white/35
+        text-theme-muted
       "
     >
       No category
@@ -326,10 +321,10 @@ export default function CreatorCard({
                 items-center
                 gap-1
                 text-[13px]
-                text-white/65
+                text-theme-muted
               "
             >
-              <span className="text-yellow-300">
+              <span className="text-theme-warning">
                 ★
               </span>
 
@@ -337,7 +332,7 @@ export default function CreatorCard({
                 {creator.rating ?? 0}
               </span>
 
-              <span className="text-white/35">
+              <span className="text-theme-muted">
                 (
                 {creator.reviewCount ??
                   0}
@@ -350,18 +345,17 @@ export default function CreatorCard({
               <div
                 className="
                   rounded-full
-                  border border-white/10
-                  bg-black/30
+                  border border-theme-border
+                  bg-theme-inset
                   px-2.5
                   py-1
                   text-[10px]
-                  text-white/65
-                  backdrop-blur-md
+                  text-theme-muted
                   whitespace-nowrap
                 "
               >
                 Next slot:
-                <span className="ml-1 text-white/85">
+                <span className="ml-1 text-theme-text">
                   {nextSlot}
                 </span>
               </div>
@@ -369,6 +363,6 @@ export default function CreatorCard({
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

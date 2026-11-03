@@ -11,7 +11,7 @@ export default function DashboardCard({
 }) {
   return (
     <div
-      className={`rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md p-4 ${className}`}
+      className={`rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4 shadow-sm sm:p-5 ${className}`}
     >
       {children}
     </div>

@@ -1,4 +1,4 @@
-import type { ImageAdmissionResponse, UserProfileImageSurface } from "../../api/imageModeration";
+import type { ImageAdmissionResponse, ImageAdmissionSurface } from "../../api/imageModeration";
 
 export type ProfileMediaClaim = Readonly<
   | { kind: "UNCHANGED"; reference: string }
@@ -18,13 +18,13 @@ export type ExistingProfileMedia = Readonly<{
   clientId: string;
   operationId: number;
   state: "EXISTING";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   reference: string;
 }>;
 
 export type ApprovedProfileMedia = Readonly<{
   state: "APPROVED";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   admissionReference: string;
   expiresAt: string;
   sourceFile: File;
@@ -32,27 +32,27 @@ export type ApprovedProfileMedia = Readonly<{
 
 export type PendingProfileMedia = Readonly<{
   state: "UPLOADING" | "MODERATING";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   sourceFile: File;
 } & ProfileMediaPreview & TemporaryAssetIdentity>;
 
 export type BlockedProfileMedia = Readonly<{
   state: "BLOCKED";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   sourceFile: File;
   message: string;
 } & ProfileMediaPreview & TemporaryAssetIdentity>;
 
 export type UnavailableProfileMedia = Readonly<{
   state: "UNAVAILABLE";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   sourceFile: File;
   message: string;
 } & ProfileMediaPreview & TemporaryAssetIdentity>;
 
 export type FailedProfileMedia = Readonly<{
   state: "FAILED";
-  surface: UserProfileImageSurface;
+  surface: ImageAdmissionSurface;
   sourceFile: File;
   message: string;
 } & ProfileMediaPreview & TemporaryAssetIdentity>;
@@ -64,6 +64,15 @@ export type ProfileMediaItem =
   | BlockedProfileMedia
   | UnavailableProfileMedia
   | FailedProfileMedia;
+
+/** Presentation-only status treatment shared by media slots. */
+export const profileMediaStatusClassName = (item: ProfileMediaItem | null | undefined) => {
+  if (item?.state === "BLOCKED") return "border-2 border-red-500";
+  if (item?.state === "UNAVAILABLE") return "border-2 border-amber-400";
+  if (item?.state === "FAILED") return "border-2 border-orange-400";
+  if (item?.state === "UPLOADING" || item?.state === "MODERATING") return "border border-sky-400/70";
+  return "border border-white/10";
+};
 
 let nextClientMediaId = 0;
 const newClientMediaId = () => `profile-media-${Date.now().toString(36)}-${++nextClientMediaId}`;
@@ -103,7 +112,7 @@ const parseExpiry = (expiresAt: string) => {
 export const isProfileMediaAdmissionExpired = (item: ProfileMediaItem, now = Date.now()) =>
   item.state === "APPROVED" && parseExpiry(item.expiresAt) <= now;
 
-export const createProfileMediaSelection = (file: File, surface: UserProfileImageSurface): PendingProfileMedia => ({
+export const createProfileMediaSelection = (file: File, surface: ImageAdmissionSurface): PendingProfileMedia => ({
   clientId: newClientMediaId(),
   operationId: 1,
   state: "UPLOADING",
@@ -159,7 +168,7 @@ export const retryProfileMediaSelection = (item: UnavailableProfileMedia | Faile
 });
 
 /** Returns only the opaque temporary identity issued by the backend, never a provider URL. */
-export const temporaryProfileMediaRelease = (item: ProfileMediaItem): Readonly<{ assetReference: string; surface: UserProfileImageSurface }> | null =>
+export const temporaryProfileMediaRelease = (item: ProfileMediaItem): Readonly<{ assetReference: string; surface: ImageAdmissionSurface }> | null =>
   item.state !== "EXISTING" && item.assetReference ? { assetReference: item.assetReference, surface: item.surface } : null;
 
 /** Replaces a slot while invalidating every outstanding result for its prior selection. */

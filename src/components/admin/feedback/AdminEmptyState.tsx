@@ -15,15 +15,15 @@ export default function AdminEmptyState({
   action,
 }: AdminEmptyStateProps) {
   return (
-    <div className="flex min-h-[340px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-700 bg-slate-900 px-8 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800">
-        <Inbox className="h-8 w-8 text-slate-400" />
+    <div className="flex min-h-[340px] flex-col items-center justify-center rounded-[var(--radius-card)] border border-dashed border-theme-border-strong bg-theme-surface px-8 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-[var(--radius-card)] bg-theme-inset">
+        <Inbox className="h-8 w-8 text-theme-muted" />
       </div>
 
-      <h2 className="mt-6 text-xl font-semibold text-white">{title}</h2>
+      <h2 className="mt-6 text-xl font-semibold text-theme-text">{title}</h2>
 
       {description && (
-        <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">
+        <p className="mt-3 max-w-md text-sm leading-6 text-theme-muted">
           {description}
         </p>
       )}

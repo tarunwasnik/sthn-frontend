@@ -7,3 +7,8 @@ export const getUserBookingsAPI = async () => {
 
   return res.data;
 };
+
+export const getUserBookingAPI = async (bookingId: string) => {
+  const res = await api.get(`/v1/bookings/${encodeURIComponent(bookingId)}`);
+  return res.data;
+};

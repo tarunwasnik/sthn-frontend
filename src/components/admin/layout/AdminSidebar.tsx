@@ -4,24 +4,17 @@ import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
 import {
-  Activity,
   ArrowRightLeft,
   BadgeCheck,
-  BarChart3,
   CalendarDays,
-  Cpu,
   FileCheck,
-  Flag,
   Hammer,
   LayoutDashboard,
-  Rocket,
-  ShieldAlert,
   SlidersHorizontal,
-  TriangleAlert,
+  ShieldAlert,
   UserRound,
   Users,
   Wallet,
-  Wrench,
 } from "lucide-react";
 
 type Workspace = "operations" | "system";
@@ -60,21 +53,9 @@ const operationsSections: NavSection[] = [
   {
     title: "MANAGEMENT",
     items: [
-      {
-        label: "Users",
-        path: "/admin/operations/users",
-        icon: Users,
-      },
-      {
-        label: "Creators",
-        path: "/admin/operations/creators",
-        icon: UserRound,
-      },
-      {
-        label: "Bookings",
-        path: "/admin/operations/bookings",
-        icon: CalendarDays,
-      },
+      { label: "Users", path: "/admin/operations/users", icon: Users },
+      { label: "Creators", path: "/admin/operations/creators", icon: UserRound },
+      { label: "Bookings", path: "/admin/operations/bookings", icon: CalendarDays },
       {
         label: "Payments",
         path: "/admin/operations/payments",
@@ -102,7 +83,8 @@ const operationsSections: NavSection[] = [
         icon: Wallet,
       },
       { label: "Platform Revenue", path: "/admin/operations/platform-revenue", icon: Wallet },
-      { label: "Governance", path: "/admin/operations/governance", icon: Hammer },
+      { label: "Governance & Actions", path: "/admin/operations/governance", icon: Hammer },
+      { label: "Control Plane", path: "/admin/operations/control-plane", icon: SlidersHorizontal },
     ],
   },
 
@@ -132,23 +114,7 @@ const operationsSections: NavSection[] = [
       {
         label: "Risk Center",
         path: "/admin/operations/risk",
-        icon: TriangleAlert,
-      },
-    ],
-  },
-
-  {
-    title: "OPERATIONS",
-    items: [
-      {
-        label: "Admin Actions",
-        path: "/admin/operations/actions",
-        icon: Hammer,
-      },
-      {
-        label: "Control Plane",
-        path: "/admin/operations/control-plane",
-        icon: SlidersHorizontal,
+        icon: ShieldAlert,
       },
     ],
   },
@@ -171,50 +137,8 @@ const systemSections: NavSection[] = [
   },
 
   {
-    title: "PLATFORM",
-    items: [
-      {
-        label: "System Health",
-        path: "/admin/system/health",
-        icon: Activity,
-      },
-      {
-        label: "Bootstrap",
-        path: "/admin/system/bootstrap",
-        icon: Rocket,
-      },
-    ],
-  },
-
-  {
-    title: "FEATURE FLAGS",
-    items: [
-      {
-        label: "Dashboard",
-        path: "/admin/system/feature-flags",
-        icon: Flag,
-      },
-      {
-        label: "Telemetry",
-        path: "/admin/system/telemetry",
-        icon: BarChart3,
-      },
-    ],
-  },
-
-  {
     title: "SYSTEM",
     items: [
-      {
-        label: "System Mode",
-        path: "/admin/system/mode",
-        icon: Cpu,
-      },
-      {
-        label: "Maintenance",
-        path: "/admin/system/maintenance",
-        icon: Wrench,
-      },
       {
         label: "Wallet Backfill",
         path: "/admin/system/wallet-backfill",
@@ -229,11 +153,11 @@ export default function AdminSidebar({ workspace }: AdminSidebarProps) {
     workspace === "operations" ? operationsSections : systemSections;
 
   return (
-    <aside className="sticky top-16 h-[calc(100vh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-neutral-800 bg-neutral-950">
+    <aside className="sticky top-16 h-[calc(100dvh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-theme-border bg-theme-surface">
       <div className="px-5 py-6">
         {sections.map((section) => (
           <div key={section.title} className="mb-8">
-            <h3 className="mb-3 px-3 text-[11px] font-bold tracking-[0.18em] text-neutral-500">
+            <h3 className="mb-3 px-3 text-[11px] font-medium tracking-[0.18em] text-theme-muted">
               {section.title}
             </h3>
 
@@ -248,11 +172,11 @@ export default function AdminSidebar({ workspace }: AdminSidebarProps) {
                     end
                     className={({ isActive }) =>
                       [
-                        "group flex items-center gap-3 rounded-xl px-3 py-3 transition-all duration-200",
+                        "group flex items-center gap-3 rounded-[var(--radius-navigation)] px-3 py-3 transition-colors duration-200",
 
                         isActive
-                          ? " bg-neutral-900 text-white"
-                          : " text-neutral-400 hover:bg-neutral-900 hover:text-white",
+                          ? "bg-theme-accent-tint text-theme-accent"
+                          : "text-theme-muted hover:bg-theme-inset hover:text-theme-text",
                       ].join(" ")
                     }
                   >

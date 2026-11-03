@@ -137,9 +137,9 @@ export default function MessageList({
 
   return (
     <>
-      {loading && <p className="text-sm text-white/50">Loading chat...</p>}
+      {loading && <p className="text-sm text-theme-muted">Loading chat...</p>}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-theme-danger">{error}</p>}
 
       {!loading &&
         !error &&
@@ -220,9 +220,9 @@ export default function MessageList({
               px-3.5
               py-2
               border
-              border-white/[0.05]
-              bg-white/[0.04]
-              text-white/60
+              border-theme-border
+              bg-theme-inset
+              text-theme-muted
               text-[13px]
               italic
             "

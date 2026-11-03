@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
 import { decideBookingAPI } from "../api/creatorBooking";
+import { useBookingRequests } from "../hooks/useBookingRequests";
 
 interface Slot {
   _id: string;
@@ -36,6 +37,7 @@ interface Booking {
 
 export default function CreatorRequests() {
   const navigate = useNavigate();
+  const { refreshPendingRequestCount } = useBookingRequests();
 
   const [bookings, setBookings] =
     useState<Booking[]>([]);
@@ -92,6 +94,7 @@ export default function CreatorRequests() {
       );
 
       await fetchBookings();
+      await refreshPendingRequestCount();
     } catch (err) {
       console.error(
         "Decision failed",
@@ -104,7 +107,7 @@ export default function CreatorRequests() {
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [refreshPendingRequestCount]);
 
   /* ================= HELPERS ================= */
 
@@ -123,53 +126,25 @@ export default function CreatorRequests() {
   ) => {
     switch (status) {
       case "CONFIRMED":
-        return `
-          bg-[rgba(34,197,94,0.14)]
-          text-[#86EFAC]
-          border border-[rgba(34,197,94,0.22)]
-        `;
+        return "border border-theme-success bg-theme-success-tint text-theme-success";
 
       case "REQUESTED":
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#E5E7EB]
-          border border-[rgba(255,255,255,0.10)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "REJECTED":
-        return `
-          bg-[rgba(239,68,68,0.14)]
-          text-[#FCA5A5]
-          border border-[rgba(239,68,68,0.22)]
-        `;
+        return "border border-theme-danger bg-theme-danger-tint text-theme-danger";
 
       case "EXPIRED":
-        return `
-          bg-[rgba(107,114,128,0.16)]
-          text-[#E5E7EB]
-          border border-[rgba(107,114,128,0.20)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-muted";
 
       case "CANCELLED":
-        return `
-          bg-[rgba(249,115,22,0.14)]
-          text-[#FDBA74]
-          border border-[rgba(249,115,22,0.20)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "COMPLETED":
-        return `
-          bg-[rgba(6,182,212,0.14)]
-          text-[#67E8F9]
-          border border-[rgba(6,182,212,0.22)]
-        `;
+        return "border border-theme-info bg-theme-info-tint text-theme-info";
 
       default:
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#F8FAFC]
-          border border-[rgba(255,255,255,0.08)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-text";
     }
   };
 
@@ -181,11 +156,11 @@ export default function CreatorRequests() {
         <div className="max-w-7xl mx-auto px-4 py-6 pb-28 space-y-6">
           {/* HEADER */}
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-[#F8FAFC] tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight text-theme-text md:text-4xl">
               Booking Requests
             </h1>
 
-            <p className="text-sm md:text-base text-[rgba(255,255,255,0.55)] mt-2">
+            <p className="mt-2 text-sm text-theme-muted md:text-base">
               Manage incoming booking
               requests
             </p>
@@ -193,7 +168,7 @@ export default function CreatorRequests() {
 
           {/* LOADING */}
           {loading && (
-            <div className="text-[rgba(255,255,255,0.38)]">
+            <div className="text-theme-muted">
               Loading booking
               requests...
             </div>
@@ -204,12 +179,12 @@ export default function CreatorRequests() {
             bookings.length === 0 && (
               <div
                 className="
-                bg-[#151515]
-                border border-[rgba(255,255,255,0.08)]
-                rounded-[28px]
+                bg-theme-surface
+                border border-theme-border
+                rounded-[var(--radius-card)]
                 p-10
                 text-center
-                text-[rgba(255,255,255,0.38)]
+                text-theme-muted
               "
               >
                 No booking requests
@@ -242,15 +217,12 @@ export default function CreatorRequests() {
                       group
                       relative
                       overflow-hidden
-                      rounded-[30px]
-                      border border-white/10
-                      bg-gradient-to-br from-white/[0.045] to-white/[0.015]
-                      backdrop-blur-xl
+                      rounded-[var(--radius-card)]
+                      border border-theme-border
+                      bg-theme-surface
                       px-5 py-5
-                      shadow-[0_10px_30px_rgba(0,0,0,0.35)]
-                      transition-all duration-300
-                      hover:-translate-y-[2px]
-                      hover:shadow-[0_14px_40px_rgba(0,0,0,0.45)]
+                      transition-colors
+                      hover:bg-theme-surface-raised
                     "
                     >
                       {/* MOBILE */}
@@ -259,7 +231,7 @@ export default function CreatorRequests() {
                         <div className="flex justify-between gap-4">
                           {/* LEFT */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-[26px] font-bold text-[#F8FAFC] leading-none break-words">
+                            <p className="text-[26px] font-semibold leading-none break-words text-theme-text">
                               {
                                 serviceTitle
                               }
@@ -292,9 +264,9 @@ export default function CreatorRequests() {
                                 text-[11px]
                                 font-semibold
                                 whitespace-nowrap
-                                bg-[rgba(255,255,255,0.05)]
-                                text-[#E5E7EB]
-                                border border-[rgba(255,255,255,0.10)]
+                                bg-theme-inset
+                                text-theme-text
+                                border border-theme-border
                               "
                               >
                                 {booking.paymentStatus ||
@@ -303,14 +275,14 @@ export default function CreatorRequests() {
                             </div>
 
                             <div className="mt-4 space-y-1">
-                              <p className="text-[12px] text-[rgba(255,255,255,0.50)]">
+                              <p className="text-[12px] text-theme-muted">
                                 Requested at{" "}
                                 {new Date(
                                   booking.createdAt
                                 ).toLocaleString()}
                               </p>
 
-                              <p className="text-[12px] text-[rgba(255,255,255,0.42)]">
+                              <p className="text-[12px] text-theme-muted">
                                 Expires at{" "}
                                 {new Date(
                                   booking.expiresAt
@@ -325,10 +297,10 @@ export default function CreatorRequests() {
                           className="
                           w-full
                           h-[190px]
-                          rounded-[28px]
+                          rounded-[var(--radius-card)]
                           overflow-hidden
-                          border border-[rgba(255,255,255,0.08)]
-                          bg-white/[0.03]
+                          border border-theme-border
+                          bg-theme-inset
                         "
                         >
                           {serviceMedia ? (
@@ -351,7 +323,7 @@ export default function CreatorRequests() {
                               flex
                               items-center
                               justify-center
-                              text-[rgba(255,255,255,0.35)]
+                              text-theme-muted
                               text-sm
                             "
                             >
@@ -373,11 +345,11 @@ export default function CreatorRequests() {
                                 className="
                                 px-3
                                 py-2
-                                rounded-xl
-                                bg-[rgba(255,255,255,0.03)]
-                                border border-[rgba(255,255,255,0.07)]
+                                rounded-[var(--radius-control)]
+                                bg-theme-inset
+                                border border-theme-border
                                 text-[11px]
-                                text-[#F8FAFC]
+                                text-theme-text
                                 whitespace-nowrap
                               "
                               >
@@ -404,14 +376,15 @@ export default function CreatorRequests() {
                             className="
                             w-full
                             h-[54px]
-                            rounded-2xl
-                            bg-[rgba(255,255,255,0.04)]
-                            border border-[rgba(255,255,255,0.08)]
-                            text-white
-                            hover:bg-[rgba(255,255,255,0.07)]
-                            transition
+                            rounded-[var(--radius-control)]
+                            bg-theme-surface
+                            border border-theme-border
+                            text-theme-text
+                            hover:bg-theme-inset
+                            transition-colors
                             font-semibold
                             text-[17px]
+                            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                           "
                           >
                             View Details
@@ -430,13 +403,14 @@ export default function CreatorRequests() {
                             className="
                             w-full
                             h-[54px]
-                            rounded-2xl
-                            bg-[rgba(255,255,255,0.04)]
-                            border border-[rgba(255,255,255,0.08)]
-                            text-white
-                            hover:bg-[rgba(255,255,255,0.07)]
-                            transition
+                            rounded-[var(--radius-control)]
+                            bg-theme-surface
+                            border border-theme-border
+                            text-theme-text
+                            hover:bg-theme-inset
+                            transition-colors
                             font-medium
+                            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                           "
                           >
                             View User
@@ -458,14 +432,15 @@ export default function CreatorRequests() {
                               className="
                               w-full
                               h-[54px]
-                              rounded-2xl
-                              bg-[#22C55E]
-                              hover:bg-[#16A34A]
-                              text-white
-                              transition
+                              rounded-[var(--radius-control)]
+                              bg-theme-primary
+                              hover:opacity-90
+                              text-theme-primary-text
+                              transition-opacity
                               font-semibold
                               text-[17px]
                               disabled:opacity-50
+                              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                             "
                             >
                               {processingId ===
@@ -491,15 +466,16 @@ export default function CreatorRequests() {
                               className="
                               w-full
                               h-[54px]
-                              rounded-2xl
-                              bg-[rgba(239,68,68,0.14)]
-                              border border-[rgba(239,68,68,0.22)]
-                              text-[#FCA5A5]
-                              hover:bg-[rgba(239,68,68,0.22)]
-                              transition
+                              rounded-[var(--radius-control)]
+                              bg-theme-danger-tint
+                              border border-theme-danger
+                              text-theme-danger
+                              hover:opacity-85
+                              transition-opacity
                               font-semibold
                               text-[17px]
                               disabled:opacity-50
+                              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                             "
                             >
                               {processingId ===
@@ -524,7 +500,7 @@ export default function CreatorRequests() {
                         <div className="min-w-0">
                           {/* TOP */}
                           <div className="flex items-center gap-3 flex-wrap">
-                            <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+                            <p className="text-[11px] text-theme-muted">
                               {new Date(
                                 booking.createdAt
                               ).toLocaleString()}
@@ -554,9 +530,9 @@ export default function CreatorRequests() {
                               rounded-full
                               text-[10px]
                               font-semibold
-                              bg-[rgba(255,255,255,0.05)]
-                              text-[#E5E7EB]
-                              border border-[rgba(255,255,255,0.10)]
+                              bg-theme-inset
+                              text-theme-text
+                              border border-theme-border
                             "
                             >
                               {booking.paymentStatus ||
@@ -566,15 +542,15 @@ export default function CreatorRequests() {
 
                           {/* SERVICE */}
                           <div className="mt-3">
-                            <p className="text-[rgba(255,255,255,0.38)] text-sm">
+                            <p className="text-sm text-theme-muted">
                               Service
                             </p>
 
                             <h2
                               className="
                               text-[18px]
-                              font-bold
-                              text-[#F8FAFC]
+                              font-semibold
+                              text-theme-text
                               mt-1
                               break-words
                             "
@@ -587,14 +563,14 @@ export default function CreatorRequests() {
 
                           {/* DATES */}
                           <div className="mt-4 space-y-1">
-                            <p className="text-[12px] text-[rgba(255,255,255,0.50)]">
+                            <p className="text-[12px] text-theme-muted">
                               Requested at{" "}
                               {new Date(
                                 booking.createdAt
                               ).toLocaleString()}
                             </p>
 
-                            <p className="text-[12px] text-[rgba(255,255,255,0.42)]">
+                            <p className="text-[12px] text-theme-muted">
                               Expires at{" "}
                               {new Date(
                                 booking.expiresAt
@@ -615,11 +591,11 @@ export default function CreatorRequests() {
                                   className="
                                   px-3
                                   py-2
-                                  rounded-xl
-                                  bg-white/[0.04]
-                                  border border-white/10
+                                  rounded-[var(--radius-control)]
+                                  bg-theme-inset
+                                  border border-theme-border
                                   text-[11px]
-                                  text-[#F8FAFC]
+                                  text-theme-text
                                 "
                                 >
                                   {formatTime(
@@ -641,10 +617,10 @@ export default function CreatorRequests() {
                           h-[190px]
                           w-full
                           max-w-[380px]
-                          rounded-[28px]
+                          rounded-[var(--radius-card)]
                           overflow-hidden
-                          border border-white/10
-                          bg-white/[0.03]
+                          border border-theme-border
+                          bg-theme-inset
                           justify-self-start
                         "
                         >
@@ -668,7 +644,7 @@ export default function CreatorRequests() {
                               flex
                               items-center
                               justify-center
-                              text-[rgba(255,255,255,0.35)]
+                              text-theme-muted
                               text-sm
                             "
                             >
@@ -696,14 +672,15 @@ export default function CreatorRequests() {
                               className="
                               w-full
                               h-11
-                              rounded-2xl
-                              bg-[rgba(255,255,255,0.04)]
-                              border border-[rgba(255,255,255,0.08)]
-                              text-white
+                              rounded-[var(--radius-control)]
+                              bg-theme-surface
+                              border border-theme-border
+                              text-theme-text
                               text-sm
                               font-medium
-                              hover:bg-[rgba(255,255,255,0.07)]
-                              transition
+                              hover:bg-theme-inset
+                              transition-colors
+                              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                             "
                             >
                               View Details
@@ -722,15 +699,16 @@ export default function CreatorRequests() {
                               className="
                               w-full
                               h-11
-                              rounded-2xl
-                              bg-[rgba(255,255,255,0.04)]
-                              border border-[rgba(255,255,255,0.08)]
-                              text-white
+                              rounded-[var(--radius-control)]
+                              bg-theme-surface
+                              border border-theme-border
+                              text-theme-text
                               text-sm
                               font-medium
-                              hover:bg-[rgba(255,255,255,0.07)]
-                              transition
+                              hover:bg-theme-inset
+                              transition-colors
                               disabled:opacity-50
+                              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                             "
                             >
                               View User
@@ -752,14 +730,15 @@ export default function CreatorRequests() {
                                 className="
                                 w-full
                                 h-11
-                                rounded-2xl
-                                bg-[#22C55E]
-                                hover:bg-[#16A34A]
-                                text-white
+                                rounded-[var(--radius-control)]
+                                bg-theme-primary
+                                hover:opacity-90
+                                text-theme-primary-text
                                 text-sm
                                 font-semibold
-                                transition
+                                transition-opacity
                                 disabled:opacity-50
+                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                               "
                               >
                                 {processingId ===
@@ -785,15 +764,16 @@ export default function CreatorRequests() {
                                 className="
                                 w-full
                                 h-11
-                                rounded-2xl
-                                bg-[rgba(239,68,68,0.14)]
-                                border border-[rgba(239,68,68,0.22)]
-                                text-[#FCA5A5]
-                                hover:bg-[rgba(239,68,68,0.22)]
+                                rounded-[var(--radius-control)]
+                                bg-theme-danger-tint
+                                border border-theme-danger
+                                text-theme-danger
+                                hover:opacity-85
                                 text-sm
                                 font-semibold
-                                transition
+                                transition-opacity
                                 disabled:opacity-50
+                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                               "
                               >
                                 {processingId ===

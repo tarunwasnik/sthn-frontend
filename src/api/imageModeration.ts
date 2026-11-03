@@ -8,7 +8,24 @@ export const USER_PROFILE_IMAGE_SURFACES = [
   "USER_PROFILE_PHOTO",
 ] as const;
 
+export const CREATOR_APPLICATION_IMAGE_SURFACES = [
+  "CREATOR_APPLICATION_AVATAR",
+  "CREATOR_APPLICATION_COVER",
+  "CREATOR_APPLICATION_MEDIA",
+] as const;
+
+export const CREATOR_PROFILE_IMAGE_SURFACES = [
+  "CREATOR_PROFILE_AVATAR",
+  "CREATOR_PROFILE_COVER",
+  "CREATOR_PROFILE_MEDIA",
+] as const;
+export const CREATOR_SERVICE_IMAGE_SURFACES = ["CREATOR_SERVICE_MEDIA"] as const;
+
 export type UserProfileImageSurface = typeof USER_PROFILE_IMAGE_SURFACES[number];
+export type CreatorApplicationImageSurface = typeof CREATOR_APPLICATION_IMAGE_SURFACES[number];
+export type CreatorProfileImageSurface = typeof CREATOR_PROFILE_IMAGE_SURFACES[number];
+export type CreatorServiceImageSurface = typeof CREATOR_SERVICE_IMAGE_SURFACES[number];
+export type ImageAdmissionSurface = UserProfileImageSurface | CreatorApplicationImageSurface | CreatorProfileImageSurface | CreatorServiceImageSurface;
 export type ImageAdmissionDecision = "PASS" | "BLOCK" | "UNAVAILABLE";
 
 export type ImageAdmissionPassResponse = Readonly<{
@@ -34,7 +51,7 @@ export type TemporaryImageReleaseResponse = Readonly<{ outcome: TemporaryImageRe
 
 export const submitUserProfileImageAdmission = async (
   file: File,
-  surface: UserProfileImageSurface,
+  surface: ImageAdmissionSurface,
   signal?: AbortSignal,
 ): Promise<ImageAdmissionResponse> => {
   const form = new FormData();
@@ -46,7 +63,7 @@ export const submitUserProfileImageAdmission = async (
 /** Releases only a server-issued temporary asset; provider URLs and IDs never leave the backend. */
 export const releaseUserProfileTemporaryImage = async (
   assetReference: string,
-  surface: UserProfileImageSurface,
+  surface: ImageAdmissionSurface,
 ): Promise<TemporaryImageReleaseResponse> =>
   (await api.post<TemporaryImageReleaseResponse>(`/v1/image-moderation/temporary-assets/${encodeURIComponent(assetReference)}/release`, { surface })).data;
 

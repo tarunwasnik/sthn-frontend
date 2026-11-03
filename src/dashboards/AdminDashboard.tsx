@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errorMessage";
 import CreateAdminControl from "../components/CreateAdminControl";
+import AdminLayout from "../components/admin/layout/AdminLayout";
 
 type AdminControl = {
   _id: string;
@@ -20,6 +22,12 @@ type PreviewDecision = {
   decision: "ALLOW" | "BLOCK" | "FORCE_DRY_RUN";
   reason?: string;
 };
+
+type PreviewRisk = "low" | "medium" | "high" | "critical";
+
+function isPreviewRisk(value: string): value is PreviewRisk {
+  return value === "low" || value === "medium" || value === "high" || value === "critical";
+}
 
 export default function AdminDashboard() {
   const [controls, setControls] = useState<AdminControl[]>([]);
@@ -46,7 +54,7 @@ export default function AdminDashboard() {
   // ---------------------------------------------
   const [previewActionKey, setPreviewActionKey] = useState("");
   const [previewRisk, setPreviewRisk] = useState<
-    "low" | "medium" | "high" | "critical"
+    PreviewRisk
   >("low");
   const [previewDryRun, setPreviewDryRun] = useState(false);
 
@@ -69,10 +77,9 @@ export default function AdminDashboard() {
       );
 
       setControls(res.data.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ||
-          "Failed to load active controls"
+        getApiErrorMessage(err, "Failed to load active controls")
       );
     } finally {
       setLoading(false);
@@ -93,10 +100,9 @@ export default function AdminDashboard() {
       );
 
       setHistory(res.data.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setHistoryError(
-        err?.response?.data?.message ||
-          "Failed to load history"
+        getApiErrorMessage(err, "Failed to load history")
       );
     } finally {
       setHistoryLoading(false);
@@ -121,10 +127,9 @@ export default function AdminDashboard() {
       );
 
       setDetail(res.data.data || null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setDetailError(
-        err?.response?.data?.message ||
-          "Failed to load control details"
+        getApiErrorMessage(err, "Failed to load control details")
       );
     } finally {
       setDetailLoading(false);
@@ -171,10 +176,9 @@ export default function AdminDashboard() {
       if (showHistory) {
         await fetchHistory();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setExpireError(
-        err?.response?.data?.message ||
-          "Failed to expire control"
+        getApiErrorMessage(err, "Failed to expire control")
       );
     } finally {
       setExpireLoading(false);
@@ -206,10 +210,9 @@ export default function AdminDashboard() {
       );
 
       setPreviewResult(res.data.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPreviewError(
-        err?.response?.data?.message ||
-          "Failed to preview control decision"
+        getApiErrorMessage(err, "Failed to preview control decision")
       );
     } finally {
       setPreviewLoading(false);
@@ -325,6 +328,7 @@ export default function AdminDashboard() {
   );
 
   return (
+    <AdminLayout workspace="operations">
     <div>
       <h2>Admin Control Plane</h2>
 
@@ -358,9 +362,9 @@ export default function AdminDashboard() {
           <br />
           <select
             value={previewRisk}
-            onChange={(e) =>
-              setPreviewRisk(e.target.value as any)
-            }
+            onChange={(e) => {
+              if (isPreviewRisk(e.target.value)) setPreviewRisk(e.target.value);
+            }}
           >
             <option value="low">low</option>
             <option value="medium">medium</option>
@@ -514,5 +518,6 @@ export default function AdminDashboard() {
         </section>
       )}
     </div>
+    </AdminLayout>
   );
 }

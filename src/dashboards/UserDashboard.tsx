@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import DashboardCard from "../components/common/DashboardCard";
 import api from "../api/axios";
+import { getUserBookingsAPI } from "../api/userBooking";
 
 type User = {
   id: string;
@@ -20,9 +21,19 @@ type Profile = {
   rejectionReason?: string;
 };
 
+type UpcomingBooking = {
+  _id: string;
+  status: string;
+  service?: { title?: string };
+  creator?: { profile?: { displayName?: string } };
+  slots?: Array<{ startTime: string }>;
+};
+
 export default function UserDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [upcomingBookings, setUpcomingBookings] = useState<UpcomingBooking[]>([]);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
@@ -31,13 +42,12 @@ export default function UserDashboard() {
     const loadData = async () => {
       try {
         /* ================= AUTH ================= */
-        const userRes = await api.get("/auth/me");
+        const [userRes, profileRes, bookingsRes] = await Promise.all([
+          api.get("/auth/me"),
+          api.get("/v1/profile/me"),
+          getUserBookingsAPI(),
+        ]);
         const userData = userRes.data;
-
-        /* ================= PROFILE ================= */
-        const profileRes = await api.get("/v1/profile/me");
-
-        console.log("PROFILE DATA:", profileRes.data);
 
         setUser(userData);
 
@@ -47,9 +57,19 @@ export default function UserDashboard() {
           username: profileRes.data.username,
           rejectionReason: profileRes.data.rejectionReason,
         });
+        const now = Date.now();
+        const eligible = (bookingsRes.bookings ?? [])
+          .filter((booking: UpcomingBooking) => ["REQUESTED", "CONFIRMED"].includes(booking.status))
+          .map((booking: UpcomingBooking) => ({ booking, startTime: booking.slots?.map((slot) => new Date(slot.startTime).getTime()).filter(Number.isFinite).sort((a, b) => a - b)[0] }))
+          .filter(({ startTime }: { startTime: number | undefined }) => startTime !== undefined && startTime >= now)
+          .sort((left: { startTime: number }, right: { startTime: number }) => left.startTime - right.startTime)
+          .map(({ booking }: { booking: UpcomingBooking }) => booking);
+        setUpcomingBookings(eligible);
+        setBookingError(null);
 
       } catch (err) {
         console.error("Dashboard load failed", err);
+        setBookingError("Upcoming bookings are unavailable right now.");
       } finally {
         setLoading(false);
       }
@@ -61,7 +81,7 @@ export default function UserDashboard() {
   if (loading) {
     return (
       <UserDashboardLayout>
-        <div className="text-gray-400 px-4">Loading...</div>
+        <div className="px-4 text-theme-muted">Loading...</div>
       </UserDashboardLayout>
     );
   }
@@ -69,7 +89,7 @@ export default function UserDashboard() {
   if (!user || !profile) {
     return (
       <UserDashboardLayout>
-        <div className="text-red-400 px-4">Failed to load dashboard</div>
+        <div className="px-4 text-theme-danger">Failed to load dashboard</div>
       </UserDashboardLayout>
     );
   }
@@ -89,11 +109,11 @@ export default function UserDashboard() {
         <DashboardCard className="p-6 md:p-7">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+              <h1 className="text-3xl font-semibold tracking-tight text-theme-text md:text-4xl">
                 Welcome back{profile.username ? `, ${profile.username}` : ""}
               </h1>
 
-              <p className="text-white/60 mt-3 max-w-2xl">
+              <p className="mt-3 max-w-2xl text-theme-muted">
                 Browse creators, discover experiences, and manage your bookings
                 from one place.
               </p>
@@ -102,10 +122,10 @@ export default function UserDashboard() {
                 <div
                   className={`px-3 py-1.5 rounded-full text-sm border ${
                     profileStatus === "verified"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                      ? "border-theme-success bg-theme-success-tint text-theme-success"
                       : profileStatus === "pending_verification"
-                        ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                        : "bg-red-500/10 text-red-400 border-red-500/20"
+                        ? "border-theme-warning bg-theme-warning-tint text-theme-warning"
+                        : "border-theme-danger bg-theme-danger-tint text-theme-danger"
                   }`}
                 >
                   {profileStatus === "verified"
@@ -115,7 +135,7 @@ export default function UserDashboard() {
                       : "Rejected"}
                 </div>
 
-                <div className="px-3 py-1.5 rounded-full text-sm border border-white/10 bg-white/5 text-white/70">
+                <div className="rounded-full border border-theme-border bg-theme-inset px-3 py-1.5 text-sm text-theme-text">
                   Creator: {creatorStatus}
                 </div>
               </div>
@@ -127,12 +147,13 @@ export default function UserDashboard() {
                 className="
                 px-5
                 py-3
-                rounded-xl
-                bg-emerald-400
-                hover:bg-emerald-300
-                transition
-                text-black
+                rounded-[var(--radius-control)]
+                bg-theme-primary
+                hover:opacity-90
+                transition-opacity
+                text-theme-primary-text
                 font-semibold
+                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
               "
               >
                 Browse Creators
@@ -143,14 +164,15 @@ export default function UserDashboard() {
                 className="
                 px-5
                 py-3
-                rounded-xl
-                bg-white/5
+                rounded-[var(--radius-control)]
+                bg-theme-surface
                 border
-                border-white/10
-                hover:bg-white/10
-                transition
-                text-white
+                border-theme-border
+                hover:bg-theme-inset
+                transition-colors
+                text-theme-text
                 font-medium
+                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
               "
               >
                 My Profile
@@ -163,17 +185,17 @@ export default function UserDashboard() {
         {(profileStatus === "pending_verification" ||
           profileStatus === "rejected") && (
           <DashboardCard className="p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">
+            <h2 className="mb-4 text-xl font-semibold text-theme-text">
               Profile Verification
             </h2>
 
             {profileStatus === "pending_verification" && (
               <div className="space-y-3">
-                <p className="text-yellow-400 font-medium">
+                <p className="font-medium text-theme-warning">
                   Your profile is currently under review.
                 </p>
 
-                <p className="text-white/60">
+                <p className="text-theme-muted">
                   Our team is reviewing your profile. No action is required at
                   this time.
                 </p>
@@ -182,28 +204,28 @@ export default function UserDashboard() {
 
             {profileStatus === "rejected" && (
               <div className="space-y-5">
-                <p className="text-red-400 font-medium">
+                <p className="font-medium text-theme-danger">
                   Your profile verification was rejected.
                 </p>
 
                 {profile.rejectionReason && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                    <p className="text-sm font-semibold text-red-300 mb-2">
+                  <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4">
+                    <p className="mb-2 text-sm font-semibold text-theme-danger">
                       Administrator Feedback
                     </p>
 
-                    <p className="text-white/80 leading-relaxed">
+                    <p className="leading-relaxed text-theme-text">
                       {profile.rejectionReason}
                     </p>
                   </div>
                 )}
 
-                <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                  <p className="text-yellow-300 font-semibold mb-2">
+                <div className="rounded-[var(--radius-card)] border border-theme-warning bg-theme-warning-tint p-4">
+                  <p className="mb-2 font-semibold text-theme-warning">
                     Next Steps
                   </p>
 
-                  <p className="text-white/70 leading-relaxed">
+                  <p className="leading-relaxed text-theme-text">
                     Update your profile according to the administrator's
                     feedback. Once you save your changes, your profile will be
                     automatically resubmitted for verification.
@@ -215,12 +237,13 @@ export default function UserDashboard() {
                   className="
             px-5
             py-2.5
-            rounded-xl
-            bg-emerald-400
-            hover:bg-emerald-300
-            transition
-            text-black
+            rounded-[var(--radius-control)]
+            bg-theme-primary
+            hover:opacity-90
+            transition-opacity
+            text-theme-primary-text
             font-semibold
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
                 >
                   Edit Profile
@@ -233,22 +256,29 @@ export default function UserDashboard() {
         {showCreatorCta && (
           <DashboardCard className="p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div><h2 className="text-xl font-semibold text-white">Become a Creator</h2><p className="mt-1 text-sm text-white/60">Manage your Creator application from Settings.</p></div>
-              <button onClick={() => navigate("/dashboard/user/settings/creator")} className="rounded-xl bg-emerald-400 px-5 py-2.5 font-semibold text-black transition hover:bg-emerald-300">Become a Creator</button>
+              <div><h2 className="text-xl font-semibold text-theme-text">Become a Creator</h2><p className="mt-1 text-sm text-theme-muted">Manage your Creator application from Settings.</p></div>
+              <button onClick={() => navigate("/dashboard/user/settings/creator")} className="rounded-[var(--radius-control)] bg-theme-primary px-5 py-2.5 font-semibold text-theme-primary-text transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Become a Creator</button>
             </div>
           </DashboardCard>
         )}
 
         {/* UPCOMING BOOKINGS */}
         <DashboardCard className="p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">
+          <h2 className="mb-4 text-xl font-semibold text-theme-text">
             Upcoming Bookings
           </h2>
 
-          <div className="text-center py-10">
-            <p className="text-white/70">No upcoming bookings yet</p>
+          {bookingError ? <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{bookingError}</div> : upcomingBookings.length > 0 ? <div className="space-y-3">
+            {upcomingBookings.map((booking) => {
+              const startTime = booking.slots?.map((slot) => new Date(slot.startTime)).sort((a, b) => a.getTime() - b.getTime())[0];
+              return <button key={booking._id} type="button" onClick={() => navigate(`/dashboard/user/bookings/${booking._id}`)} className="w-full rounded-[var(--radius-card)] border border-theme-border bg-theme-inset p-4 text-left transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">
+                <div className="flex items-center justify-between gap-4"><div><p className="font-semibold text-theme-text">{booking.service?.title ?? "Booking"}</p><p className="mt-1 text-sm text-theme-muted">{booking.creator?.profile?.displayName ?? "Creator"}{startTime ? ` · ${startTime.toLocaleString()}` : ""}</p></div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${booking.status === "CONFIRMED" ? "bg-theme-success-tint text-theme-success" : "bg-theme-warning-tint text-theme-warning"}`}>{booking.status}</span></div>
+              </button>;
+            })}
+          </div> : <div className="text-center py-10">
+            <p className="text-theme-text">No upcoming bookings yet</p>
 
-            <p className="text-white/50 text-sm mt-2">
+            <p className="mt-2 text-sm text-theme-muted">
               Browse creators and schedule your first experience.
             </p>
 
@@ -258,17 +288,18 @@ export default function UserDashboard() {
               mt-5
               px-5
               py-2.5
-              rounded-xl
-              bg-emerald-400
-              hover:bg-emerald-300
-              transition
-              text-black
+              rounded-[var(--radius-control)]
+              bg-theme-primary
+              hover:opacity-90
+              transition-opacity
+              text-theme-primary-text
               font-semibold
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
             >
               Explore Creators
             </button>
-          </div>
+          </div>}
         </DashboardCard>
       </div>
     </UserDashboardLayout>

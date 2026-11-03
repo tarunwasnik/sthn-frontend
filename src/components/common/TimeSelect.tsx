@@ -42,25 +42,27 @@ export default function TimeSelect({
 
       {/* HOURS */}
       <select
+        aria-label="Hour"
         value={h}
         onChange={(e) =>
           updateHour(e.target.value)
         }
         className="
           w-[58px]
-          bg-white/[0.04]
-          border border-white/10
-          rounded-xl
+          h-11
+          bg-theme-surface
+          border border-theme-border
+          rounded-[var(--radius-control)]
           px-2
-          py-3
-          text-white
+          text-theme-text
           text-sm
-          outline-none
-          focus:outline-none
-          focus:ring-0
-          focus:border-white/10
-          hover:border-white/20
-          transition
+          transition-colors
+          hover:border-theme-border-strong
+          focus:border-theme-accent
+          focus-visible:outline
+          focus-visible:outline-2
+          focus-visible:outline-offset-2
+          focus-visible:outline-theme-accent
         "
       >
         {hours.map((hour) => (
@@ -68,8 +70,8 @@ export default function TimeSelect({
             key={hour}
             value={hour}
             className="
-              bg-[#111111]
-              text-white
+              bg-theme-surface
+              text-theme-text
             "
           >
             {hour}
@@ -78,31 +80,33 @@ export default function TimeSelect({
       </select>
 
       {/* COLON */}
-      <span className="text-white/50 text-sm">
+      <span className="text-theme-muted text-sm" aria-hidden="true">
         :
       </span>
 
       {/* MINUTES */}
       <select
+        aria-label="Minute"
         value={m}
         onChange={(e) =>
           updateMinute(e.target.value)
         }
         className="
           w-[58px]
-          bg-white/[0.04]
-          border border-white/10
-          rounded-xl
+          h-11
+          bg-theme-surface
+          border border-theme-border
+          rounded-[var(--radius-control)]
           px-2
-          py-3
-          text-white
+          text-theme-text
           text-sm
-          outline-none
-          focus:outline-none
-          focus:ring-0
-          focus:border-white/10
-          hover:border-white/20
-          transition
+          transition-colors
+          hover:border-theme-border-strong
+          focus:border-theme-accent
+          focus-visible:outline
+          focus-visible:outline-2
+          focus-visible:outline-offset-2
+          focus-visible:outline-theme-accent
         "
       >
         {minutes.map((minute) => (
@@ -110,8 +114,8 @@ export default function TimeSelect({
             key={minute}
             value={minute}
             className="
-              bg-[#111111]
-              text-white
+              bg-theme-surface
+              text-theme-text
             "
           >
             {minute}

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchHome } from "../api/public";
 import type { HomeDTO } from "../api/public";
 import CreatorCard from "../components/CreatorCard";
+import ThemeQuickToggle from "../components/theme/ThemeQuickToggle";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -38,7 +39,8 @@ export default function Home() {
         relative
         min-h-screen
         overflow-hidden
-        text-white
+        bg-theme-bg
+        text-theme-text
       "
     >
       {/* Background Glow */}
@@ -53,9 +55,8 @@ export default function Home() {
             md:w-[900px]
             h-[400px]
             md:h-[600px]
-            bg-teal-500/10
-            blur-[120px]
-            md:blur-[150px]
+            bg-theme-accent/10
+            blur-[140px]
             rounded-full
           "
         />
@@ -82,8 +83,8 @@ export default function Home() {
           className="
             text-lg
             md:text-xl
-            font-bold
-            text-teal-400
+            font-semibold
+            text-theme-text
           "
         >
           STHN
@@ -96,18 +97,18 @@ export default function Home() {
             hidden
             md:flex
             gap-8
-            text-gray-300
+            text-theme-muted
           "
         >
-          <span className="hover:text-white cursor-pointer">
+          <span className="cursor-pointer hover:text-theme-text">
             Explore
           </span>
 
-          <span className="hover:text-white cursor-pointer">
+          <span className="cursor-pointer hover:text-theme-text">
             Become a Host
           </span>
 
-          <span className="hover:text-white cursor-pointer">
+          <span className="cursor-pointer hover:text-theme-text">
             Safety
           </span>
         </div>
@@ -122,13 +123,15 @@ export default function Home() {
             gap-4
           "
         >
+          <ThemeQuickToggle className="hidden md:inline-flex" />
           <button
+            type="button"
             onClick={() =>
               navigate("/login")
             }
             className="
-              text-gray-300
-              hover:text-white
+              text-theme-muted
+              hover:text-theme-text
               transition
             "
           >
@@ -136,17 +139,18 @@ export default function Home() {
           </button>
 
           <button
+            type="button"
             onClick={() =>
               navigate("/register")
             }
             className="
-              bg-teal-400
-              text-black
+              bg-theme-primary
+              text-theme-primary-text
               px-5
               py-2
-              rounded-full
-              font-semibold
-              hover:bg-teal-300
+              rounded-[var(--radius-control)]
+              font-medium
+              hover:opacity-90
               transition
             "
           >
@@ -165,17 +169,18 @@ export default function Home() {
           "
         >
           <button
+            type="button"
             onClick={() =>
               navigate("/register")
             }
             className="
-              bg-teal-400
-              text-black
+              bg-theme-primary
+              text-theme-primary-text
               px-4
               py-1.5
-              rounded-full
+              rounded-[var(--radius-control)]
               text-sm
-              font-semibold
+              font-medium
             "
           >
             Join Now
@@ -191,9 +196,10 @@ export default function Home() {
               flex
               items-center
               justify-center
-              rounded-full
+              rounded-[var(--radius-control)]
               border
-              border-white/10
+              border-theme-border
+              bg-theme-surface
             "
           >
             ☰
@@ -215,7 +221,7 @@ export default function Home() {
           <div
             className="
               flex-1
-              bg-black/40
+              bg-black/50
             "
             onClick={() =>
               setMenuOpen(false)
@@ -226,7 +232,8 @@ export default function Home() {
             className="
               w-[75%]
               max-w-sm
-              bg-[#061412]
+              bg-theme-surface-raised
+              text-theme-text
               p-6
               flex
               flex-col
@@ -236,6 +243,7 @@ export default function Home() {
           >
             <div className="flex justify-end">
               <button
+                type="button"
                 onClick={() =>
                   setMenuOpen(false)
                 }
@@ -245,12 +253,13 @@ export default function Home() {
             </div>
 
             <button
+              type="button"
               onClick={() =>
                 navigate("/login")
               }
               className="
                 text-left
-                text-gray-300
+                text-theme-muted
               "
             >
               Login
@@ -261,12 +270,12 @@ export default function Home() {
                 navigate("/register")
               }
               className="
-                bg-teal-400
-                text-black
+                bg-theme-primary
+                text-theme-primary-text
                 px-4
                 py-3
-                rounded-full
-                font-semibold
+                rounded-[var(--radius-control)]
+                font-medium
               "
             >
               Join Now
@@ -275,10 +284,10 @@ export default function Home() {
             <div
               className="
                 border-t
-                border-white/10
+                border-theme-border
                 pt-4
                 space-y-4
-                text-gray-300
+                text-theme-muted
               "
             >
               <div>Explore</div>
@@ -311,11 +320,11 @@ export default function Home() {
             py-1
             text-[10px]
             md:text-xs
-            bg-teal-900/40
+            bg-theme-accent-tint
             border
-            border-teal-500/30
-            rounded-full
-            text-teal-300
+            border-theme-accent
+            rounded-[var(--radius-control)]
+            text-theme-accent
             mb-4
             md:mb-6
           "
@@ -329,14 +338,14 @@ export default function Home() {
             text-3xl
             sm:text-4xl
             md:text-6xl
-            font-bold
+            font-semibold
             leading-tight
           "
         >
           Book Time.
           <br />
 
-          <span className="text-teal-400">
+          <span className="text-theme-accent">
             Build Experiences.
           </span>
         </h1>
@@ -347,7 +356,7 @@ export default function Home() {
             md:mt-6
             text-sm
             md:text-base
-            text-gray-400
+            text-theme-muted
             max-w-xl
             md:max-w-2xl
             mx-auto
@@ -367,11 +376,11 @@ export default function Home() {
             max-w-md
             md:max-w-4xl
             mx-auto
-            bg-white/5
-            backdrop-blur-lg
+            bg-theme-surface
             border
-            border-white/10
-            rounded-2xl
+            border-theme-border
+            rounded-[var(--radius-card-featured)]
+            shadow-sm
             p-5
             md:p-6
             flex
@@ -384,10 +393,11 @@ export default function Home() {
               flex
               flex-col
               divide-y
-              divide-white/10
+              divide-theme-border
             "
           >
             <input
+              aria-label="Location"
               value={location}
               onChange={(e) =>
                 setLocation(
@@ -397,15 +407,15 @@ export default function Home() {
               placeholder="Location (City or Online)"
               className="
                 bg-transparent
-                outline-none
-                text-white
-                placeholder-gray-400
+                text-theme-text
+                placeholder:text-theme-muted
                 py-3
                 text-sm
               "
             />
 
             <input
+              aria-label="Category"
               value={category}
               onChange={(e) =>
                 setCategory(
@@ -415,9 +425,8 @@ export default function Home() {
               placeholder="Category (Photography, Music, etc.)"
               className="
                 bg-transparent
-                outline-none
-                text-white
-                placeholder-gray-400
+                text-theme-text
+                placeholder:text-theme-muted
                 py-3
                 text-sm
               "
@@ -425,6 +434,7 @@ export default function Home() {
           </div>
 
           <button
+            type="button"
             onClick={() => {
               navigate(
                 `/explore?location=${encodeURIComponent(
@@ -436,13 +446,13 @@ export default function Home() {
             }}
             className="
               mt-2
-              bg-teal-400
-              text-black
+              bg-theme-primary
+              text-theme-primary-text
               py-3
-              rounded-xl
-              font-semibold
-              hover:bg-teal-300
-              transition
+              rounded-[var(--radius-control)]
+              font-medium
+              hover:opacity-90
+              transition-opacity
             "
           >
             Search
@@ -569,9 +579,11 @@ export default function Home() {
         ) : (
           <div
             className="
-              text-gray-400
-              text-center
-              py-10
+            rounded-[var(--radius-card)]
+            border border-dashed border-theme-border
+            bg-theme-inset
+            py-10
+            text-center text-theme-muted
             "
           >
             No creators available
@@ -587,12 +599,12 @@ export default function Home() {
           mt-24
           md:mt-32
           border-t
-          border-white/10
+          border-theme-border
           py-10
           md:py-16
           px-4
           md:px-10
-          text-gray-400
+          text-theme-muted
         "
       >
         <div
@@ -609,8 +621,8 @@ export default function Home() {
           <div>
             <div
               className="
-                text-teal-400
-                font-bold
+                text-theme-text
+                font-semibold
                 text-lg
                 md:text-xl
                 mb-3
@@ -643,7 +655,7 @@ export default function Home() {
             "
           >
             <div>
-              <div className="text-white mb-3">
+              <div className="mb-3 text-theme-text">
                 Explore
               </div>
 
@@ -661,7 +673,7 @@ export default function Home() {
             </div>
 
             <div>
-              <div className="text-white mb-3">
+              <div className="mb-3 text-theme-text">
                 Company
               </div>
 
@@ -682,42 +694,41 @@ export default function Home() {
       <div
         className="
           fixed
-          bottom-3
+          bottom-[max(0.75rem,env(safe-area-inset-bottom))]
           left-1/2
           -translate-x-1/2
           w-[95%]
           max-w-md
-          bg-white/5
-          backdrop-blur-lg
+          bg-theme-surface-raised
           border
-          border-white/10
-          rounded-2xl
+          border-theme-border
+          rounded-[var(--radius-card)]
           flex
           justify-around
           py-3
           text-xs
           md:hidden
-          shadow-lg
+          shadow-sm
         "
       >
         <div
           className="
-            text-teal-400
-            font-semibold
+            text-theme-accent
+            font-medium
           "
         >
           Explore
         </div>
 
-        <div className="text-gray-400">
+        <div className="text-theme-muted">
           Saved
         </div>
 
-        <div className="text-gray-400">
+        <div className="text-theme-muted">
           Cart
         </div>
 
-        <div className="text-gray-400">
+        <div className="text-theme-muted">
           Profile
         </div>
       </div>
@@ -737,10 +748,11 @@ function StatCard({
   return (
     <div
       className="
-        bg-white/5
+        bg-theme-surface
         border
-        border-white/10
-        rounded-2xl
+        border-theme-border
+        rounded-[var(--radius-card)]
+        shadow-sm
         p-6
         md:p-8
       "
@@ -749,8 +761,8 @@ function StatCard({
         className="
           text-2xl
           md:text-3xl
-          font-bold
-          text-teal-400
+          font-semibold
+          text-theme-text
         "
       >
         {value}
@@ -758,7 +770,7 @@ function StatCard({
 
       <div
         className="
-          text-gray-400
+          text-theme-muted
           mt-2
           text-sm
           md:text-base
@@ -774,10 +786,10 @@ function StatSkeleton() {
   return (
     <div
       className="
-        bg-white/5
+        bg-theme-surface
         border
-        border-white/10
-        rounded-2xl
+        border-theme-border
+        rounded-[var(--radius-card)]
         p-6
         md:p-8
         animate-pulse
@@ -787,7 +799,7 @@ function StatSkeleton() {
         className="
           h-6
           w-16
-          bg-white/10
+          bg-theme-inset
           rounded
           mb-3
           mx-auto
@@ -798,7 +810,7 @@ function StatSkeleton() {
         className="
           h-4
           w-24
-          bg-white/10
+          bg-theme-inset
           rounded
           mx-auto
         "
@@ -810,11 +822,12 @@ function StatSkeleton() {
 function CardSkeleton() {
   return (
     <div
+      aria-hidden="true"
       className="
-        bg-white/5
+        bg-theme-surface
         border
-        border-white/10
-        rounded-2xl
+        border-theme-border
+        rounded-[var(--radius-card)]
         h-[420px]
         animate-pulse
       "

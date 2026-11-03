@@ -54,7 +54,7 @@ function InlineEvidenceCard({
           href={evidence.url}
           target="_blank"
           rel="noreferrer"
-          className="group block overflow-hidden rounded-xl border border-white/10 bg-black/40 transition hover:border-cyan-400/40"
+          className="group block overflow-hidden rounded-[var(--radius-control)] border border-theme-border bg-theme-inset transition hover:border-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
         >
           <div className="relative max-h-56 w-full overflow-hidden bg-black/30">
             <img
@@ -64,17 +64,17 @@ function InlineEvidenceCard({
               loading="lazy"
             />
           </div>
-          <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-cyan-200 group-hover:text-cyan-100">
+          <div className="flex items-center justify-between gap-2 border-t border-theme-border bg-theme-surface px-3 py-1.5 text-[11px] text-theme-accent">
             <span className="flex items-center gap-1.5 truncate">
               <ImageIcon className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{evidence.fileName}</span>
             </span>
-            <span className="shrink-0 text-white/40">
+            <span className="shrink-0 text-theme-muted">
               {evidence.fileSize ? formatFileSize(evidence.fileSize) : "View"}
             </span>
           </div>
         </a>
-        {caption && <p className="px-1 text-xs text-white/70 italic">{caption}</p>}
+        {caption && <p className="px-1 text-xs italic text-theme-muted">{caption}</p>}
       </div>
     );
   }
@@ -85,20 +85,20 @@ function InlineEvidenceCard({
         href={evidence.url}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 p-2.5 transition hover:border-cyan-400/40 hover:bg-white/[0.04]"
+        className="flex items-center gap-3 rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-2.5 transition hover:border-theme-accent hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-200">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-theme-accent-tint text-theme-accent">
           <FileText className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-medium text-white">{evidence.fileName}</p>
-          <p className="text-[11px] text-white/45">
+          <p className="truncate text-xs font-medium text-theme-text">{evidence.fileName}</p>
+          <p className="text-[11px] text-theme-muted">
             Document {evidence.fileSize ? `• ${formatFileSize(evidence.fileSize)}` : ""}
           </p>
         </div>
-        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-cyan-200" />
+        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-theme-accent" />
       </a>
-      {caption && <p className="px-1 text-xs text-white/70 italic">{caption}</p>}
+      {caption && <p className="px-1 text-xs italic text-theme-muted">{caption}</p>}
     </div>
   );
 }
@@ -151,9 +151,9 @@ export default function InvestigationThread({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
-        <p className="text-sm text-white/50">No investigation activity is visible to you yet.</p>
-        <p className="mt-1 text-xs text-white/35">
+      <div className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-8 text-center">
+        <p className="text-sm text-theme-muted">No investigation activity is visible to you yet.</p>
+        <p className="mt-1 text-xs text-theme-muted">
           Messages from the moderation team and your submissions will appear here chronologically.
         </p>
       </div>
@@ -163,20 +163,20 @@ export default function InvestigationThread({
   return (
     <div
       ref={containerRef}
-      className="max-h-[65vh] min-h-[420px] overflow-y-auto space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 pr-2 sm:pr-3"
+      className="max-h-[65vh] min-h-[420px] overflow-y-auto space-y-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4 pr-2 sm:p-5 sm:pr-3"
     >
       {items.map((entry) => {
         if (entry.type === "REQUEST") {
           // ADMIN REQUEST: Left-aligned incoming message bubble with distinct admin treatment
           return (
             <div key={entry.id} className="flex justify-start">
-              <div className="max-w-[88%] rounded-2xl rounded-tl-sm border border-amber-400/30 bg-gradient-to-br from-amber-400/10 to-amber-400/5 p-4 text-white shadow-lg md:max-w-[75%]">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200">
+              <div className="max-w-[88%] rounded-[var(--radius-card)] rounded-tl-sm border border-theme-warning bg-theme-warning-tint p-4 text-theme-text shadow-sm md:max-w-[75%]">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-theme-warning">
                   <Shield className="h-3.5 w-3.5" />
                   Admin Request
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/95">{entry.item.text}</p>
-                <div className="mt-2.5 text-right text-[10px] text-amber-200/50">{dateTime(entry.createdAt)}</div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-theme-text">{entry.item.text}</p>
+                <div className="mt-2.5 text-right text-[10px] text-theme-warning">{dateTime(entry.createdAt)}</div>
               </div>
             </div>
           );
@@ -190,20 +190,20 @@ export default function InvestigationThread({
               <div
                 className={`max-w-[88%] rounded-2xl p-4 shadow-lg md:max-w-[75%] ${
                   isAdminEvidence
-                    ? "rounded-tl-sm border border-amber-400/30 bg-gradient-to-br from-amber-400/10 to-amber-400/5 text-white"
-                    : "rounded-tr-sm border border-cyan-400/25 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 text-white"
+                    ? "rounded-tl-sm border border-theme-warning bg-theme-warning-tint text-theme-text"
+                    : "rounded-tr-sm border border-theme-accent bg-theme-accent-tint text-theme-text"
                 }`}
               >
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/60">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-theme-muted">
                   {isAdminEvidence ? (
                     <>
-                      <Shield className="h-3.5 w-3.5 text-amber-300" />
-                      <span className="text-amber-200">Admin Evidence</span>
+                      <Shield className="h-3.5 w-3.5 text-theme-warning" />
+                      <span className="text-theme-warning">Admin Evidence</span>
                     </>
                   ) : (
                     <>
-                      <User className="h-3.5 w-3.5 text-cyan-300" />
-                      <span className="text-cyan-200">Your Evidence</span>
+                      <User className="h-3.5 w-3.5 text-theme-accent" />
+                      <span className="text-theme-accent">Your Evidence</span>
                     </>
                   )}
                 </div>
@@ -212,7 +212,7 @@ export default function InvestigationThread({
 
                 <div
                   className={`mt-2.5 text-right text-[10px] ${
-                    isAdminEvidence ? "text-amber-200/50" : "text-cyan-200/50"
+                    isAdminEvidence ? "text-theme-warning" : "text-theme-accent"
                   }`}
                 >
                   {dateTime(entry.createdAt)}
@@ -226,21 +226,21 @@ export default function InvestigationThread({
         const submission = entry.item;
         return (
           <div key={entry.id} className="flex justify-end">
-            <div className="max-w-[88%] rounded-2xl rounded-tr-sm border border-cyan-400/25 bg-gradient-to-br from-cyan-400/10 to-cyan-400/5 p-4 text-white shadow-lg md:max-w-[75%]">
+            <div className="max-w-[88%] rounded-[var(--radius-card)] rounded-tr-sm border border-theme-accent bg-theme-accent-tint p-4 text-theme-text shadow-sm md:max-w-[75%]">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-cyan-200">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-theme-accent">
                   <User className="h-3.5 w-3.5" />
                   You · {submission.kind.toLowerCase()}
                 </div>
                 {submission.sharedWithCounterpartyAt && (
-                  <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[10px] font-medium text-sky-200">
+                  <span className="rounded-full border border-theme-border bg-theme-surface px-2 py-0.5 text-[10px] font-medium text-theme-text">
                     Shared with counterparty
                   </span>
                 )}
               </div>
 
               {submission.text && (
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/95">{submission.text}</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-theme-text">{submission.text}</p>
               )}
 
               {submission.evidence && submission.evidence.length > 0 && (
@@ -251,7 +251,7 @@ export default function InvestigationThread({
                 </div>
               )}
 
-              <div className="mt-2.5 text-right text-[10px] text-cyan-200/50">{dateTime(entry.createdAt)}</div>
+              <div className="mt-2.5 text-right text-[10px] text-theme-accent">{dateTime(entry.createdAt)}</div>
             </div>
           </div>
         );

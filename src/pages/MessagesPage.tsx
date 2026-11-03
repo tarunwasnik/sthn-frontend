@@ -1,6 +1,6 @@
 // frontend/src/pages/MessagesPage.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -24,46 +24,39 @@ export default function MessagesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [initialRouteBookingId] = useState<string | null>(
+    () => window.innerWidth >= 1024 ? searchParams.get("bookingId") : null,
+  );
+
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    null,
+    initialRouteBookingId,
   );
 
   const [chatOpen, setChatOpen] = useState(false);
+  const [routeChatDismissed, setRouteChatDismissed] = useState(false);
+  const autoReadBookingIds = useRef(new Set<string>());
   /* ======================================================
    AUTO OPEN CHAT FROM BOOKING
 ====================================================== */
 
+  const autoOpenedBookingId = !loading && !routeChatDismissed
+    ? initialRouteBookingId
+    : null;
+  const activeBookingId = selectedBookingId;
+  const isChatOpen = autoOpenedBookingId !== null || chatOpen;
+
   useEffect(() => {
-    console.log("AUTO OPEN", {
-      loading,
-      conversationsLength: conversations.length,
-      bookingId: searchParams.get("bookingId"),
-    });
-
-    if (loading) {
+    if (
+      !autoOpenedBookingId ||
+      autoReadBookingIds.current.has(autoOpenedBookingId) ||
+      !conversations.some((conversation) => conversation.bookingId === autoOpenedBookingId)
+    ) {
       return;
     }
 
-    const bookingId = searchParams.get("bookingId");
-
-    if (!bookingId) {
-      return;
-    }
-
-    console.log(
-      "ALL CONVERSATIONS",
-      conversations.map((c) => c.bookingId),
-    );
-
-    const exists = conversations.find((c) => c.bookingId === bookingId);
-
-    if (window.innerWidth >= 1024) {
-      setSelectedBookingId(bookingId);
-
-      setChatOpen(true);
-      if (exists) void markConversationSeen(bookingId);
-    }
-  }, [loading, searchParams]);
+    autoReadBookingIds.current.add(autoOpenedBookingId);
+    void markConversationSeen(autoOpenedBookingId);
+  }, [autoOpenedBookingId, conversations, markConversationSeen]);
 
   /* ======================================================
    PRESENCE
@@ -121,13 +114,15 @@ export default function MessagesPage() {
       return;
     }
 
-    if (selectedBookingId === bookingId && chatOpen) {
+    if (activeBookingId === bookingId && isChatOpen) {
+      setRouteChatDismissed(true);
       setChatOpen(false);
       return;
     }
 
     setSelectedBookingId(bookingId);
 
+    setRouteChatDismissed(true);
     setChatOpen(true);
 
     void markConversationSeen(bookingId);
@@ -135,6 +130,7 @@ export default function MessagesPage() {
   };
 
   const closeChat = () => {
+    setRouteChatDismissed(true);
     setChatOpen(false);
   };
 
@@ -200,7 +196,7 @@ export default function MessagesPage() {
       className="
     h-full
     overflow-hidden
-    text-[#F8FAFC]
+    text-theme-text
     flex
     flex-col
     min-h-0
@@ -226,6 +222,7 @@ export default function MessagesPage() {
 ====================================================== */}
 
         <div className="mb-4">
+          <h1 className="mb-3 text-2xl font-semibold text-theme-text">Messages</h1>
           <div
             className="
       hidden
@@ -236,23 +233,23 @@ export default function MessagesPage() {
           >
             <input
               type="text"
+              aria-label="Search conversations"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search Creator or Service..."
               className="
         w-full
         h-12
-        rounded-[20px]
-        border border-white/10
-        bg-white/[0.04]
+        rounded-[var(--radius-control)]
+        border border-theme-border
+        bg-theme-surface
         px-5
         text-sm
-        text-white
-        placeholder:text-white/35
-        focus:outline-none
-        focus:border-white/20
-        focus:bg-white/[0.06]
-        transition-all
+        text-theme-text
+        placeholder:text-theme-muted
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
+        hover:border-theme-border-strong
+        transition-colors
       "
             />
           </div>
@@ -268,12 +265,9 @@ export default function MessagesPage() {
               <div
                 key={index}
                 className="
-                    rounded-[28px]
-                    border border-white/10
-                    bg-gradient-to-br
-                    from-white/[0.045]
-                    to-white/[0.015]
-                    backdrop-blur-xl
+                    rounded-[var(--radius-card)]
+                    border border-theme-border
+                    bg-theme-surface
                     p-4
                     animate-pulse
                   "
@@ -284,7 +278,7 @@ export default function MessagesPage() {
                         w-14
                         h-14
                         rounded-full
-                        bg-white/10
+                        bg-theme-inset
                       "
                   />
 
@@ -294,7 +288,7 @@ export default function MessagesPage() {
                           h-4
                           w-40
                           rounded
-                          bg-white/10
+                          bg-theme-inset
                           mb-3
                         "
                     />
@@ -304,7 +298,7 @@ export default function MessagesPage() {
                           h-3
                           w-24
                           rounded
-                          bg-white/5
+                          bg-theme-inset
                           mb-2
                         "
                     />
@@ -314,7 +308,7 @@ export default function MessagesPage() {
                           h-3
                           w-56
                           rounded
-                          bg-white/5
+                          bg-theme-inset
                         "
                     />
                   </div>
@@ -331,12 +325,9 @@ export default function MessagesPage() {
         {!loading && sortedConversations.length === 0 && (
           <div
             className="
-                rounded-[32px]
-                border border-white/10
-                bg-gradient-to-br
-                from-white/[0.045]
-                to-white/[0.015]
-                backdrop-blur-xl
+                rounded-[var(--radius-card)]
+                border border-theme-border
+                bg-theme-surface
                 px-6
                 py-16
                 text-center
@@ -349,8 +340,8 @@ export default function MessagesPage() {
                   mx-auto
                   mb-5
                   rounded-full
-                  border border-white/10
-                  bg-white/[0.04]
+                  border border-theme-border
+                  bg-theme-inset
                   flex items-center justify-center
                 "
             >
@@ -358,7 +349,7 @@ export default function MessagesPage() {
                 className="
                     w-7
                     h-7
-                    text-white/50
+                    text-theme-muted
                   "
                 fill="none"
                 stroke="currentColor"
@@ -377,7 +368,7 @@ export default function MessagesPage() {
               className="
                   text-2xl
                   font-semibold
-                  text-[#F8FAFC]
+                  text-theme-text
                 "
             >
               No conversations yet
@@ -387,7 +378,7 @@ export default function MessagesPage() {
               className="
                   mt-2
                   text-sm
-                  text-white/50
+                  text-theme-muted
                   max-w-md
                   mx-auto
                 "
@@ -433,23 +424,23 @@ export default function MessagesPage() {
                   const isOnline = onlineUsers.has(c.otherUser._id);
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={c.bookingId}
                       onClick={() => openChat(c.bookingId)}
+                      aria-label={`Open conversation with ${displayName}`}
                       className="
                   group
+                  w-full
+                  text-left
                   cursor-pointer
-                  rounded-[24px]
-                  border border-white/10
-                  bg-gradient-to-br
-                  from-white/[0.045]
-                  to-white/[0.015]
-                  backdrop-blur-xl
-                  shadow-[0_6px_22px_rgba(0,0,0,0.26)]
-                  hover:border-white/15
-                  hover:bg-white/[0.03]
-                  transition-all
-                  duration-200
+                  rounded-[var(--radius-card)]
+                  border border-theme-border
+                  bg-theme-surface
+                  hover:border-theme-border-strong
+                  hover:bg-theme-surface-raised
+                  transition-colors
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                 "
                     >
                       <div className="px-5 py-2.5">
@@ -471,7 +462,7 @@ export default function MessagesPage() {
                           h-11
                           rounded-full
                           object-cover
-                          border border-white/10
+                          border border-theme-border
                         "
                               />
                             ) : (
@@ -480,12 +471,12 @@ export default function MessagesPage() {
                           w-11
                           h-11
                           rounded-full
-                          border border-white/10
-                          bg-white/[0.06]
+                          border border-theme-border
+                          bg-theme-inset
                           flex items-center justify-center
                           text-[13px]
                           font-semibold
-                          text-white
+                          text-theme-text
                         "
                               >
                                 {getInitials(displayName)}
@@ -503,9 +494,9 @@ export default function MessagesPage() {
         w-3
         h-3
         rounded-full
-        bg-[#22C55E]
+        bg-theme-success
         border-2
-        border-[#0F172A]
+        border-theme-surface
       "
                               />
                             )}
@@ -520,8 +511,8 @@ export default function MessagesPage() {
                           h-[18px]
                           px-1
                           rounded-full
-                          bg-[#22C55E]
-                          text-black
+                          bg-theme-accent
+                          text-theme-primary-text
                           text-[9px]
                           font-semibold
                           flex items-center justify-center
@@ -545,7 +536,7 @@ export default function MessagesPage() {
                                       className="
         text-[14px]
         font-semibold
-        text-[#F8FAFC]
+        text-theme-text
         truncate
       "
                                     >
@@ -559,9 +550,9 @@ export default function MessagesPage() {
           py-[3px]
           rounded-full
           text-[9px]
-          border border-white/10
-          bg-white/[0.04]
-          text-white/60
+          border border-theme-border
+          bg-theme-inset
+          text-theme-muted
           leading-none
         "
                                       >
@@ -574,7 +565,7 @@ export default function MessagesPage() {
                                     <p
                                       className="
         text-[10px]
-        text-[#22C55E]
+        text-theme-success
         leading-none
         mt-[2px]
       "
@@ -592,7 +583,7 @@ export default function MessagesPage() {
                                   <p
                                     className="
                               text-[10px]
-                              text-white/35
+                              text-theme-muted
                               truncate
                               leading-none
                             "
@@ -610,7 +601,7 @@ export default function MessagesPage() {
                                 <p
                                   className="
                             text-[11px]
-                            text-white/38
+                            text-theme-muted
                           "
                                 >
                                   {formatMessageTime(c.lastMessageAt)}
@@ -626,7 +617,7 @@ export default function MessagesPage() {
                               <p
                                 className="
     text-[12px]
-    text-white/55
+    text-theme-muted
     truncate
     leading-none
   "
@@ -649,8 +640,8 @@ export default function MessagesPage() {
                             w-8
                             h-8
                             rounded-lg
-                            border border-white/10
-                            bg-white/[0.04]
+                            border border-theme-border
+                            bg-theme-inset
                             flex items-center justify-center
                           "
                                 >
@@ -658,7 +649,7 @@ export default function MessagesPage() {
                                     className="
                               w-3.5
                               h-3.5
-                              text-white/60
+                              text-theme-muted
                             "
                                     fill="none"
                                     stroke="currentColor"
@@ -677,7 +668,7 @@ export default function MessagesPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -703,7 +694,7 @@ export default function MessagesPage() {
     min-h-0
     transition-all
     duration-300
-    ${chatOpen ? "w-[32%]" : "w-full"}
+    ${isChatOpen ? "w-[32%]" : "w-full"}
   `}
               >
                 <div
@@ -730,38 +721,36 @@ export default function MessagesPage() {
                       const isOnline = onlineUsers.has(c.otherUser._id);
 
                       const isSelected =
-                        selectedBookingId === c.bookingId && chatOpen;
+                        activeBookingId === c.bookingId && isChatOpen;
 
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={c.bookingId}
                           onClick={() => openChat(c.bookingId)}
+                          aria-label={`Open conversation with ${displayName}`}
                           className={`
     relative
     group
+    w-full
+    text-left
     cursor-pointer
-    rounded-[24px]
+    rounded-[var(--radius-card)]
     border
-    backdrop-blur-xl
-    shadow-[0_6px_22px_rgba(0,0,0,0.26)]
-    transition-all
-    duration-200
+    transition-colors
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
 
    ${
      isSelected
        ? `
-      border-white/25
-      bg-white/[0.09]
-      shadow-[0_0_0_1px_rgba(255,255,255,0.12)]
-      scale-[1.01]
+      border-theme-accent
+      bg-theme-accent-tint
     `
        : `
-      border-white/10
-      bg-gradient-to-br
-      from-white/[0.045]
-      to-white/[0.015]
-      hover:border-white/15
-      hover:bg-white/[0.03]
+      border-theme-border
+      bg-theme-surface
+      hover:border-theme-border-strong
+      hover:bg-theme-surface-raised
     `
    }
   `}
@@ -786,7 +775,7 @@ export default function MessagesPage() {
                           h-11
                           rounded-full
                           object-cover
-                          border border-white/10
+                          border border-theme-border
                         "
                                   />
                                 ) : (
@@ -795,12 +784,12 @@ export default function MessagesPage() {
                           w-11
                           h-11
                           rounded-full
-                          border border-white/10
-                          bg-white/[0.06]
+                          border border-theme-border
+                          bg-theme-inset
                           flex items-center justify-center
                           text-[13px]
                           font-semibold
-                          text-white
+                          text-theme-text
                         "
                                   >
                                     {getInitials(displayName)}
@@ -818,9 +807,9 @@ export default function MessagesPage() {
         w-3
         h-3
         rounded-full
-        bg-[#22C55E]
+        bg-theme-success
         border-2
-        border-[#0F172A]
+        border-theme-surface
       "
                                   />
                                 )}
@@ -835,8 +824,8 @@ export default function MessagesPage() {
                           h-[18px]
                           px-1
                           rounded-full
-                          bg-[#22C55E]
-                          text-black
+                          bg-theme-accent
+                          text-theme-primary-text
                           text-[9px]
                           font-semibold
                           flex items-center justify-center
@@ -860,7 +849,7 @@ export default function MessagesPage() {
                                           className="
         text-[14px]
         font-semibold
-        text-[#F8FAFC]
+        text-theme-text
         truncate
       "
                                         >
@@ -874,9 +863,9 @@ export default function MessagesPage() {
           py-[3px]
           rounded-full
           text-[9px]
-          border border-white/10
-          bg-white/[0.04]
-          text-white/60
+          border border-theme-border
+          bg-theme-inset
+          text-theme-muted
           leading-none
         "
                                           >
@@ -889,7 +878,7 @@ export default function MessagesPage() {
                                         <p
                                           className="
         text-[10px]
-        text-[#22C55E]
+        text-theme-success
         leading-none
         mt-[2px]
       "
@@ -907,7 +896,7 @@ export default function MessagesPage() {
                                       <p
                                         className="
                               text-[10px]
-                              text-white/35
+                              text-theme-muted
                               truncate
                               leading-none
                             "
@@ -922,7 +911,7 @@ export default function MessagesPage() {
                       ====================================================== */}
 
                                   <div className="shrink-0 text-right">
-                                    <p className="text-[11px] text-white/38">
+                                    <p className="text-[11px] text-theme-muted">
                                       {formatMessageTime(c.lastMessageAt)}
                                     </p>
 
@@ -933,7 +922,7 @@ export default function MessagesPage() {
         text-[9px]
         font-semibold
         tracking-[0.12em]
-        text-white/70
+        text-theme-accent
         leading-none
       "
                                       >
@@ -951,7 +940,7 @@ export default function MessagesPage() {
                                   <p
                                     className="
     text-[12px]
-    text-white/55
+    text-theme-muted
     truncate
     leading-none
   "
@@ -974,8 +963,8 @@ export default function MessagesPage() {
                             w-8
                             h-8
                             rounded-lg
-                            border border-white/10
-                            bg-white/[0.04]
+                            border border-theme-border
+                            bg-theme-inset
                             flex items-center justify-center
                           "
                                     >
@@ -983,7 +972,7 @@ export default function MessagesPage() {
                                         className="
                               w-3.5
                               h-3.5
-                              text-white/60
+                              text-theme-muted
                             "
                                         fill="none"
                                         stroke="currentColor"
@@ -1002,7 +991,7 @@ export default function MessagesPage() {
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1017,23 +1006,20 @@ export default function MessagesPage() {
     transition-opacity
     duration-300
     ease-in-out
-    ${chatOpen ? "flex-1 opacity-100" : "w-0 opacity-0"}
+    ${isChatOpen ? "flex-1 opacity-100" : "w-0 opacity-0"}
   `}
               >
                 <div
                   className="
       h-full
-      rounded-[28px]
-      border border-white/10
-      bg-gradient-to-br
-      from-white/[0.045]
-      to-white/[0.015]
-      backdrop-blur-xl
+      rounded-[var(--radius-card)]
+      border border-theme-border
+      bg-theme-surface
     "
                 >
-                  {chatOpen && selectedBookingId && (
+                  {isChatOpen && activeBookingId && (
                     <ChatWindow
-                      bookingId={selectedBookingId}
+                      bookingId={activeBookingId}
                       embedded
                       onClose={closeChat}
                     />
@@ -1058,12 +1044,12 @@ export default function MessagesPage() {
           
 
           ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.12);
+            background: var(--color-border-strong);
             border-radius: 999px;
           }
 
           ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.2);
+            background: var(--color-accent);
           }
         `}
       </style>

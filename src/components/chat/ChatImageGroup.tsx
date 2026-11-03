@@ -32,7 +32,7 @@ export default function ChatImageGroup({
           grid
           grid-cols-2
           gap-1
-          ${isHighlighted ? "ring-1 ring-blue-400/80" : ""}
+          ${isHighlighted ? "ring-1 ring-theme-accent" : ""}
         `}
       >
         {messages.map((msg, index) => (
@@ -56,7 +56,7 @@ export default function ChatImageGroup({
           grid
           grid-cols-2
           gap-1
-          ${isHighlighted ? "ring-1 ring-blue-400/80" : ""}
+          ${isHighlighted ? "ring-1 ring-theme-accent" : ""}
         `}
       >
         {messages.map((msg, index) => (
@@ -80,7 +80,7 @@ export default function ChatImageGroup({
           grid
           grid-cols-2
           gap-1
-          ${isHighlighted ? "ring-1 ring-blue-400/80" : ""}
+          ${isHighlighted ? "ring-1 ring-theme-accent" : ""}
         `}
       >
         {messages.map((msg, index) => (
@@ -107,7 +107,7 @@ export default function ChatImageGroup({
         grid
         grid-cols-2
         gap-1
-        ${isHighlighted ? "ring-1 ring-blue-400/80" : ""}
+        ${isHighlighted ? "ring-1 ring-theme-accent" : ""}
       `}
     >
       {visible.map((msg, index) => {
@@ -138,6 +138,7 @@ export default function ChatImageGroup({
                   text-white
                   text-2xl
                   font-semibold
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                 "
               >
                 +{remaining}

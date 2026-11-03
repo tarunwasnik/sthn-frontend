@@ -15,7 +15,16 @@ export interface Conversation {
 
   lastMessage: string;
   lastMessageAt: string;
-  otherUser: { _id: string; profile: any; };
+  otherUser: {
+    _id: string;
+    profile: {
+      displayName?: string;
+      username?: string;
+      avatarUrl?: string;
+      avatar?: string;
+      profilePhotos?: string[];
+    };
+  };
   unreadCount: number;
 }
 

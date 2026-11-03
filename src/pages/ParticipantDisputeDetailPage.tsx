@@ -45,8 +45,8 @@ function Detail({ actor }: Props) {
 
   if (operations.loading || (!dispute && !detailError)) {
     return (
-      <div className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center backdrop-blur-xl">
-        <p className="text-sm text-white/50">Loading dispute investigation...</p>
+      <div className="mx-auto max-w-4xl rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-8 text-center">
+        <p className="text-sm text-theme-muted">Loading dispute investigation...</p>
       </div>
     );
   }
@@ -54,14 +54,14 @@ function Detail({ actor }: Props) {
   if (operations.error || detailError || !operations.investigation || !dispute) {
     return (
       <section className="mx-auto max-w-4xl space-y-4">
-        <Link to={backPath} className="text-sm font-semibold text-cyan-200 hover:text-cyan-100">
+        <Link to={backPath} className="text-sm font-semibold text-theme-accent hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">
           ← Back to disputes
         </Link>
-        <div className="flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-5 text-sm text-rose-200">
-          <AlertCircle className="h-5 w-5 shrink-0 text-rose-400" />
+        <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-5 text-sm text-theme-danger">
+          <AlertCircle className="h-5 w-5 shrink-0" />
           <div>
-            <p className="font-semibold text-white">Unable to load investigation</p>
-            <p className="mt-1 text-xs text-rose-200/80">
+            <p className="font-semibold text-theme-text">Unable to load investigation</p>
+            <p className="mt-1 text-xs">
               {operations.error ?? detailError ?? "This dispute investigation is unavailable."}
             </p>
           </div>
@@ -95,7 +95,7 @@ function Detail({ actor }: Props) {
 
       {/* Mutation / Transient Error Alert */}
       {operations.error && (
-        <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-200">
+        <div className="flex items-center gap-2 rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint px-4 py-2.5 text-xs text-theme-danger">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{operations.error}</span>
         </div>
@@ -104,10 +104,10 @@ function Detail({ actor }: Props) {
       {/* 2. Chronological investigation thread */}
       <section className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-theme-muted">
             Investigation Thread
           </h2>
-          <span className="text-[11px] text-white/35">
+          <span className="text-[11px] text-theme-muted">
             {operations.investigation.submissions.length +
               operations.investigation.adminRequests.length +
               operations.investigation.directEvidence.length}{" "}

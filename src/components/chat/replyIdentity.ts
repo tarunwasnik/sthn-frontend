@@ -51,18 +51,16 @@ export function useChatParticipantIdentity(
   userId: string | null,
   conversation: Conversation | null,
 ) {
-  const [userProfile, setUserProfile] = useState<ChatParticipantIdentity | null>(
-    null,
-  );
-  const [creatorProfile, setCreatorProfile] =
-    useState<ChatParticipantIdentity | null>(null);
+  const [profiles, setProfiles] = useState<{
+    userId: string | null;
+    userProfile: ChatParticipantIdentity | null;
+    creatorProfile: ChatParticipantIdentity | null;
+  }>({ userId: null, userProfile: null, creatorProfile: null });
 
   useEffect(() => {
     let active = true;
 
     if (!userId) {
-      setUserProfile(null);
-      setCreatorProfile(null);
       return () => {
         active = false;
       };
@@ -74,22 +72,24 @@ export function useChatParticipantIdentity(
     ]).then(([userResult, creatorResult]) => {
       if (!active) return;
 
-      setUserProfile(
-        userResult.status === "fulfilled"
+      setProfiles({
+        userId,
+        userProfile: userResult.status === "fulfilled"
           ? identityFromProfile(userResult.value.data)
           : null,
-      );
-      setCreatorProfile(
-        creatorResult.status === "fulfilled"
+        creatorProfile: creatorResult.status === "fulfilled"
           ? identityFromProfile(creatorResult.value.data)
           : null,
-      );
+      });
     });
 
     return () => {
       active = false;
     };
   }, [userId]);
+
+  const userProfile = profiles.userId === userId ? profiles.userProfile : null;
+  const creatorProfile = profiles.userId === userId ? profiles.creatorProfile : null;
 
   return (senderId: string, senderRole: "USER" | "CREATOR") => {
     if (String(senderId) === String(userId)) {

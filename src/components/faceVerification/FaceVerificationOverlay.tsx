@@ -160,6 +160,8 @@ export default function FaceVerificationOverlay({ avatar, candidateAvatar, onCom
     setState("REQUESTING_CAMERA"); setError(""); setTerminalSessionFailure(false); resetBaseline(); resetChallengeState(null); problemSinceRef.current = null; lastFaceSeenAtRef.current = null; lastInferenceAtRef.current = 0;
     try {
       const started = await startFaceVerificationSession(candidateAvatar ? { candidateAvatar } : { avatar }); setAuthoritativeSession(started);
+      const startsExpired = started.status === "EXPIRED" || new Date(started.expiresAt).getTime() <= Date.now();
+      if (startsExpired) { endTerminalSession("Your verification session expired. Start a new one to continue."); return; }
       if (started.captureComplete || started.status === "CAPTURE_COMPLETE") { setState("SUCCESS"); window.setTimeout(() => { onComplete(started); onClose(); }, 1_200); return; }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       streamRef.current = stream; if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play(); }

@@ -50,23 +50,23 @@ export default function DisputeModal({
   };
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+  <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
 
-    <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.015] backdrop-blur-xl p-5 shadow-[0_20px_60px_rgba(0,0,0,0.55)]">
+    <div className="w-full max-w-md rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface p-5">
 
       {/* HEADER */}
       <div>
-        <h2 className="text-[18px] font-semibold text-white">
+        <h2 className="text-[18px] font-semibold text-theme-text">
           Raise Dispute
         </h2>
 
-        <p className="mt-1 text-[11px] text-white/45">
+        <p className="mt-1 text-[11px] text-theme-muted">
           Explain why you believe this booking requires review.
         </p>
       </div>
 
       {errorMessage && (
-        <p role="alert" className="mt-3 text-sm text-red-200">
+        <p role="alert" className="mt-3 text-sm text-theme-danger">
           {errorMessage}
         </p>
       )}
@@ -74,7 +74,7 @@ export default function DisputeModal({
       {/* REASON */}
       <div className="mt-5">
 
-        <p className="mb-2 text-[11px] text-white/50">
+        <p className="mb-2 text-[11px] text-theme-muted">
           Dispute Reason
         </p>
 
@@ -85,25 +85,24 @@ export default function DisputeModal({
           className="
             min-h-[170px]
             w-full
-            rounded-[18px]
-            border border-white/10
-            bg-white/[0.03]
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-inset
             px-4 py-3
-            text-sm text-white
+            text-sm text-theme-text
             outline-none
-            transition
-            placeholder:text-white/35
-            focus:border-white/20
-            focus:bg-white/[0.05]
+            transition-colors
+            placeholder:text-theme-muted
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         />
 
       </div>
 
       {/* WARNING */}
-      <div className="mt-4 rounded-[18px] border border-yellow-500/20 bg-yellow-500/10 p-4">
+      <div className="mt-4 rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint p-4">
 
-        <p className="text-[12px] leading-relaxed text-yellow-200">
+        <p className="text-[12px] leading-relaxed text-theme-warning">
           Submitting a dispute will notify the moderation team and may require
           additional review before resolution.
         </p>
@@ -114,27 +113,28 @@ export default function DisputeModal({
       <div className="mt-5 flex gap-3">
 
         <button
+          type="button"
           onClick={onClose}
-          className="flex-1 rounded-[18px] border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+          className="flex-1 rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-3 text-sm font-semibold text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
         >
           Cancel
         </button>
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={loading || !reason.trim()}
           className="
             flex-1
-            rounded-[18px]
-            border border-red-500/20
-            bg-red-500/15
+            rounded-[var(--radius-control)]
+            border border-theme-danger
+            bg-theme-danger-tint
             px-4 py-3
-            text-sm font-semibold text-red-200
-            transition
-            hover:bg-red-500/25
-            disabled:bg-white/[0.05]
-            disabled:text-white/25
-            disabled:border-white/10
+            text-sm font-semibold text-theme-danger
+            transition-opacity
+            hover:opacity-80
+            disabled:cursor-not-allowed disabled:opacity-50
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           {loading

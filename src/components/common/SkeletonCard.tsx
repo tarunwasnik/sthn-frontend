@@ -7,7 +7,8 @@ export default function SkeletonCard({
 }) {
   return (
     <div
-      className={`animate-pulse rounded-xl bg-white/5 ${className}`}
+      aria-hidden="true"
+      className={`animate-pulse rounded-[var(--radius-card)] border border-theme-border bg-theme-inset ${className}`}
     />
   );
 }

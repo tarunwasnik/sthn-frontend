@@ -284,23 +284,23 @@ export default function MessageBubble({
                           relative
                           max-w-[82%]
                           md:max-w-[68%]
-                          rounded-2xl
+                          rounded-[var(--radius-card)]
                           px-3.5
                           py-2
                           border
-                          ${isHighlighted ? "ring-1 ring-blue-400/80 bg-blue-400/[0.08]" : ""}
+                          ${isHighlighted ? "ring-1 ring-theme-accent bg-theme-accent-tint" : ""}
                           ${
                             isMine
                               ? `
-                                bg-white/[0.075]
-                                border-white/[0.08]
-                                text-white
+                                bg-theme-accent-tint
+                                border-theme-accent
+                                text-theme-text
                                 rounded-br-md
                               `
                               : `
-                                bg-white/[0.04]
-                                border-white/[0.05]
-                                text-white/90
+                                bg-theme-surface
+                                border-theme-border
+                                text-theme-text
                                 rounded-bl-md
                               `
                           }
@@ -322,7 +322,7 @@ export default function MessageBubble({
               className="
       text-[14px]
       italic
-      text-white/50
+      text-theme-muted
     "
             >
               This message was deleted
@@ -343,11 +343,12 @@ export default function MessageBubble({
     block
     w-full
     overflow-hidden
-    rounded-xl
+    rounded-[var(--radius-control)]
     border
-    border-white/10
+    border-theme-border
     transition
-    hover:border-blue-400/40
+    hover:border-theme-accent
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
   "
               >
                 <MapContainer
@@ -383,7 +384,7 @@ export default function MessageBubble({
                   className="
           mt-1
           text-[13px]
-          text-white/70
+          text-theme-muted
           break-words
         "
                 >
@@ -403,10 +404,11 @@ export default function MessageBubble({
                 className="
     inline-flex
     items-center
-    text-blue-400
-    hover:text-blue-300
+    text-theme-accent
+    hover:opacity-80
     text-sm
     font-medium
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
   "
               >
                 Open in Maps →
@@ -416,10 +418,10 @@ export default function MessageBubble({
             <div className="space-y-3">
               <div
                 className="
-        rounded-xl
+        rounded-[var(--radius-control)]
         border
-        border-white/10
-        bg-white/[0.05]
+        border-theme-border
+        bg-theme-inset
         p-3
       "
               >
@@ -443,7 +445,7 @@ export default function MessageBubble({
                       className="
         mt-1
         text-xs
-        text-white/60
+        text-theme-muted
       "
                     >
                       {getDocumentType(msg.attachment.originalFileName)}
@@ -459,13 +461,15 @@ export default function MessageBubble({
                   <button
                     onClick={openDocument}
                     className="
-    rounded-lg
-    bg-white/10
+    rounded-[var(--radius-control)]
+    border border-theme-border
+    bg-theme-surface-raised
     px-3
     py-1.5
     text-xs
-    hover:bg-white/20
+    hover:bg-theme-inset
     transition
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
   "
                   >
                     Open
@@ -474,13 +478,15 @@ export default function MessageBubble({
                   <button
                     onClick={downloadDocument}
                     className="
-    rounded-lg
-    bg-white/10
+    rounded-[var(--radius-control)]
+    border border-theme-border
+    bg-theme-surface-raised
     px-3
     py-1.5
     text-xs
-    hover:bg-white/20
+    hover:bg-theme-inset
     transition
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
   "
                   >
                     Download
@@ -518,7 +524,7 @@ export default function MessageBubble({
     mt-1
     text-[10px]
     leading-none
-    ${isMine ? "text-white/40 text-right" : "text-white/35"}
+    ${isMine ? "text-theme-muted text-right" : "text-theme-muted"}
   `}
           >
             {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -544,8 +550,9 @@ export default function MessageBubble({
                 className="
         mt-1
         text-xs
-        text-white/50
-        hover:text-white
+        text-theme-muted
+        hover:text-theme-text
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
               >
                 👍
@@ -572,7 +579,8 @@ export default function MessageBubble({
               px-2
               py-[2px]
               rounded-full
-              bg-white/10
+              border border-theme-border
+              bg-theme-inset
             "
                   >
                     {reaction.emoji}

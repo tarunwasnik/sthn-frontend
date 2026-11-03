@@ -34,7 +34,7 @@ export default function AdminRejectDialog({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/50"
         onClick={() => {
           if (!loading) onCancel();
         }}
@@ -43,19 +43,19 @@ export default function AdminRejectDialog({
       {/* Dialog */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+          className="w-full max-w-lg rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-start gap-4 border-b border-slate-800 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+          <div className="flex items-start gap-4 border-b border-theme-border p-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-card)] bg-theme-danger-tint text-theme-danger">
               <AlertTriangle size={24} />
             </div>
 
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-white">{title}</h2>
+              <h2 className="text-lg font-semibold text-theme-text">{title}</h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+              <p className="mt-2 text-sm leading-6 text-theme-muted">
                 {description}
               </p>
             </div>
@@ -63,7 +63,7 @@ export default function AdminRejectDialog({
 
           {/* Body */}
           <div className="space-y-2 p-6">
-            <label className="block text-sm font-medium text-slate-300">
+            <label className="block text-sm font-medium text-theme-text">
               Rejection Reason
             </label>
 
@@ -76,20 +76,20 @@ export default function AdminRejectDialog({
               className={`
                 w-full
                 resize-none
-                rounded-xl
+                rounded-[var(--radius-control)]
                 border
-                bg-slate-950
+                bg-theme-inset
                 px-4
                 py-3
                 text-sm
-                text-white
+                text-theme-text
                 outline-none
                 transition
 
                 ${
                   error
-                    ? "border-red-500 focus:border-red-400"
-                    : "border-slate-700 focus:border-blue-500"
+                    ? "border-theme-danger focus:border-theme-danger"
+                    : "border-theme-border-strong focus:border-theme-accent"
                 }
 
                 disabled:cursor-not-allowed
@@ -97,9 +97,9 @@ export default function AdminRejectDialog({
               `}
             />
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-sm text-theme-danger">{error}</p>}
 
-            <p className="text-xs leading-5 text-slate-500">
+            <p className="text-xs leading-5 text-theme-muted">
               This feedback will be shown to the user so they know exactly what
               needs to be corrected before their profile is automatically
               resubmitted for verification.
@@ -107,11 +107,11 @@ export default function AdminRejectDialog({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 border-t border-slate-800 p-6">
+          <div className="flex justify-end gap-3 border-t border-theme-border p-6">
             <button
               onClick={onCancel}
               disabled={loading}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-[var(--radius-control)] border border-theme-border-strong bg-transparent px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:bg-theme-inset disabled:opacity-50"
             >
               Cancel
             </button>
@@ -119,7 +119,7 @@ export default function AdminRejectDialog({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500 disabled:opacity-50"
+              className="rounded-[var(--radius-control)] bg-theme-danger px-4 py-2 text-sm font-medium text-theme-danger-tint transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {loading ? "Rejecting..." : "Reject Profile"}
             </button>

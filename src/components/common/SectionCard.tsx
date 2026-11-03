@@ -14,8 +14,8 @@ export default function SectionCard({
 }) {
   return (
     <DashboardCard>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm text-gray-300">{title}</h2>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-theme-text">{title}</h2>
         {action}
       </div>
 

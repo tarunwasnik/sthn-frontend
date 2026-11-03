@@ -33,18 +33,18 @@ export function DisputeTrackingContent({ actor, embedded = false }: ContentProps
   const disputePath = `/dashboard/${actor}/settings/disputes`;
   return (
       <section className="mx-auto max-w-4xl space-y-5">
-        <div><h2 className={embedded ? "text-xl font-semibold text-white" : "text-2xl font-bold text-white"}>Disputes</h2><p className="mt-1 text-sm text-white/50">Track disputes affecting your bookings.</p></div>
-        {loading && <p className="text-sm text-white/50">Loading disputes...</p>}
-        {error && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">{error}<button type="button" onClick={() => void load()} className="ml-3 font-semibold underline">Retry</button></div>}
-        {!loading && !error && disputes.length === 0 && <p className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/50">No disputes found.</p>}
+        <div><h2 className={embedded ? "text-xl font-semibold text-theme-text" : "text-2xl font-bold text-theme-text"}>Disputes</h2><p className="mt-1 text-sm text-theme-muted">Track disputes affecting your bookings.</p></div>
+        {loading && <p className="text-sm text-theme-muted">Loading disputes...</p>}
+        {error && <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{error}<button type="button" onClick={() => void load()} className="ml-3 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Retry</button></div>}
+        {!loading && !error && disputes.length === 0 && <p className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5 text-sm text-theme-muted">No disputes found.</p>}
         {!loading && !error && disputes.map((dispute) => (
-          <article key={dispute.disputeId} className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded bg-yellow-500/15 px-2 py-1 text-xs font-semibold text-yellow-100">{dispute.status}</span><span className="text-xs text-white/45">{new Date(dispute.createdAt).toLocaleString()}</span></div>
-            <div><p className="text-xs text-white/45">Booking</p><p className="text-sm font-medium text-white">{dispute.booking?.serviceTitle ?? "Booking"}</p><p className="text-xs text-white/50">{dispute.booking?.bookingReference ?? dispute.booking?.status ?? ""}</p></div>
-            <p className="text-sm text-white/70">{dispute.reason}</p>
-            <p className="text-xs text-white/50">{dispute.raisedByMe ? "Raised by you" : `Raised by ${dispute.raisedByRole === "CREATOR" ? "Creator" : "User"}`}{dispute.escalationLevel !== "NONE" ? ` · Escalation: ${dispute.escalationLevel}` : ""}</p>
-            {dispute.resolution && <p className="text-xs text-white/50">Resolution: {dispute.resolution.action}</p>}
-            <div className="flex flex-wrap gap-4"><Link className="text-xs font-semibold text-cyan-200 underline" to={`${disputePath}/${dispute.disputeId}`}>Open dispute</Link>{dispute.booking && <Link className="text-xs font-semibold text-cyan-200 underline" to={`${bookingPath}/${dispute.booking.bookingId}`}>View booking</Link>}</div>
+          <article key={dispute.disputeId} className="space-y-3 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><span className="rounded bg-theme-warning-tint px-2 py-1 text-xs font-semibold text-theme-warning">{dispute.status}</span><span className="text-xs text-theme-muted">{new Date(dispute.createdAt).toLocaleString()}</span></div>
+            <div><p className="text-xs text-theme-muted">Booking</p><p className="text-sm font-medium text-theme-text">{dispute.booking?.serviceTitle ?? "Booking"}</p><p className="text-xs text-theme-muted">{dispute.booking?.bookingReference ?? dispute.booking?.status ?? ""}</p></div>
+            <p className="text-sm text-theme-text">{dispute.reason}</p>
+            <p className="text-xs text-theme-muted">{dispute.raisedByMe ? "Raised by you" : `Raised by ${dispute.raisedByRole === "CREATOR" ? "Creator" : "User"}`}{dispute.escalationLevel !== "NONE" ? ` · Escalation: ${dispute.escalationLevel}` : ""}</p>
+            {dispute.resolution && <p className="text-xs text-theme-muted">Resolution: {dispute.resolution.action}</p>}
+            <div className="flex flex-wrap gap-4"><Link className="text-xs font-semibold text-theme-accent underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent" to={`${disputePath}/${dispute.disputeId}`}>Open dispute</Link>{dispute.booking && <Link className="text-xs font-semibold text-theme-accent underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent" to={`${bookingPath}/${dispute.booking.bookingId}`}>View booking</Link>}</div>
           </article>
         ))}
       </section>

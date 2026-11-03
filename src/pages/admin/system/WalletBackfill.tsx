@@ -17,6 +17,7 @@ import {
   getWalletBackfillPreview,
   runWalletBackfill,
 } from "../../../api/adminWallet.api";
+import { getApiErrorMessage } from "../../../api/errorMessage";
 
 /* ============================================================
    Types
@@ -67,10 +68,9 @@ export default function WalletBackfill() {
       const response = await getWalletBackfillPreview();
 
       setPreview(response);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ??
-          "Failed to load wallet backfill preview.",
+        getApiErrorMessage(err, "Failed to load wallet backfill preview."),
       );
     } finally {
       setLoading(false);
@@ -100,9 +100,9 @@ export default function WalletBackfill() {
       setConfirmOpen(false);
 
       await loadPreview();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ?? "Failed to execute wallet backfill.",
+        getApiErrorMessage(err, "Failed to execute wallet backfill."),
       );
     } finally {
       setRunning(false);

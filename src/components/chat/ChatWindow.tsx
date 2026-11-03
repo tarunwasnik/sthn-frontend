@@ -1114,7 +1114,7 @@ export default function ChatWindow({
         flex
         flex-col
         overflow-hidden
-        text-[#F8FAFC]
+        text-theme-text
         p-4
       `
           : `
@@ -1127,7 +1127,7 @@ export default function ChatWindow({
         flex
         flex-col
         overflow-hidden
-        text-[#F8FAFC]
+        text-theme-text
         px-2
         md:px-6
         py-2
@@ -1160,14 +1160,11 @@ export default function ChatWindow({
   overflow-y-auto
   overflow-x-hidden
   overscroll-contain
-  rounded-[22px]
+  rounded-[var(--radius-card)]
   pr-1
   
-  border border-white/10
-  bg-gradient-to-br
-  from-white/[0.045]
-  to-white/[0.015]
-  backdrop-blur-xl
+  border border-theme-border
+  bg-theme-surface
   px-3
   md:px-5
   py-3
@@ -1209,9 +1206,9 @@ export default function ChatWindow({
       {/* INPUT */}
 
       {terminalReadOnly ? (
-        <div className="mt-2 shrink-0 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <p className="text-sm font-medium text-white/85">Read-only conversation</p>
-          <p className="mt-1 text-xs text-white/55">
+        <div className="mt-2 shrink-0 rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-4 py-3">
+          <p className="text-sm font-medium text-theme-text">Read-only conversation</p>
+          <p className="mt-1 text-xs text-theme-muted">
             This booking has ended. Messages are preserved for reference.
           </p>
         </div>
@@ -1248,7 +1245,7 @@ export default function ChatWindow({
         {`
     .chat-scrollbar {
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: var(--color-border-strong) transparent;
     }
 
     .chat-scrollbar::-webkit-scrollbar {
@@ -1261,12 +1258,12 @@ export default function ChatWindow({
     }
 
     .chat-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.10);
+      background: var(--color-border-strong);
       border-radius: 999px;
     }
 
     .chat-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.16);
+      background: var(--color-accent);
     }
   `}
       </style>

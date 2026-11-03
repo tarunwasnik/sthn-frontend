@@ -93,17 +93,18 @@ export default function Register() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-theme-bg px-4 py-8 text-theme-text sm:px-6">
 
       {/* Background (MATCH HOME) */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[900px] h-[400px] md:h-[600px] bg-teal-500/10 blur-[120px] md:blur-[150px] rounded-full" />
+        <div className="absolute left-1/2 top-0 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-theme-accent/10 blur-[140px] md:h-[600px] md:w-[900px]" />
       </div>
 
       {/* Back Button */}
       <button
+        type="button"
         onClick={() => navigate(-1)}
-        className="absolute top-6 left-4 md:left-10 text-sm text-gray-300 hover:text-white transition"
+        className="absolute left-4 top-6 rounded-[var(--radius-control)] px-2 py-1 text-sm font-medium text-theme-muted transition-colors hover:text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent md:left-10"
       >
         ← Back
       </button>
@@ -111,59 +112,63 @@ export default function Register() {
       {/* Card */}
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-6 shadow-xl space-y-5"
+        className="w-full max-w-md space-y-5 rounded-[var(--radius-card-featured)] border border-theme-border bg-theme-surface p-6 shadow-sm sm:p-8"
       >
 
-        <h2 className="text-2xl font-bold text-center">
+        <h1 className="text-center text-2xl font-semibold tracking-tight">
           Create Account
-        </h2>
+        </h1>
 
         {error && (
-          <div className="rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400 text-center">
+          <div id="register-error" role="alert" className="rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-3 text-center text-sm text-theme-danger">
             {error}
           </div>
         )}
 
         <div>
-          <label className="block text-sm text-gray-300 mb-1">
+          <label htmlFor="register-email" className="mb-1 block text-sm font-medium text-theme-text">
             Email
           </label>
 
           <input
+            id="register-email"
             type="email"
+            autoComplete="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
+            className="h-11 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 text-sm text-theme-text placeholder:text-theme-muted transition-colors hover:border-theme-border-strong focus:border-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-gray-300 mb-1">
+          <label htmlFor="register-password" className="mb-1 block text-sm font-medium text-theme-text">
             Password
           </label>
 
           <input
+            id="register-password"
             type="password"
+            autoComplete="new-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
+            className="h-11 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 text-sm text-theme-text placeholder:text-theme-muted transition-colors hover:border-theme-border-strong focus:border-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           />
         </div>
 
         <button
           disabled={loading}
-          className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl hover:bg-teal-300 transition disabled:opacity-50"
+          className="h-11 w-full rounded-[var(--radius-control)] bg-theme-primary px-4 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Creating..." : "Register"}
         </button>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 text-gray-400 text-sm">
-          <div className="flex-1 h-px bg-white/10"></div>
+        <div className="flex items-center gap-3 text-sm text-theme-muted">
+          <div className="h-px flex-1 bg-theme-border"></div>
           OR
-          <div className="flex-1 h-px bg-white/10"></div>
+          <div className="h-px flex-1 bg-theme-border"></div>
         </div>
 
         {/* Google */}
@@ -174,17 +179,17 @@ export default function Register() {
           />
         </div>
 
-        <p className="text-sm text-gray-400 text-center">
+        <p className="text-center text-sm text-theme-muted">
           Already have an account?{" "}
           <Link
             to="/login"
-            className="text-teal-400 font-medium hover:underline"
+            className="font-medium text-theme-accent hover:underline focus-visible:rounded-[var(--radius-control)]"
           >
             Log in
           </Link>
         </p>
 
       </form>
-    </div>
+    </main>
   );
 }

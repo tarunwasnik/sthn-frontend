@@ -74,7 +74,7 @@ export default function CreatorListing({
           justify-center
           py-16
           text-sm
-          text-white/50
+          text-theme-muted
         "
       >
         Loading creators...
@@ -88,12 +88,9 @@ export default function CreatorListing({
     return (
       <div
         className="
-          rounded-[28px]
-          border border-white/10
-          bg-gradient-to-br
-          from-white/[0.04]
-          to-white/[0.015]
-          backdrop-blur-xl
+          rounded-[var(--radius-card)]
+          border border-theme-border
+          bg-theme-surface
           py-16
           text-center
         "
@@ -102,7 +99,7 @@ export default function CreatorListing({
           className="
             text-base
             font-medium
-            text-white/70
+            text-theme-text
           "
         >
           No creators available
@@ -112,7 +109,7 @@ export default function CreatorListing({
           className="
             mt-2
             text-sm
-            text-white/40
+            text-theme-muted
           "
         >
           Try adjusting filters or
@@ -146,7 +143,7 @@ export default function CreatorListing({
           <p
             className="
               text-sm
-              text-white/45
+              text-theme-muted
             "
           >
             Prices show starting rates
@@ -160,12 +157,12 @@ export default function CreatorListing({
           className="
             h-9
             px-4
-            rounded-full
+            rounded-[var(--radius-control)]
 
             border
-            border-emerald-400/20
+            border-theme-accent
 
-            bg-emerald-400/10
+            bg-theme-accent-tint
 
             flex
             items-center
@@ -173,9 +170,7 @@ export default function CreatorListing({
 
             text-sm
             font-medium
-            text-emerald-300
-
-            backdrop-blur-xl
+            text-theme-accent
           "
         >
           {creators.length} creators live
@@ -225,19 +220,20 @@ export default function CreatorListing({
           className="
             h-11
             px-5
-            rounded-2xl
-            border border-white/10
-            bg-white/[0.04]
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-surface
             text-sm
-            text-white/70
-            backdrop-blur-xl
-            transition-all duration-300
+            font-medium
+            text-theme-text
+            transition-colors
 
-            hover:bg-white/[0.08]
-            hover:border-white/15
+            hover:bg-theme-inset
+            hover:border-theme-border-strong
 
             disabled:opacity-40
-            disabled:hover:bg-white/[0.04]
+            disabled:cursor-not-allowed
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           Previous
@@ -247,16 +243,15 @@ export default function CreatorListing({
           className="
             h-11
             px-4
-            rounded-2xl
-            border border-white/10
-            bg-white/[0.03]
-            backdrop-blur-xl
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-inset
 
             flex
             items-center
 
             text-sm
-            text-white/70
+            text-theme-text
           "
         >
           Page {page} of {totalPages}
@@ -270,19 +265,20 @@ export default function CreatorListing({
           className="
             h-11
             px-5
-            rounded-2xl
-            border border-white/10
-            bg-white/[0.04]
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-surface
             text-sm
-            text-white/70
-            backdrop-blur-xl
-            transition-all duration-300
+            font-medium
+            text-theme-text
+            transition-colors
 
-            hover:bg-white/[0.08]
-            hover:border-white/15
+            hover:bg-theme-inset
+            hover:border-theme-border-strong
 
             disabled:opacity-40
-            disabled:hover:bg-white/[0.04]
+            disabled:cursor-not-allowed
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           Next

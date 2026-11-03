@@ -1,14 +1,13 @@
 // frontend/src/pages/Onboarding.tsx
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import api from "../api/axios";
 import { isFaceVerificationRecoveryError, type FaceVerificationSessionDto } from "../api/faceVerification";
-import { imageAdmissionErrorMessage, releaseUserProfileTemporaryImage, submitUserProfileImageAdmission, type UserProfileImageSurface } from "../api/imageModeration";
+import { imageAdmissionErrorMessage, releaseUserProfileTemporaryImage, submitUserProfileImageAdmission, type ImageAdmissionSurface } from "../api/imageModeration";
 import { useAuth } from "../hooks/useAuth";
 import FaceVerificationOverlay from "../components/faceVerification/FaceVerificationOverlay";
-import { useLiveTextModeration } from "../hooks/useLiveTextModeration";
 import {
   appendProfileGalleryMedia,
   createProfileMediaSelection,
@@ -22,6 +21,7 @@ import {
   retryProfileMediaSelection,
   replaceProfileMediaSelection,
   sharesProfileMediaPreview,
+  profileMediaStatusClassName,
   type ProfileMediaItem,
   temporaryProfileMediaRelease,
   toProfileMediaRequest,
@@ -71,12 +71,14 @@ const Onboarding = () => {
   const [error, setError] = useState("");
   const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
   const [completedFaceVerification, setCompletedFaceVerification] = useState<CompletedFaceVerification | null>(null);
+  const [faceVerificationRecoveryAvailable, setFaceVerificationRecoveryAvailable] = useState(false);
   const [isRejectedResubmission, setIsRejectedResubmission] = useState(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
   const avatarAdmissionVersion = useRef(0);
   const coverAdmissionVersion = useRef(0);
+  const galleryAdmissions = useRef(new Map<string, AbortController>());
   const mediaRef = useRef<{ avatar: ProfileMediaItem | null; cover: ProfileMediaItem | null; gallery: ProfileMediaItem[] }>({ avatar: null, cover: null, gallery: [] });
   mediaRef.current = { avatar: incompleteAvatar, cover: incompleteCover, gallery: incompleteGallery };
   const faceAvatar = mediaPreview(incompleteAvatar);
@@ -85,20 +87,11 @@ const Onboarding = () => {
   const completedFaceVerificationExpired = completedFaceVerification !== null
     && (completedFaceVerificationExpiry === null || Number.isNaN(completedFaceVerificationExpiry) || completedFaceVerificationExpiry <= Date.now());
   const faceCaptureComplete = Boolean(faceCandidateKey && completedFaceVerification?.candidateKey === faceCandidateKey && !completedFaceVerificationExpired);
-  const moderatedInterests = useMemo(
-    () => interests.split(",").map((interest) => interest.trim()).filter(Boolean),
-    [interests],
-  );
-  const moderationPayload = useMemo(() => bio.trim()
-    ? { domain: "USER_PROFILE" as const, bio, interests: moderatedInterests }
-    : null, [bio, moderatedInterests]);
-  const textModeration = useLiveTextModeration(moderationPayload);
-  const bioBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "bio";
-  const interestsBlocked = textModeration.status === "BLOCK" && textModeration.result?.target?.field === "interests";
 
-  const clearCompletedFaceVerification = useCallback((message: string) => {
+  const clearCompletedFaceVerification = useCallback((message: string, recoveryAvailable = false) => {
     setCompletedFaceVerification(null);
     setFaceVerificationOpen(false);
+    setFaceVerificationRecoveryAvailable(recoveryAvailable);
     setError(message);
   }, []);
 
@@ -110,6 +103,17 @@ const Onboarding = () => {
       if (reportFailure) setError("The image was removed, but secure cleanup is pending and will be retried safely.");
     });
   }, []);
+
+  const galleryAdmissionKey = (item: Pick<ProfileMediaItem, "clientId" | "operationId">) => `${item.clientId}:${item.operationId}`;
+
+  const abortGalleryAdmission = (item: ProfileMediaItem | undefined) => {
+    if (!item) return;
+    const key = galleryAdmissionKey(item);
+    const controller = galleryAdmissions.current.get(key);
+    if (!controller) return;
+    controller.abort();
+    galleryAdmissions.current.delete(key);
+  };
 
   useEffect(() => {
     if (!completedFaceVerification) return;
@@ -123,16 +127,18 @@ const Onboarding = () => {
     }
     const expiresAt = Date.parse(completedFaceVerification.expiresAt);
     if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
-      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.");
+      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.", true);
       return;
     }
     const timer = window.setTimeout(() => {
-      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.");
+      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.", true);
     }, expiresAt - Date.now());
     return () => window.clearTimeout(timer);
   }, [clearCompletedFaceVerification, completedFaceVerification, faceCandidateKey, incompleteAvatar]);
 
   useEffect(() => () => {
+    galleryAdmissions.current.forEach((controller) => controller.abort());
+    galleryAdmissions.current.clear();
     const media = mediaRef.current;
     if (media.avatar) disposeProfileMediaPreview(media.avatar);
     if (media.cover) disposeProfileMediaPreview(media.cover);
@@ -185,7 +191,7 @@ const Onboarding = () => {
 
   const admitIncompleteMedia = async (
     file: File,
-    surface: UserProfileImageSurface,
+    surface: ImageAdmissionSurface,
     apply: (item: ProfileMediaItem) => void,
     isCurrent: () => boolean,
   ) => {
@@ -237,44 +243,50 @@ const Onboarding = () => {
 
   const admitGallerySelection = (selection: ProfileMediaItem) => {
     if (selection.state !== "UPLOADING") return;
+    const key = galleryAdmissionKey(selection);
+    if (galleryAdmissions.current.has(key)) return;
+    const controller = new AbortController();
+    galleryAdmissions.current.set(key, controller);
     void (async () => {
       let moderating = selection;
       try {
         moderating = markProfileMediaModerating(selection);
         setIncompleteGallery((current) => updateProfileMediaOperation(current, selection, moderating));
-        const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(selection.sourceFile, "USER_PROFILE_PHOTO"));
+        const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(selection.sourceFile, "USER_PROFILE_PHOTO", controller.signal));
         const current = mediaRef.current.gallery.some((item) => item.clientId === moderating.clientId && item.operationId === moderating.operationId);
         if (current) setIncompleteGallery((items) => updateProfileMediaOperation(items, moderating, resolved));
         else { disposeProfileMediaPreview(resolved); releaseDiscardedTemporaryMedia(resolved, false); }
       } catch (caught) {
         const failed = failProfileMediaSelection(moderating, imageAdmissionErrorMessage(caught));
         setIncompleteGallery((current) => updateProfileMediaOperation(current, moderating, failed));
+      } finally {
+        if (galleryAdmissions.current.get(key) === controller) galleryAdmissions.current.delete(key);
       }
     })();
   };
 
   /* GALLERY UPLOAD */
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-
-      if (incompleteGallery.length + selectedFiles.length > 6) {
-        setError("Maximum 6 photos allowed.");
-        return;
-      }
-      setError("");
-      for (const file of selectedFiles) {
-        const selection = createProfileMediaSelection(file, "USER_PROFILE_PHOTO");
-        setIncompleteGallery((current) => appendProfileGalleryMedia(current, selection));
-        admitGallerySelection(selection);
-      }
-      e.target.value = "";
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (mediaRef.current.gallery.length >= 6) {
+      setError("Maximum 6 photos allowed.");
       return;
+    }
+    setError("");
+    const selection = createProfileMediaSelection(file, "USER_PROFILE_PHOTO");
+    mediaRef.current = { ...mediaRef.current, gallery: [...mediaRef.current.gallery, selection] };
+    setIncompleteGallery((current) => appendProfileGalleryMedia(current, selection));
+    admitGallerySelection(selection);
   };
 
   /* REMOVE IMAGE */
   const handleRemove = (index: number) => {
     const discarded = mediaRef.current.gallery[index];
+    abortGalleryAdmission(discarded);
     releaseDiscardedTemporaryMedia(discarded);
+    mediaRef.current = { ...mediaRef.current, gallery: mediaRef.current.gallery.filter((_, itemIndex) => itemIndex !== index) };
     setIncompleteGallery((current) => {
       const item = current[index];
       if (!item) return current;
@@ -286,8 +298,10 @@ const Onboarding = () => {
   const replaceIncompleteGalleryImage = (index: number, file: File) => {
     const currentItem = incompleteGallery[index];
     if (!currentItem) return;
+    abortGalleryAdmission(currentItem);
     const selection = replaceProfileMediaSelection(currentItem, file);
     releaseDiscardedTemporaryMedia(currentItem);
+    mediaRef.current = { ...mediaRef.current, gallery: mediaRef.current.gallery.map((item, itemIndex) => itemIndex === index ? selection : item) };
     setIncompleteGallery((current) => current.map((item, itemIndex) => {
       if (itemIndex !== index) return item;
       if (!sharesProfileMediaPreview(item, selection)) disposeProfileMediaPreview(item);
@@ -312,18 +326,12 @@ const Onboarding = () => {
     }
 
     if (completedFaceVerificationExpired) {
-      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.");
+      clearCompletedFaceVerification("Your face verification session expired. Start a new session and complete all five captures.", true);
       return;
     }
 
     if (!faceCaptureComplete) {
       setError("Complete live face verification for the current avatar before submitting.");
-      return;
-    }
-
-    const moderation = await textModeration.checkNow();
-    if (moderation?.decision !== "ALLOW" || !moderation.admissionToken) {
-      setError(moderation?.message || "Please check your profile text before submitting.");
       return;
     }
 
@@ -349,7 +357,6 @@ const Onboarding = () => {
           .map((i) => i.trim())
           .filter(Boolean),
         ...profileMedia,
-        textModerationAdmission: moderation.admissionToken,
       });
 
       if (data.profile) replaceConsumedIncompleteAdmissions(data.profile);
@@ -365,7 +372,7 @@ const Onboarding = () => {
 
     } catch (err: unknown) {
       if (isFaceVerificationRecoveryError(err)) {
-        clearCompletedFaceVerification("Your face verification is no longer current. Start a new session and complete all five captures before submitting.");
+        clearCompletedFaceVerification("Your face verification is no longer current. Start a new session and complete all five captures before submitting.", true);
         return;
       }
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
@@ -420,6 +427,7 @@ const Onboarding = () => {
         replaceConsumedIncompleteAdmissions(data.profile);
         setCompletedFaceVerification(null);
       }
+      setFaceVerificationRecoveryAvailable(false);
       setFaceVerificationOpen(true);
     } catch (err: unknown) {
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
@@ -429,7 +437,7 @@ const Onboarding = () => {
     }
   };
 
-  if (profileLoading) return <div className="min-h-screen grid place-items-center text-white">Loading profile…</div>;
+  if (profileLoading) return <div className="min-h-screen grid place-items-center bg-theme-bg text-theme-muted">Loading profile…</div>;
 
   const avatarPreviewSource = mediaPreview(incompleteAvatar);
   const coverPreviewSource = mediaPreview(incompleteCover);
@@ -441,38 +449,43 @@ const Onboarding = () => {
     : undefined;
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 text-white overflow-hidden">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-theme-bg px-4 text-theme-text">
 
       {/* Background */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[900px] h-[400px] md:h-[600px] bg-teal-500/10 blur-[120px] md:blur-[150px] rounded-full" />
+        <div className="absolute left-1/2 top-0 h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-theme-accent-tint blur-[120px] md:h-[600px] md:w-[900px] md:blur-[150px]" />
       </div>
 
-      <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8">
+      <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 [&_input:not([type=file])]:border [&_input:not([type=file])]:border-theme-border [&_input:not([type=file])]:bg-theme-inset [&_input:not([type=file])]:text-theme-text [&_input:not([type=file])]:placeholder:text-theme-muted [&_input:not([type=file])]:focus-visible:outline [&_input:not([type=file])]:focus-visible:outline-2 [&_input:not([type=file])]:focus-visible:outline-offset-2 [&_input:not([type=file])]:focus-visible:outline-theme-accent [&_textarea]:border [&_textarea]:border-theme-border [&_textarea]:bg-theme-inset [&_textarea]:text-theme-text [&_textarea]:placeholder:text-theme-muted [&_textarea]:focus-visible:outline [&_textarea]:focus-visible:outline-2 [&_textarea]:focus-visible:outline-offset-2 [&_textarea]:focus-visible:outline-theme-accent md:p-8">
 
         <h2 className="text-2xl font-bold mb-2">
           {isRejectedResubmission ? "Resubmit Your Profile for Verification" : "Complete Your Profile"}
         </h2>
 
-        <p className="text-gray-400 text-sm mb-6">
+        <p className="mb-6 text-sm text-theme-muted">
           {isRejectedResubmission ? "Your profile details were retained. Complete a fresh live face verification before resubmitting." : "Submit your profile for verification"}
         </p>
 
         {isRejectedResubmission && (
-          <div className="mb-4 rounded-md border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
+          <div className="mb-4 rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint p-3 text-sm text-theme-warning">
             <p className="font-medium">Your previous verification needs changes.</p>
             {rejectionReason && <p className="mt-1">{rejectionReason}</p>}
-            <p className="mt-1 text-amber-100/80">Your profile data is retained, but a new live face verification is required for this resubmission.</p>
+            <p className="mt-1">Your profile data is retained, but a new live face verification is required for this resubmission.</p>
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
+          <div className="mb-4 rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-3 text-sm text-theme-danger">
             {error}
+            {faceVerificationRecoveryAvailable && (
+              <button type="button" onClick={beginFaceVerification} disabled={loading} className="mt-3 block rounded-[var(--radius-control)] border border-theme-danger px-3 py-2 text-sm font-medium text-theme-danger disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">
+                Start a new session
+              </button>
+            )}
           </div>
         )}
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col space-y-5">
 
           {/* Username */}
           <input
@@ -521,29 +534,20 @@ const Onboarding = () => {
             required
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            onBlur={() => { void textModeration.checkNow(); }}
             placeholder="Bio"
-            aria-invalid={bioBlocked}
-            className={`w-full px-3 py-2 rounded-lg bg-white/5 border text-white ${bioBlocked ? "border-red-500" : "border-white/10"}`}
+            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
           />
-          {bioBlocked && <p className="-mt-4 text-xs text-red-400">{textModeration.result?.message}</p>}
 
           {/* Interests */}
           <input
             value={interests}
             onChange={(e) => setInterests(e.target.value)}
-            onBlur={() => { void textModeration.checkNow(); }}
             placeholder="Photography, Music..."
-            aria-invalid={interestsBlocked}
-            className={`w-full px-3 py-2 rounded-lg bg-white/5 border text-white ${interestsBlocked ? "border-red-500" : "border-white/10"}`}
+            className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white"
           />
-          {interestsBlocked && <p className="-mt-4 text-xs text-red-400">{textModeration.result?.message}</p>}
-          {textModeration.status === "UNAVAILABLE" && (
-            <p className="-mt-4 text-xs text-amber-300">{textModeration.result?.message}</p>
-          )}
 
           {/* AVATAR */}
-          <div>
+          <div className="order-[-3]">
             <label className="text-sm text-gray-300 mb-1 block">
               Avatar
             </label>
@@ -559,7 +563,7 @@ const Onboarding = () => {
   <div className="relative w-20 h-20 mt-2">
     <img
       src={avatarPreviewSource}
-      className="w-20 h-20 object-cover rounded-full"
+      className={`w-20 h-20 object-cover rounded-full ${profileMediaStatusClassName(incompleteAvatar)}`}
     />
 
     <button
@@ -592,7 +596,7 @@ const Onboarding = () => {
           </div>
 
           {/* COVER */}
-          <div>
+          <div className="order-[-2]">
             <label className="text-sm text-gray-300 mb-1 block">
               Cover
             </label>
@@ -608,7 +612,7 @@ const Onboarding = () => {
   <div className="relative mt-2">
     <img
       src={coverPreviewSource}
-      className="w-full h-24 object-cover rounded-lg"
+      className={`w-full h-24 object-cover rounded-lg ${profileMediaStatusClassName(incompleteCover)}`}
     />
 
     <button
@@ -639,15 +643,16 @@ const Onboarding = () => {
           </div>
 
           {/* GALLERY */}
-          <div>
+          <div className="order-[-1]">
             <label className="text-sm text-gray-300 mb-2 block">
               Profile Photos (2–6 required)
             </label>
 
             <input
               type="file"
-              multiple
               accept="image/*"
+              aria-label="Add one gallery photo"
+              disabled={galleryItems.length >= 6}
               onChange={handleFileChange}
             />
 
@@ -655,7 +660,7 @@ const Onboarding = () => {
               <div className="grid grid-cols-3 gap-3 mt-4">
                 {galleryItems.map((item, index) => (
                   <div key={item.clientId} className="relative">
-                    <img src={mediaPreview(item) ?? ""} className="w-full h-24 object-cover rounded-lg" />
+                    <img src={mediaPreview(item) ?? ""} className={`w-full h-24 object-cover rounded-lg ${profileMediaStatusClassName(item)}`} />
                     <button type="button" onClick={() => handleRemove(index)} className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded">✕</button>
                     {mediaMessage(item) && <p className={`mt-1 text-xs ${item.state === "BLOCKED" ? "text-red-400" : "text-gray-400"}`}>{mediaMessage(item)}</p>}
                     <label className="mt-1 block text-xs text-teal-300 underline cursor-pointer">
@@ -670,6 +675,7 @@ const Onboarding = () => {
                       <button type="button" className="text-xs text-teal-300 underline" onClick={() => {
                         releaseDiscardedTemporaryMedia(item);
                         const retry = retryProfileMediaSelection(item);
+                        mediaRef.current = { ...mediaRef.current, gallery: mediaRef.current.gallery.map((current) => current.clientId === item.clientId ? retry : current) };
                         setIncompleteGallery((current) => updateProfileMediaOperation(current, item, retry));
                         admitGallerySelection(retry);
                       }}>Retry image</button>
@@ -684,7 +690,7 @@ const Onboarding = () => {
             type={faceCaptureComplete ? "submit" : "button"}
             onClick={faceCaptureComplete ? undefined : beginFaceVerification}
             disabled={loading}
-            className="w-full bg-teal-400 text-black font-semibold py-3 rounded-xl disabled:opacity-50"
+            className="w-full rounded-[var(--radius-control)] bg-theme-primary py-3 font-semibold text-theme-primary-text transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             {loading ? "Submitting..." : faceCaptureComplete ? "Submit Profile" : "Face Verification"}
           </button>
@@ -698,6 +704,7 @@ const Onboarding = () => {
           onComplete={(session: FaceVerificationSessionDto) => {
             if (faceCandidateKey) {
               setCompletedFaceVerification({ candidateKey: faceCandidateKey, sessionReference: session.sessionReference, expiresAt: session.expiresAt });
+              setFaceVerificationRecoveryAvailable(false);
               setError("");
             }
             setFaceVerificationOpen(false);

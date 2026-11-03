@@ -13,11 +13,12 @@ export default function ActionButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 active:scale-[0.97] transition"
+      className="flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-4 text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
     >
-      {icon && <div className="text-white/70">{icon}</div>}
-      <span className="text-sm text-white">{label}</span>
+      {icon && <div className="text-theme-muted">{icon}</div>}
+      <span className="text-sm font-medium">{label}</span>
     </button>
   );
 }

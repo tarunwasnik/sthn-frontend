@@ -6,7 +6,6 @@ import { createFaceVerificationSessionFixture } from "./fixtures/faceVerificatio
 const apiOrigin = "http://127.0.0.1:9";
 const image = (name: string) => ({ name, mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
 const expiry = () => new Date(Date.now() + 60 * 60_000).toISOString();
-const textAdmission = { decision: "ALLOW", message: "Text approved", fingerprint: "e2e-text-fingerprint", admissionToken: "text-admission-e2e" };
 
 const pending = (profile: Record<string, unknown>) => ({ ...profile, profileStatus: "pending_verification", verification: { stage: "PROCESSING", submittedAt: "2026-10-11T00:00:00.000Z" } });
 const authenticated = (id: string) => ({ entryType: "USER", entryRoute: "/onboarding", userId: id, creatorStatus: "none" });
@@ -21,7 +20,7 @@ const installAuth = async (page: Page, userId: string, getProfile: () => Record<
     if (request.method() === "GET" && url.pathname === "/api/auth/entry") { await route.fulfill({ json: authenticated(userId) }); return true; }
     if (request.method() === "GET" && url.pathname === "/api/auth/me") { await route.fulfill({ json: { id: userId, role: "user", status: "active", creatorStatus: "none" } }); return true; }
     if (request.method() === "GET" && url.pathname === "/api/v1/profile/me") { await route.fulfill({ json: getProfile() }); return true; }
-    if (request.method() === "POST" && url.pathname === "/api/v1/text-moderation") { await route.fulfill({ json: textAdmission }); return true; }
+    if (request.method() === "POST" && url.pathname === "/api/v1/text-moderation") { await route.abort(); return true; }
     return false;
   };
 };
@@ -73,7 +72,7 @@ test("initial onboarding submits draft-authoritative media after five persisted-
     if (request.method() === "POST" && url.pathname === "/api/v1/profile/me") {
       const body = request.postDataJSON(); submissions.push(body); session.assertCompleted();
       const expected = { avatar: { kind: "UNCHANGED", reference: draftProfile.avatar }, cover: { kind: "UNCHANGED", reference: draftProfile.cover }, profilePhotos: draftProfile.profilePhotos.map(reference => ({ kind: "UNCHANGED", reference })) };
-      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expected) || body.textModerationAdmission !== textAdmission.admissionToken || "sessionReference" in body || "avatar" in body && typeof body.avatar === "string") return route.fulfill({ status: 400, json: { message: "Initial submission did not preserve authoritative media/session contract." } });
+      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expected) || "textModerationAdmission" in body || "sessionReference" in body || "avatar" in body && typeof body.avatar === "string") return route.fulfill({ status: 400, json: { message: "Initial submission did not preserve authoritative media/session contract." } });
       submitted = true;
       return route.fulfill({ json: { message: "Profile saved successfully", profileStatus: "pending_verification", profile: pending(draftProfile) } });
     }
@@ -85,7 +84,10 @@ test("initial onboarding submits draft-authoritative media after five persisted-
   const files = page.locator('input[type="file"]');
   await files.nth(0).setInputFiles(image("avatar.jpg"));
   await files.nth(1).setInputFiles(image("cover.jpg"));
-  await files.nth(2).setInputFiles([image("one.jpg"), image("two.jpg")]);
+  const gallery = page.getByLabel("Add one gallery photo");
+  await gallery.setInputFiles(image("one.jpg"));
+  await expect.poll(() => admissionBodies).toHaveLength(3);
+  await gallery.setInputFiles(image("two.jpg"));
   await expect.poll(() => admissionBodies).toHaveLength(4);
   expect(admissionBodies[0]).toContain("USER_PROFILE_AVATAR"); expect(admissionBodies[1]).toContain("USER_PROFILE_COVER");
   expect(admissionBodies.slice(2).every(body => body.includes("USER_PROFILE_PHOTO"))).toBe(true);
@@ -120,7 +122,7 @@ test("rejected correction submits an admission avatar with unchanged authoritati
     if (request.method() === "POST" && url.pathname === "/api/v1/profile/me") {
       const body = request.postDataJSON(); submissions.push(body); session.assertCompleted();
       const expected = { avatar: { kind: "ADMISSION", admissionReference }, cover: { kind: "UNCHANGED", reference: existing.cover }, profilePhotos: existing.profilePhotos.map(reference => ({ kind: "UNCHANGED", reference })) };
-      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expected) || body.textModerationAdmission !== textAdmission.admissionToken || "sessionReference" in body) return route.fulfill({ status: 400, json: { message: "Rejected submission claims/session contract was invalid." } });
+      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expected) || "textModerationAdmission" in body || "sessionReference" in body) return route.fulfill({ status: 400, json: { message: "Rejected submission claims/session contract was invalid." } });
       submitted = true;
       return route.fulfill({ json: { message: "Profile saved successfully", profileStatus: "pending_verification", profile: pending(existing) } });
     }
@@ -166,7 +168,7 @@ test("completed-session ineligibility clears stale readiness and permits fresh r
     if (request.method() === "POST" && url.pathname === "/api/v1/profile/me") {
       const body = request.postDataJSON(); submissionAttempts += 1;
       const expectedMedia = { avatar: { kind: "UNCHANGED", reference: profile.avatar }, cover: { kind: "UNCHANGED", reference: profile.cover }, profilePhotos: profile.profilePhotos.map(reference => ({ kind: "UNCHANGED", reference })) };
-      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expectedMedia) || body.textModerationAdmission !== textAdmission.admissionToken) return route.fulfill({ status: 400, json: { message: "Recovery submission media contract was invalid." } });
+      if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expectedMedia) || "textModerationAdmission" in body) return route.fulfill({ status: 400, json: { message: "Recovery submission media contract was invalid." } });
       if (submissionAttempts === 1) { stale.assertCompleted(); return route.fulfill({ status: 409, json: { message: "Completed face verification session is no longer eligible" } }); }
       fresh.assertCompleted(); submitted = true;
       return route.fulfill({ json: { message: "Profile saved successfully", profileStatus: "pending_verification", profile: pending(profile) } });
@@ -180,12 +182,13 @@ test("completed-session ineligibility clears stale readiness and permits fresh r
   await expect(page.getByText("Capture successful")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Submit Profile" }).click();
   await expect(page.getByText("Your face verification is no longer current. Start a new session and complete all five captures before submitting.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a new session" })).toBeVisible();
   expect(submissionAttempts).toBe(1);
   await expect(page.getByRole("button", { name: "Submit Profile" })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Real name" })).toHaveValue("Rejected Recovery E2E");
   await expect(page.locator("img")).toHaveCount(4);
 
-  await page.getByRole("button", { name: "Face Verification" }).click();
+  await page.getByRole("button", { name: "Start a new session" }).click();
   await page.getByRole("button", { name: "Open camera" }).click();
   await expect(page.getByText("Capture successful")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Submit Profile" }).click();

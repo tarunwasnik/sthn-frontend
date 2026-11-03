@@ -35,3 +35,38 @@ test("real onboarding overlay completes five server-issued captures sequentially
   await expect(page.getByRole("button", { name: "Submit Profile" })).toBeVisible({ timeout: 5_000 });
   session.assertCompleted();
 });
+
+test("an expired completed session is never shown as successful and recovery starts a fresh five-capture session", async ({ page }) => {
+  test.setTimeout(60_000);
+  const fresh = createFaceVerificationSessionFixture({ sessionReference: "FACE_SESSION_AFTER_EXPIRY_E2E", expectedStart: { avatar: profile.avatar } });
+  let draftSaved = false;
+  let startCount = 0;
+  await page.route("**/*", async route => {
+    const request = route.request(); const url = new URL(request.url());
+    if (url.origin === e2eOrigin) return route.continue(); if (url.origin !== apiOrigin) return route.abort();
+    if (request.method() === "GET" && url.pathname === "/api/auth/entry") return route.fulfill({ json: { entryType: "USER", entryRoute: "/onboarding", userId: "face-expiry-e2e", creatorStatus: "none" } });
+    if (request.method() === "GET" && url.pathname === "/api/auth/me") return route.fulfill({ json: { id: "face-expiry-e2e", role: "user", status: "active", creatorStatus: "none" } });
+    if (request.method() === "GET" && url.pathname === "/api/v1/profile/me") return route.fulfill({ json: profile });
+    if (request.method() === "PUT" && url.pathname === "/api/v1/profile/me/draft") { draftSaved = true; return route.fulfill({ json: { profile } }); }
+    if (request.method() === "POST" && url.pathname === "/api/v1/profile/face-verification/session") {
+      startCount += 1;
+      if (startCount === 1) return route.fulfill({ status: 201, json: { session: { sessionReference: "FACE_SESSION_EXPIRED_E2E", status: "CAPTURE_COMPLETE", challenges: ["NEUTRAL", "TURN_LEFT", "TURN_RIGHT", "LOOK_UP", "BLINK"], requiredCaptureCount: 5, acceptedCaptureCount: 5, expiresAt: new Date(Date.now() - 1_000).toISOString(), captureComplete: true } } });
+      return route.fulfill(fresh.start(request.postDataJSON()));
+    }
+    const match = url.pathname.match(/\/captures\/(\d+)$/);
+    if (request.method() === "POST" && match) return route.fulfill(fresh.capture({ request, requestedSessionReference: url.pathname.split("/")[6]!, index: Number(match[1]) }));
+    return route.abort();
+  });
+  await page.addInitScript(() => localStorage.setItem("accessToken", "face-expiry-e2e-token"));
+  await page.goto(`${e2eOrigin}/onboarding`);
+  await page.getByRole("button", { name: "Face Verification" }).click();
+  await expect.poll(() => draftSaved).toBe(true);
+  await page.getByRole("button", { name: "Open camera" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Your verification session expired. Start a new one to continue.");
+  await expect(page.getByText("Capture successful")).toHaveCount(0);
+  await page.getByRole("button", { name: "Start a new session" }).click();
+  await page.getByRole("button", { name: "Open camera" }).click();
+  await expect(page.getByText("Capture successful")).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => fresh.captureIndexes).toEqual([0, 1, 2, 3, 4]);
+  fresh.assertCompleted();
+});

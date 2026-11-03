@@ -13,13 +13,13 @@ export default function StatCard({
   icon: ReactNode;
 }) {
   return (
-    <DashboardCard className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition">
+    <DashboardCard className="p-5 transition-colors hover:bg-theme-surface-raised">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">{label}</span>
-        <span className="text-white/70">{icon}</span>
+        <span className="text-xs font-medium text-theme-muted">{label}</span>
+        <span className="text-theme-muted">{icon}</span>
       </div>
 
-      <p className="text-lg font-semibold text-white mt-2">
+      <p className="mt-2 text-lg font-semibold text-theme-text">
         {value}
       </p>
     </DashboardCard>

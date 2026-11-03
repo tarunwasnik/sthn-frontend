@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import { getApiErrorMessage } from "../../api/errorMessage";
 import { getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
 import type { AdminVerificationDetail } from "../../api/adminProfileVerification.api";
 import type { AdminVerificationJobStatus, AdminVerificationRequestStatus } from "../../api/adminProfileVerification.api";
@@ -128,10 +129,9 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
         : "/v1/admin/profile-verification/pending");
 
       setProfiles(res.data.profiles ?? []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ??
-          `Failed to load ${queueTitle.toLowerCase()}.`,
+        getApiErrorMessage(err, `Failed to load ${queueTitle.toLowerCase()}.`),
       );
     } finally {
       setLoading(false);
@@ -157,8 +157,8 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       setConfirmAction(null);
       setConfirmProfile(null);
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to approve user.");
+    } catch (err: unknown) {
+      alert(getApiErrorMessage(err, "Failed to approve user."));
     } finally {
       setProcessingId(null);
     }
@@ -195,8 +195,8 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
       setConfirmAction(null);
       setRejectionReason("");
       setConfirmProfile(null);
-    } catch (err: any) {
-      alert(err?.response?.data?.message ?? "Failed to reject user.");
+    } catch (err: unknown) {
+      alert(getApiErrorMessage(err, "Failed to reject user."));
     } finally {
       setProcessingId(null);
     }
@@ -266,12 +266,12 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   if (error) {
     return (
       <AdminLayout workspace="operations">
-        <div className="rounded-xl border border-red-900 bg-red-950/40 p-6">
-          <h2 className="text-lg font-semibold text-red-300">
+        <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-6">
+          <h2 className="text-lg font-semibold text-theme-danger">
             Failed to load {queueTitle.toLowerCase()}
           </h2>
 
-          <p className="mt-2 text-sm text-red-200">{error}</p>
+          <p className="mt-2 text-sm text-theme-danger">{error}</p>
 
           <div className="mt-6">
             <AdminButton onClick={fetchProfiles}>Retry</AdminButton>
@@ -546,8 +546,8 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
         ) : verificationDetail ? (
           <ProfileVerificationDetailContent detail={verificationDetail} />
         ) : detailError ? (
-          <div className="rounded-xl border border-red-900 bg-red-950/40 p-5">
-            <p className="font-medium text-red-200">{detailError}</p>
+          <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-5">
+            <p className="font-medium text-theme-danger">{detailError}</p>
             <AdminButton
               className="mt-4"
               onClick={() => selectedProfile && void openVerificationDetail(selectedProfile)}

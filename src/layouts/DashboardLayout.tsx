@@ -7,6 +7,7 @@ import {
   Calendar,
   Briefcase,
   MessageCircle,
+  Bell,
   Search,
   Clock,
   Wallet,
@@ -16,6 +17,9 @@ import {
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import { useMessaging } from "../hooks/useMessaging";
+import { useNotifications } from "../hooks/useNotifications";
+import { useBookingRequests } from "../hooks/useBookingRequests";
+import ThemeQuickToggle from "../components/theme/ThemeQuickToggle";
 
 interface Props {
   children: ReactNode;
@@ -24,6 +28,8 @@ interface Props {
 export default function DashboardLayout({ children }: Props) {
   const navigate = useNavigate();
   const { totalUnread } = useMessaging();
+  const { unreadCount: notificationUnread } = useNotifications();
+  const { pendingRequestCount } = useBookingRequests();
 
   const [avatar, setAvatar] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
@@ -56,25 +62,14 @@ export default function DashboardLayout({ children }: Props) {
   }, [showMore]);
 
   return (
-    <div
-      className="
-        h-screen
-        flex
-        text-[#F8FAFC]
-        overflow-x-hidden
-      "
-      style={{
-        background:
-          "radial-gradient(circle at top center, #1A1A1A 0%, #111111 40%, #050505 100%)",
-      }}
-    >
+    <div className="flex h-[100dvh] overflow-x-hidden bg-theme-bg text-theme-text">
       {/* ================= SIDEBAR ================= */}
-      <aside className="hidden md:flex w-64 h-screen shrink-0 flex-col bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.08)]">
+      <aside className="hidden h-[100dvh] w-64 shrink-0 flex-col border-r border-theme-border bg-theme-surface md:flex">
         <div>
-          <div className="p-6 border-b border-[rgba(255,255,255,0.08)]">
-            <h1 className="text-xl font-bold text-[#F8FAFC]">STHN</h1>
+          <div className="border-b border-theme-border p-6">
+            <h1 className="text-xl font-semibold text-theme-text">STHN</h1>
 
-            <p className="text-sm text-[rgba(255,255,255,0.50)]">
+            <p className="text-sm text-theme-muted">
               Creator Panel
             </p>
           </div>
@@ -109,6 +104,7 @@ export default function DashboardLayout({ children }: Props) {
               to="/dashboard/creator/requests"
               icon={<Clock size={18} />}
               label="Booking Requests"
+              unreadCount={pendingRequestCount}
             />
 
             <SidebarItem
@@ -116,6 +112,13 @@ export default function DashboardLayout({ children }: Props) {
               icon={<MessageCircle size={18} />}
               label="Messages"
               unreadCount={totalUnread}
+            />
+
+            <SidebarItem
+              to="/dashboard/creator/notifications"
+              icon={<Bell size={18} />}
+              label="Notifications"
+              unreadCount={notificationUnread}
             />
 
             <SidebarItem
@@ -141,7 +144,7 @@ export default function DashboardLayout({ children }: Props) {
       </aside>
 
       {/* ================= MAIN ================= */}
-      <div className="flex-1 h-screen flex flex-col relative min-w-0 isolate overflow-hidden">
+      <div className="flex-1 h-[100dvh] flex flex-col relative min-w-0 isolate overflow-hidden">
         {/* ================= HEADER ================= */}
         <header
           className="
@@ -154,28 +157,31 @@ export default function DashboardLayout({ children }: Props) {
           sm:px-4
           md:px-6
           border-b
-          border-[rgba(255,255,255,0.08)]
-          bg-[#111111]
+          border-theme-border
+          bg-theme-surface
           relative
           z-10
         "
         >
-          <h2 className="text-sm md:text-lg font-semibold text-[#E5E7EB]">
+          <h2 className="text-sm font-semibold text-theme-text md:text-lg">
             Creator Dashboard
           </h2>
 
-          <div
+          <div className="flex items-center gap-2">
+          <ThemeQuickToggle className="hidden md:inline-flex" />
+          <button
+            type="button"
+            aria-label="Open creator profile"
             onClick={() => navigate("/creator/profile")}
             className="
               w-9
               h-9
               rounded-full
-              bg-[rgba(255,255,255,0.05)]
+              bg-theme-inset
               border
-              border-[rgba(255,255,255,0.08)]
+              border-theme-border
               overflow-hidden
-              cursor-pointer
-              hover:bg-[rgba(255,255,255,0.08)]
+              hover:bg-theme-accent-tint
               transition
             "
           >
@@ -190,12 +196,13 @@ export default function DashboardLayout({ children }: Props) {
                 items-center
                 justify-center
                 text-xs
-                text-[rgba(255,255,255,0.55)]
+                text-theme-muted
               "
               >
                 C
               </div>
             )}
+          </button>
           </div>
         </header>
 
@@ -211,7 +218,7 @@ export default function DashboardLayout({ children }: Props) {
           md:px-6
           py-4
           md:py-6
-          pb-32
+          pb-[calc(8rem+env(safe-area-inset-bottom))]
           md:pb-6
           relative
           z-10
@@ -224,22 +231,24 @@ export default function DashboardLayout({ children }: Props) {
         <nav
           className="
           fixed
-          bottom-3
+          bottom-[max(0.75rem,env(safe-area-inset-bottom))]
           left-1/2
           -translate-x-1/2
           w-[95%]
           max-w-md
-          bg-[#151515]
+          bg-theme-surface-raised
           border
-          border-[rgba(255,255,255,0.08)]
-          rounded-2xl
+          border-theme-border
+          rounded-[var(--radius-card)]
           flex
           justify-around
           items-center
-          py-3
+          min-h-[68px]
+          px-2
+          py-2
           text-xs
           md:hidden
-          shadow-[0_10px_30px_rgba(0,0,0,0.35)]
+          shadow-sm
           z-[900]
         "
         >
@@ -276,7 +285,8 @@ export default function DashboardLayout({ children }: Props) {
               flex-col
               items-center
               justify-center
-              text-[rgba(255,255,255,0.50)]
+              text-theme-muted
+              hover:text-theme-text
             "
           >
             <span className="text-lg">⋯</span>
@@ -293,7 +303,7 @@ export default function DashboardLayout({ children }: Props) {
               className="
                 fixed
                 inset-0
-                bg-black/70
+                bg-black/50
                 z-[1000]
               "
             />
@@ -302,13 +312,13 @@ export default function DashboardLayout({ children }: Props) {
             <div className="fixed inset-x-0 bottom-0 z-[1001]">
               <div
                 className="
-                bg-[#151515]
+                bg-theme-surface-raised
                 border-t
-                border-[rgba(255,255,255,0.08)]
-                rounded-t-2xl
+                border-theme-border
+                rounded-t-[var(--radius-dialog-mobile)]
                 px-5
                 pt-5
-                pb-10
+                pb-[calc(2.5rem+env(safe-area-inset-bottom))]
                 max-h-[75vh]
                 overflow-y-auto
                 relative
@@ -320,7 +330,7 @@ export default function DashboardLayout({ children }: Props) {
                     className="
                     w-10
                     h-1
-                    bg-[rgba(255,255,255,0.20)]
+                    bg-theme-border-strong
                     rounded-full
                   "
                   />
@@ -339,6 +349,7 @@ export default function DashboardLayout({ children }: Props) {
                     to="/dashboard/creator/requests"
                     icon={<Clock size={18} />}
                     label="Requests"
+                    unreadCount={pendingRequestCount}
                     close={() => setShowMore(false)}
                   />
 
@@ -363,6 +374,13 @@ export default function DashboardLayout({ children }: Props) {
                     close={() => setShowMore(false)}
                   />
 
+                  <SheetItem
+                    to="/dashboard/creator/notifications"
+                    icon={<Bell size={18} />}
+                    label="Notifications"
+                    close={() => setShowMore(false)}
+                  />
+
                 </div>
 
                 {/* Floating Arrow */}
@@ -377,12 +395,12 @@ export default function DashboardLayout({ children }: Props) {
                     flex
                     items-center
                     justify-center
-                    rounded-full
-                    bg-[rgba(255,255,255,0.05)]
+                    rounded-[var(--radius-control)]
+                    bg-theme-inset
                     border
-                    border-[rgba(255,255,255,0.08)]
-                    text-[rgba(255,255,255,0.55)]
-                    hover:bg-[rgba(255,255,255,0.10)]
+                    border-theme-border
+                    text-theme-muted
+                    hover:bg-theme-accent-tint
                     transition
                   "
                 >
@@ -419,21 +437,21 @@ function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemP
           space-x-3
           px-3
           py-2.5
-          rounded-xl
+          rounded-[var(--radius-navigation)]
           transition
           border
           ${
             isActive
               ? `
-                bg-[rgba(255,255,255,0.06)]
-                text-white
-                border-[rgba(255,255,255,0.08)]
+                bg-theme-accent-tint
+                text-theme-accent
+                border-transparent
               `
               : `
-                text-[rgba(255,255,255,0.60)]
+                text-theme-muted
                 border-transparent
-                hover:bg-[rgba(255,255,255,0.04)]
-                hover:text-[#E5E7EB]
+                hover:bg-theme-inset
+                hover:text-theme-text
               `
           }
         `
@@ -443,7 +461,7 @@ function SidebarItem({ to, icon, label, end = false, unreadCount = 0 }: NavItemP
 
       <span className="text-sm">{label}</span>
       {unreadCount > 0 && (
-        <span className="ml-auto rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+        <span className="ml-auto rounded-full bg-theme-accent px-1.5 py-0.5 text-[10px] font-semibold leading-none text-theme-primary-text">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}
@@ -462,14 +480,14 @@ function BottomNavItem({ to, icon, label, end = false, unreadCount = 0 }: NavIte
           flex-col
           items-center
           justify-center
-          ${isActive ? "text-white" : "text-[rgba(255,255,255,0.50)]"}
+          ${isActive ? "text-theme-accent" : "text-theme-muted hover:text-theme-text"}
         `
       }
     >
       <div className="relative mb-0.5">
         {icon}
         {unreadCount > 0 && (
-          <span className="absolute -right-3 -top-2 rounded-full bg-rose-500 px-1 py-0.5 text-[9px] font-semibold leading-none text-white">
+          <span className="absolute -right-3 -top-2 rounded-full bg-theme-accent px-1 py-0.5 text-[9px] font-semibold leading-none text-theme-primary-text">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -485,9 +503,10 @@ interface SheetItemProps {
   icon: React.ReactNode;
   label: string;
   close: () => void;
+  unreadCount?: number;
 }
 
-function SheetItem({ to, icon, label, close }: SheetItemProps) {
+function SheetItem({ to, icon, label, close, unreadCount = 0 }: SheetItemProps) {
   const navigate = useNavigate();
 
   return (
@@ -497,10 +516,10 @@ function SheetItem({ to, icon, label, close }: SheetItemProps) {
         close();
       }}
       className="
-        bg-[rgba(255,255,255,0.04)]
+        bg-theme-inset
         border
-        border-[rgba(255,255,255,0.08)]
-        rounded-xl
+        border-theme-border
+        rounded-[var(--radius-card)]
         py-4
         flex
         flex-col
@@ -508,13 +527,13 @@ function SheetItem({ to, icon, label, close }: SheetItemProps) {
         justify-center
         gap-2
         text-sm
-        hover:bg-[rgba(255,255,255,0.08)]
+        hover:bg-theme-accent-tint
         transition
       "
     >
-      <div className="text-[rgba(255,255,255,0.70)]">{icon}</div>
+      <div className="relative text-theme-muted">{icon}{unreadCount > 0 && <span className="absolute -right-3 -top-2 rounded-full bg-theme-accent px-1 py-0.5 text-[9px] font-semibold leading-none text-theme-primary-text">{unreadCount > 99 ? "99+" : unreadCount}</span>}</div>
 
-      <span className="text-[#F8FAFC]">{label}</span>
+      <span className="text-theme-text">{label}</span>
     </button>
   );
 }

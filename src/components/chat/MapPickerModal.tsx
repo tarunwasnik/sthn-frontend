@@ -45,11 +45,11 @@ export default function MapPickerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
 
-      <div className="w-[90vw] max-w-sm rounded-2xl bg-[#1F1F1F] border border-white/10 p-5">
+      <div className="w-full max-w-sm rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface p-5 text-theme-text">
 
-        <h2 className="text-lg font-semibold text-white mb-4">
+        <h2 className="mb-4 text-lg font-semibold">
           Open in Maps
         </h2>
 
@@ -57,28 +57,28 @@ export default function MapPickerModal({
 
           <button
             onClick={() => openMap("google")}
-            className="w-full rounded-lg bg-white/5 hover:bg-white/10 py-3 text-left px-4"
+            className="w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-4 py-3 text-left transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             🟢 Google Maps
           </button>
 
           <button
             onClick={() => openMap("apple")}
-            className="w-full rounded-lg bg-white/5 hover:bg-white/10 py-3 text-left px-4"
+            className="w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-4 py-3 text-left transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             🍎 Apple Maps
           </button>
 
           <button
             onClick={() => openMap("osm")}
-            className="w-full rounded-lg bg-white/5 hover:bg-white/10 py-3 text-left px-4"
+            className="w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-4 py-3 text-left transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             🗺️ OpenStreetMap
           </button>
 
           <button
             onClick={() => openMap("waze")}
-            className="w-full rounded-lg bg-white/5 hover:bg-white/10 py-3 text-left px-4"
+            className="w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-4 py-3 text-left transition-colors hover:bg-theme-surface-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             🚗 Waze
           </button>
@@ -87,7 +87,7 @@ export default function MapPickerModal({
 
         <button
           onClick={onClose}
-          className="mt-5 w-full rounded-lg bg-red-500 hover:bg-red-600 py-3"
+          className="mt-5 w-full rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint py-3 text-theme-danger transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
         >
           Cancel
         </button>

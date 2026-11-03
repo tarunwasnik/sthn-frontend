@@ -78,26 +78,13 @@ export default function CreatorBookings() {
   const [filter, setFilter] =
     useState("ALL");
 
-  const [bookingView, setBookingView] =
-  useState<
-    "RECEIVED" | "PURCHASED"
-  >("RECEIVED");
-
   /* ================= FETCH ================= */
 
   const fetchBookings = async () => {
   try {
     setLoading(true);
 
-    const res =
-      bookingView ===
-      "RECEIVED"
-        ? await api.get(
-            "/v1/creator/bookings"
-          )
-        : await api.get(
-            "/v1/bookings/user"
-          );
+    const res = await api.get("/v1/creator/bookings");
 
     setBookings(
       res.data.bookings || []
@@ -114,7 +101,7 @@ export default function CreatorBookings() {
 
  useEffect(() => {
   fetchBookings();
-}, [bookingView]);
+  }, []);
 
   /* ================= FILTER ================= */
 
@@ -146,73 +133,34 @@ export default function CreatorBookings() {
     switch (status) {
 
       case "CONFIRMED":
-        return `
-          bg-[rgba(34,197,94,0.14)]
-          text-[#86EFAC]
-          border border-[rgba(34,197,94,0.22)]
-        `;
+        return "border border-theme-success bg-theme-success-tint text-theme-success";
 
       case "REQUESTED":
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#E5E7EB]
-          border border-[rgba(255,255,255,0.10)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "REJECTED":
-        return `
-          bg-[rgba(239,68,68,0.14)]
-          text-[#FCA5A5]
-          border border-[rgba(239,68,68,0.22)]
-        `;
+        return "border border-theme-danger bg-theme-danger-tint text-theme-danger";
 
       case "EXPIRED":
-        return `
-          bg-[rgba(107,114,128,0.16)]
-          text-[#E5E7EB]
-          border border-[rgba(107,114,128,0.20)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-muted";
 
       case "CANCELLED":
-        return `
-          bg-[rgba(249,115,22,0.14)]
-          text-[#FDBA74]
-          border border-[rgba(249,115,22,0.20)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "COMPLETED":
-        return `
-          bg-[rgba(6,182,212,0.14)]
-          text-[#67E8F9]
-          border border-[rgba(6,182,212,0.22)]
-        `;
+        return "border border-theme-info bg-theme-info-tint text-theme-info";
 
       default:
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#F8FAFC]
-          border border-[rgba(255,255,255,0.08)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-text";
     }
   };
 
   const getPaymentText = (
     booking: Booking
   ) => {
-    if (
-      booking.status ===
-        "EXPIRED" ||
-      booking.status ===
-        "CANCELLED" ||
-      booking.status ===
-        "REJECTED"
-    ) {
-      return "REFUNDED";
-    }
-
     return (
       booking.paymentStatus ||
-      "PAID"
+      "Unavailable"
     );
   };
 
@@ -227,78 +175,18 @@ export default function CreatorBookings() {
 
           {/* HEADER */}
           <div>
-  <h1 className="text-2xl md:text-4xl font-bold text-[#F8FAFC] tracking-tight">
+  <h1 className="text-2xl font-semibold tracking-tight text-theme-text md:text-4xl">
     My Bookings
   </h1>
 
-  <p className="text-sm md:text-base text-[rgba(255,255,255,0.55)] mt-2">
+  <p className="mt-2 text-sm text-theme-muted md:text-base">
     Manage all your bookings
   </p>
 
-  <div className="flex gap-3 mt-5">
-
-    <button
-      onClick={() =>
-        setBookingView(
-          "RECEIVED"
-        )
-      }
-      className={`
-        h-11
-        px-5
-        rounded-[18px]
-        border
-        transition-all
-        ${
-          bookingView ===
-          "RECEIVED"
-            ? `
-              bg-white/[0.07]
-              text-white
-              border-white/20
-            `
-            : `
-              bg-white/[0.03]
-              text-white/70
-              border-white/10
-            `
-        }
-      `}
-    >
-      Received
-    </button>
-
-    <button
-      onClick={() =>
-        setBookingView(
-          "PURCHASED"
-        )
-      }
-      className={`
-        h-11
-        px-5
-        rounded-[18px]
-        border
-        transition-all
-        ${
-          bookingView ===
-          "PURCHASED"
-            ? `
-              bg-white/[0.07]
-              text-white
-              border-white/20
-            `
-            : `
-              bg-white/[0.03]
-              text-white/70
-              border-white/10
-            `
-        }
-      `}
-    >
-      Purchased
-    </button>
-
+  <div className="mt-5">
+    <span className="inline-flex h-11 items-center rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-5 text-theme-text">
+      Received bookings
+    </span>
   </div>
 
 </div>
@@ -314,12 +202,12 @@ export default function CreatorBookings() {
               }
               className="
                 w-full
-                bg-[#151515]
-                border border-[rgba(255,255,255,0.08)]
-                rounded-2xl
+                bg-theme-surface
+                border border-theme-border
+                rounded-[var(--radius-control)]
                 px-4 py-3
-                text-[#F8FAFC]
-                outline-none
+                text-theme-text
+                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
               "
             >
               {[
@@ -334,7 +222,7 @@ export default function CreatorBookings() {
                 <option
                   key={status}
                   value={status}
-                  className="bg-[#111111]"
+                  className="bg-theme-surface text-theme-text"
                 >
                   {status}
                 </option>
@@ -363,25 +251,25 @@ export default function CreatorBookings() {
                 className={`
                   h-12
                   px-6
-                  rounded-[18px]
+                  rounded-[var(--radius-control)]
                   text-[15px]
-                  transition-all
+                  transition-colors
                   border
                   ${
                     filter === status
                       ? `
-                        bg-[rgba(255,255,255,0.07)]
-                        text-white
-                        border-[rgba(255,255,255,0.18)]
-                        shadow-[0_0_20px_rgba(255,255,255,0.02)]
+                        bg-theme-accent-tint
+                        text-theme-accent
+                        border-theme-accent
                       `
                       : `
-                        bg-[rgba(255,255,255,0.03)]
-                        text-[rgba(255,255,255,0.72)]
-                        border-[rgba(255,255,255,0.07)]
-                        hover:bg-[rgba(255,255,255,0.05)]
+                        bg-theme-surface
+                        text-theme-muted
+                        border-theme-border
+                        hover:bg-theme-inset hover:text-theme-text
                       `
                   }
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                 `}
               >
                 {status}
@@ -393,7 +281,7 @@ export default function CreatorBookings() {
 
           {/* LOADING */}
           {loading && (
-            <div className="text-[rgba(255,255,255,0.38)]">
+            <div className="text-theme-muted">
               Loading bookings...
             </div>
           )}
@@ -403,12 +291,12 @@ export default function CreatorBookings() {
             filteredBookings.length ===
               0 && (
               <div className="
-  bg-[#151515]
-  border border-[rgba(255,255,255,0.08)]
-  rounded-[28px]
+  bg-theme-surface
+  border border-theme-border
+  rounded-[var(--radius-card)]
   p-10
   text-center
-  text-[rgba(255,255,255,0.38)]
+  text-theme-muted
 ">
   No bookings found.
 </div>
@@ -427,31 +315,17 @@ export default function CreatorBookings() {
   "Untitled Service";
 
 const serviceMedia =
-  bookingView === "PURCHASED"
-    ? booking.service?.data?.media?.[0]
-    : booking.service?.thumbnailUrl ||
-      booking.service?.image ||
-      booking.service?.media?.[0];
+  booking.service?.thumbnailUrl ||
+  booking.service?.image ||
+  booking.service?.media?.[0];
 
-const personName =
-  bookingView === "PURCHASED"
-    ? booking.creator?.profile?.displayName
-    : booking.user?.displayName;
+const personName = booking.user?.displayName;
 
-const personAvatar =
-  bookingView === "PURCHASED"
-    ? booking.creator?.profile?.avatarUrl
-    : booking.user?.avatarUrl;
+const personAvatar = booking.user?.avatarUrl;
 
-const personLabel =
-  bookingView === "PURCHASED"
-    ? "Creator"
-    : "Client";
+const personLabel = "Client";
 
-const personLink =
-  bookingView === "PURCHASED"
-    ? `/creators/${booking.creator?.profile?.slug}`
-    : `/users/${booking.user?._id}`;
+const personLink = `/users/${booking.user?._id}`;
 const bookedServicePrice = getBookedServicePrice(booking);
 
                   return (
@@ -464,15 +338,12 @@ const bookedServicePrice = getBookedServicePrice(booking);
   group
   relative
   overflow-hidden
-  rounded-[30px]
-  border border-white/10
-  bg-gradient-to-br from-white/[0.045] to-white/[0.015]
-  backdrop-blur-xl
+  rounded-[var(--radius-card)]
+  border border-theme-border
+  bg-theme-surface
   px-5 py-5
-  shadow-[0_10px_30px_rgba(0,0,0,0.35)]
-  transition-all duration-300
-  hover:-translate-y-[2px]
-  hover:shadow-[0_14px_40px_rgba(0,0,0,0.45)]
+  transition-colors
+  hover:bg-theme-surface-raised
 "
                     >
 
@@ -485,7 +356,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
     {/* LEFT */}
     <div className="flex-1 min-w-0">
 
-      <p className="text-[26px] font-bold text-[#F8FAFC] leading-none">
+      <p className="text-[26px] font-semibold leading-none text-theme-text">
         {serviceTitle}
       </p>
 
@@ -497,7 +368,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
     navigate(personLink);
   }
 }}
-        className="flex items-center gap-3 mt-5"
+        className="mt-5 flex items-center gap-3 rounded-[var(--radius-control)] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
       >
 
        {personAvatar ? (
@@ -509,7 +380,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
               h-11
               rounded-full
               object-cover
-              border border-[rgba(255,255,255,0.08)]
+              border border-theme-border
             "
           />
         ) : (
@@ -517,11 +388,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
             w-11
             h-11
             rounded-full
-            bg-[rgba(255,255,255,0.05)]
+            bg-theme-inset
             flex
             items-center
             justify-center
-            text-white
+            text-theme-text
           ">
             {
   (
@@ -534,11 +405,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
 
         <div className="text-left">
 
-          <p className="text-xs text-[rgba(255,255,255,0.42)]">
+          <p className="text-xs text-theme-muted">
             {personLabel}
           </p>
 
-          <p className="text-[17px] font-semibold text-[#F8FAFC]">
+          <p className="text-[17px] font-semibold text-theme-text">
             {
   personName ||
   "Unknown"
@@ -582,11 +453,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
               className="
                 px-3
                 py-2
-                rounded-xl
-                bg-[rgba(255,255,255,0.03)]
-                border border-[rgba(255,255,255,0.07)]
+                rounded-[var(--radius-control)]
+                bg-theme-inset
+                border border-theme-border
                 text-[11px]
-                text-[#F8FAFC]
+                text-theme-text
                 whitespace-nowrap
               "
             >
@@ -613,10 +484,10 @@ const bookedServicePrice = getBookedServicePrice(booking);
     className="
       w-full
       h-[190px]
-      rounded-[28px]
+      rounded-[var(--radius-card)]
       overflow-hidden
-      border border-[rgba(255,255,255,0.08)]
-      bg-white/[0.03]
+      border border-theme-border
+      bg-theme-inset
     "
   >
 
@@ -638,7 +509,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
           flex
           items-center
           justify-center
-          text-[rgba(255,255,255,0.35)]
+          text-theme-muted
           text-sm
         "
       >
@@ -652,7 +523,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
   <div className="flex items-end justify-between">
 
     <div>
-      <p className="text-[12px] text-[rgba(255,255,255,0.50)]">
+      <p className="text-[12px] text-theme-muted">
         Payment:{" "}
         {getPaymentText(
           booking
@@ -663,7 +534,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
     <div className="text-right">
 
       <p className="
-        text-[#4ADE80]
+        text-theme-text
         text-sm
         font-semibold
       ">
@@ -671,7 +542,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
       </p>
 
       <p className="
-        text-[#4ADE80]
+        text-theme-text
         text-[25px]
         font-bold
         leading-none
@@ -691,23 +562,22 @@ const bookedServicePrice = getBookedServicePrice(booking);
     <button
       onClick={() =>
         navigate(
-      bookingView === "PURCHASED"
-        ? `/dashboard/user/bookings/${booking._id}`
-        : `/dashboard/creator/bookings/${booking._id}`
+      `/dashboard/creator/bookings/${booking._id}`
 
         )
       }
       className="
         w-full
         h-[54px]
-        rounded-2xl
-        bg-[rgba(255,255,255,0.04)]
-        border border-[rgba(255,255,255,0.08)]
-        text-white
-        hover:bg-[rgba(255,255,255,0.07)]
-        transition
+        rounded-[var(--radius-control)]
+        bg-theme-surface
+        border border-theme-border
+        text-theme-text
+        hover:bg-theme-inset
+        transition-colors
         font-semibold
         text-[17px]
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       View Details
@@ -725,13 +595,14 @@ const bookedServicePrice = getBookedServicePrice(booking);
         className="
           w-full
           h-[54px]
-          rounded-2xl
-          bg-[rgba(255,255,255,0.04)]
-          border border-[rgba(255,255,255,0.08)]
-          text-white
-          hover:bg-[rgba(255,255,255,0.07)]
-          transition
+          rounded-[var(--radius-control)]
+          bg-theme-surface
+          border border-theme-border
+          text-theme-text
+          hover:bg-theme-inset
+          transition-colors
           font-medium
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
         "
       >
         Open Chat
@@ -760,7 +631,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
                           {/* TOP */}
                           <div className="flex items-center gap-3 flex-wrap">
 
-                            <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+                            <p className="text-[11px] text-theme-muted">
                               {new Date(
                                 booking.createdAt
                               ).toLocaleString()}
@@ -786,15 +657,15 @@ const bookedServicePrice = getBookedServicePrice(booking);
                           {/* SERVICE */}
                           <div className="mt-3">
 
-                            <p className="text-[rgba(255,255,255,0.38)] text-sm">
+                            <p className="text-sm text-theme-muted">
                               Service
                             </p>
 
                             <h2
                               className="
                                 text-[16px]
-                                font-bold
-                                text-[#F8FAFC]
+                                font-semibold
+                                text-theme-text
                                 mt-1
                                 truncate
                               "
@@ -812,12 +683,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
     navigate(personLink);
   }
 }}
-                            className="
-                              flex
-                              items-center
-                              gap-3
-                              mt-4
-                            "
+                            className="mt-4 flex items-center gap-3 rounded-[var(--radius-control)] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                           >
 
                            {personAvatar ? (
@@ -829,7 +695,7 @@ const bookedServicePrice = getBookedServicePrice(booking);
                                   h-9
                                   rounded-full
                                   object-cover
-                                  border border-[rgba(255,255,255,0.08)]
+                                  border border-theme-border
                                 "
                               />
                             ) : (
@@ -838,11 +704,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
                                   w-9
                                   h-9
                                   rounded-full
-                                  bg-[rgba(255,255,255,0.05)]
+                                  bg-theme-inset
                                   flex
                                   items-center
                                   justify-center
-                                  text-white
+                                  text-theme-text
                                   text-sm
                                 "
                               >
@@ -857,11 +723,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
 
                             <div className="text-left">
 
-                              <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+                              <p className="text-[11px] text-theme-muted">
                                 {personLabel}
                               </p>
 
-                              <p className="text-[#F8FAFC] font-semibold text-[15px]">
+                              <p className="text-[15px] font-semibold text-theme-text">
                                 {
   personName ||
   "Unknown"
@@ -883,11 +749,11 @@ const bookedServicePrice = getBookedServicePrice(booking);
                                   className="
                                     px-3
                                     py-2
-                                    rounded-xl
-                                   bg-white/[0.04]
-border border-white/10
+                                    rounded-[var(--radius-control)]
+                                    bg-theme-inset
+                                    border border-theme-border
                                     text-[11px]
-                                    text-[#F8FAFC]
+                                    text-theme-text
                                   "
                                 >
                                   {formatTime(
@@ -912,10 +778,10 @@ border border-white/10
   h-[190px]
   w-full
   max-w-[380px]
-  rounded-[28px]
+  rounded-[var(--radius-card)]
   overflow-hidden
-  border border-white/10
-  bg-white/[0.03]
+  border border-theme-border
+  bg-theme-inset
   justify-self-start
 "
 >
@@ -938,7 +804,7 @@ border border-white/10
         flex
         items-center
         justify-center
-        text-[rgba(255,255,255,0.35)]
+        text-theme-muted
         text-sm
       "
     >
@@ -961,7 +827,7 @@ border border-white/10
 
                           <div className="text-right">
 
-                            <p className="text-[rgba(255,255,255,0.50)] text-xs">
+                            <p className="text-xs text-theme-muted">
                               Payment:{" "}
                               {getPaymentText(
                                 booking
@@ -972,7 +838,7 @@ border border-white/10
 
                               <p
                                 className="
-                                  text-[#4ADE80]
+                                  text-theme-text
                                   text-xs
                                   font-semibold
                                 "
@@ -982,7 +848,7 @@ border border-white/10
 
                               <p
                                 className="
-                                  text-[#4ADE80]
+                                  text-theme-text
                                   text-[26px]
                                   font-bold
                                   leading-none
@@ -1003,22 +869,21 @@ border border-white/10
                             <button
                               onClick={() =>
                                 navigate(
-      bookingView === "PURCHASED"
-        ? `/dashboard/user/bookings/${booking._id}`
-        : `/dashboard/creator/bookings/${booking._id}`
+      `/dashboard/creator/bookings/${booking._id}`
                                 )
                               }
                               className="
                                 w-full
                                 h-11
-                                rounded-2xl
-                                bg-[rgba(255,255,255,0.04)]
-                                border border-[rgba(255,255,255,0.08)]
-                                text-white
+                                rounded-[var(--radius-control)]
+                                bg-theme-surface
+                                border border-theme-border
+                                text-theme-text
                                 text-sm
                                 font-medium
-                                hover:bg-[rgba(255,255,255,0.07)]
-                                transition
+                                hover:bg-theme-inset
+                                transition-colors
+                                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                               "
                             >
                               View Details
@@ -1042,13 +907,14 @@ border border-white/10
     className="
       w-full
       h-11
-      rounded-2xl
-      bg-[rgba(255,255,255,0.04)]
-      border border-[rgba(255,255,255,0.08)]
-      text-white
+      rounded-[var(--radius-control)]
+      bg-theme-surface
+      border border-theme-border
+      text-theme-text
       text-sm
-      hover:bg-[rgba(255,255,255,0.07)]
-      transition
+      hover:bg-theme-inset
+      transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
     "
   >
     Open Chat

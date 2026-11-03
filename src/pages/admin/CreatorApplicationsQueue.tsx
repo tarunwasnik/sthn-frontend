@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import { getApiErrorMessage } from "../../api/errorMessage";
 import AdminLayout from "../../components/admin/layout/AdminLayout";
 import AdminPageHeader from "../../components/admin/layout/AdminPageHeader";
 import AdminMetricCard from "../../components/admin/layout/AdminMetricCard";
@@ -98,9 +99,9 @@ export default function CreatorApplicationsQueue() {
       );
 
       setApplications(res.data.applications ?? []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err?.response?.data?.message ?? "Failed to fetch creator applications.",
+        getApiErrorMessage(err, "Failed to fetch creator applications."),
       );
     } finally {
       setLoading(false);
@@ -125,10 +126,9 @@ export default function CreatorApplicationsQueue() {
 
       setConfirmAction(null);
       setConfirmApplication(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert(
-        err?.response?.data?.message ??
-          "Failed to approve creator application.",
+        getApiErrorMessage(err, "Failed to approve creator application."),
       );
     } finally {
       setProcessingId(null);
@@ -169,9 +169,9 @@ export default function CreatorApplicationsQueue() {
       setConfirmAction(null);
       setRejectionReason("");
       setConfirmApplication(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert(
-        err?.response?.data?.message ?? "Failed to reject creator application.",
+        getApiErrorMessage(err, "Failed to reject creator application."),
       );
     } finally {
       setProcessingId(null);
@@ -240,12 +240,12 @@ export default function CreatorApplicationsQueue() {
   if (error) {
     return (
       <AdminLayout workspace="operations">
-        <div className="rounded-xl border border-red-900 bg-red-950/40 p-6">
-          <h2 className="text-lg font-semibold text-red-300">
+        <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-6">
+          <h2 className="text-lg font-semibold text-theme-danger">
             Failed to load creator applications
           </h2>
 
-          <p className="mt-2 text-sm text-red-200">{error}</p>
+          <p className="mt-2 text-sm text-theme-danger">{error}</p>
 
           <div className="mt-6">
             <AdminButton onClick={fetchApplications}>Retry</AdminButton>

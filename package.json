@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --force",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:phase7o": "node e2e/phase7o-isolated-runner.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

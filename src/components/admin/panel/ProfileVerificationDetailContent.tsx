@@ -15,13 +15,26 @@ const Field = ({
   value: string | number | null | undefined;
 }) => (
   <div>
-    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <p className="text-xs font-semibold uppercase tracking-wide text-theme-muted">
       {label}
     </p>
-    <p className="mt-1 break-words text-sm text-slate-200">{value === null || value === undefined || value === "" ? "—" : value}</p>
+    <p className="mt-1 break-words text-sm text-theme-text">{value === null || value === undefined || value === "" ? "—" : value}</p>
   </div>
 );
 export default function ProfileVerificationDetailContent({
+  detail,
+}: {
+  detail: AdminVerificationDetail;
+}) {
+  return (
+    <VerificationDetailContent
+      key={detail.verificationRequest.verificationReference}
+      detail={detail}
+    />
+  );
+}
+
+function VerificationDetailContent({
   detail,
 }: {
   detail: AdminVerificationDetail;
@@ -43,7 +56,6 @@ export default function ProfileVerificationDetailContent({
   useEffect(() => {
     const token = ++generation.current;
     clean();
-    setCaptures({});
     void Promise.all(
       detail.captures.map(async (capture) => {
         try {
@@ -76,7 +88,7 @@ export default function ProfileVerificationDetailContent({
   const image = (src: string, title: string, subtitle?: string) => (
     <button
       type="button"
-      className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left transition hover:border-cyan-500 hover:brightness-110"
+      className="group relative overflow-hidden rounded-[var(--radius-card)] border border-theme-border bg-theme-inset text-left transition hover:border-theme-accent hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
       onClick={() => setPreview({ src, title, subtitle })}
     >
       <img
@@ -101,21 +113,21 @@ export default function ProfileVerificationDetailContent({
   const analysisExplanation = faceMatchExplanation({ ...analysis, reasonCode: analysis.reasonCode ?? request.adminReviewReasonCode, reason: analysis.reason ?? request.adminReviewReason });
   return (
     <div className="space-y-7">
-      <section className="rounded-xl border border-slate-800 p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">
+      <section className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-accent">
           Subject / verification summary
         </h3>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <AdminStatusBadge status={requestStatusLabel(request.status)} />
           <AdminStatusBadge status={profile.profileStatus} />
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-theme-muted">
             Attempt #{request.attemptNumber} · V
             {request.profileSubmissionVersion}
           </span>
         </div>
       </section>
       <section>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-muted">
           Account & identity
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -135,7 +147,7 @@ export default function ProfileVerificationDetailContent({
         </div>
       </section>
       <section>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-muted">
           Location & communication
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -146,7 +158,7 @@ export default function ProfileVerificationDetailContent({
           {profile.languages.map((language, index) => (
             <span
               key={`${language}-${index}`}
-              className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300"
+              className="rounded-full border border-theme-border bg-theme-inset px-3 py-1 text-xs text-theme-text"
             >
               {language}
             </span>
@@ -154,17 +166,17 @@ export default function ProfileVerificationDetailContent({
         </div>
       </section>
       <section>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-muted">
           Profile content
         </h3>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-theme-text">
           {profile.bio}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {profile.interests.map((interest, index) => (
             <span
               key={`${interest}-${index}`}
-              className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300"
+              className="rounded-full border border-theme-border bg-theme-inset px-3 py-1 text-xs text-theme-text"
             >
               {interest}
             </span>
@@ -187,8 +199,8 @@ export default function ProfileVerificationDetailContent({
           ))}
         </div>
       </section>
-      <section className="rounded-xl border border-slate-800 p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+      <section className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-muted">
           Verification attempt
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -216,8 +228,8 @@ export default function ProfileVerificationDetailContent({
           <Field label="Expired" value={date(request.expiredAt)} />
         </div>
       </section>
-      <section className="rounded-xl border border-slate-800 p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+      <section className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-muted">
           Face verification session
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -245,7 +257,7 @@ export default function ProfileVerificationDetailContent({
         </div>
       </section>
       <section>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-accent">
           Face verification captures
         </h3>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -256,9 +268,9 @@ export default function ProfileVerificationDetailContent({
               return (
                 <div
                   key={capture.challengeIndex}
-                  className="overflow-hidden rounded-xl border border-cyan-900/60 bg-slate-950"
+                  className="overflow-hidden rounded-[var(--radius-card)] border border-theme-accent bg-theme-inset"
                 >
-                  <p className="border-b border-slate-800 p-3 text-xs text-slate-300">
+                  <p className="border-b border-theme-border p-3 text-xs text-theme-text">
                     Challenge {capture.challengeIndex} ·{" "}
                     {capture.challengeType.replace(/_/g, " ")}
                   </p>
@@ -277,11 +289,11 @@ export default function ProfileVerificationDetailContent({
                       <img
                         src={state.url}
                         alt={`Face verification challenge ${capture.challengeIndex}`}
-                        className="h-64 w-full bg-slate-900/60 object-contain"
+                        className="h-64 w-full bg-theme-inset object-contain"
                       />
                     </button>
                   ) : (
-                    <p className="grid h-64 place-items-center bg-slate-900/60 text-sm text-slate-500">
+                    <p className="grid h-64 place-items-center bg-theme-inset text-sm text-theme-muted">
                       {state?.failed
                         ? "Capture unavailable"
                         : "Loading protected capture…"}
@@ -292,12 +304,12 @@ export default function ProfileVerificationDetailContent({
             })}
         </div>
       </section>
-      <section className="rounded-xl border border-cyan-900/60 bg-slate-950 p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">
+      <section className="rounded-[var(--radius-card)] border border-theme-accent bg-theme-inset p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-accent">
           AI Verification
         </h3>
         {analysis.status === "NOT_CONFIGURED" ? (
-          <p className="mt-3 text-sm text-slate-300">
+          <p className="mt-3 text-sm text-theme-text">
             Automated verification has not produced a face-match result for this attempt.
           </p>
         ) : (

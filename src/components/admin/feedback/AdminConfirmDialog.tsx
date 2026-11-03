@@ -31,26 +31,26 @@ export default function AdminConfirmDialog({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/50"
         onClick={onCancel}
       />
 
       {/* Dialog */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 shadow-2xl"
+          className="w-full max-w-md rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-start gap-4 border-b border-slate-800 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-red-400">
+          <div className="flex items-start gap-4 border-b border-theme-border p-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-card)] bg-theme-danger-tint text-theme-danger">
               <AlertTriangle size={24} />
             </div>
 
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-white">{title}</h2>
+              <h2 className="text-lg font-semibold text-theme-text">{title}</h2>
 
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+              <p className="mt-2 text-sm leading-6 text-theme-muted">
                 {description}
               </p>
             </div>
@@ -61,7 +61,7 @@ export default function AdminConfirmDialog({
             <button
               onClick={onCancel}
               disabled={loading}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:opacity-50"
+              className="rounded-[var(--radius-control)] border border-theme-border-strong bg-transparent px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:bg-theme-inset disabled:opacity-50"
             >
               {cancelText}
             </button>
@@ -69,10 +69,10 @@ export default function AdminConfirmDialog({
             <button
               onClick={onConfirm}
               disabled={loading}
-              className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50 ${
+              className={`rounded-[var(--radius-control)] px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
                 confirmVariant === "danger"
-                  ? "bg-red-600 hover:bg-red-500"
-                  : "bg-blue-600 hover:bg-blue-500"
+                  ? "bg-theme-danger text-theme-danger-tint hover:opacity-90"
+                  : "bg-theme-primary text-theme-primary-text hover:opacity-90"
               }`}
             >
               {loading ? "Processing..." : confirmText}

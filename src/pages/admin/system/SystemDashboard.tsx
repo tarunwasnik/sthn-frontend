@@ -17,7 +17,7 @@ export default function SystemDashboard() {
       try {
         await api.get("/admin/system/bootstrap");
         setLoading(false);
-      } catch (err: any) {
+      } catch {
         setError("Access denied");
 
         setTimeout(() => {

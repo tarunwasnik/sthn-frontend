@@ -5,7 +5,6 @@ import { e2eOrigin } from "./fixtures/origin";
 const apiOrigin = "http://127.0.0.1:9";
 const image = (name: string) => ({ name, mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) });
 const expiresAt = () => new Date(Date.now() + 60 * 60_000).toISOString();
-const allowText = { decision: "ALLOW", message: "Text approved", fingerprint: "patch-text-fingerprint", admissionToken: "patch-text-admission" };
 
 const profile = (status: "incomplete" | "verified" | "pending_verification" | "rejected") => ({
   username: `Patch ${status}`, realName: "Patch E2E", bio: "Existing profile text.", interests: ["testing"], dateOfBirth: "1990-01-01T00:00:00.000Z", country: "India", city: "Pune", languages: ["English"], profileStatus: status,
@@ -16,7 +15,7 @@ const profile = (status: "incomplete" | "verified" | "pending_verification" | "r
 const installProfileRoute = async (
   page: Page,
   initial: Record<string, unknown>,
-  options: Readonly<{ admission?: { decision: "PASS"; reference: string } | { decision: "BLOCK" | "UNAVAILABLE"; message: string }; text?: "ALLOW" | "BLOCK" }>,
+  options: Readonly<{ admission?: { decision: "PASS"; reference: string } | { decision: "BLOCK" | "UNAVAILABLE"; message: string } }>,
   onPatch?: (body: Record<string, unknown>) => { status?: number; json: unknown },
 ) => {
   let textRequests = 0;
@@ -39,9 +38,7 @@ const installProfileRoute = async (
     }
     if (request.method() === "POST" && url.pathname === "/api/v1/text-moderation") {
       textRequests += 1;
-      return route.fulfill({ json: options.text === "BLOCK"
-        ? { decision: "BLOCK", message: "Profile text was blocked.", fingerprint: "patch-text-fingerprint", target: { field: "bio" } }
-        : allowText });
+      return route.abort();
     }
     if (request.method() === "PATCH" && url.pathname === "/api/v1/profile/me") {
       patchRequests += 1;
@@ -53,13 +50,13 @@ const installProfileRoute = async (
   return { get textRequests() { return textRequests; }, get patchRequests() { return patchRequests; }, get admissionRequests() { return admissionRequests; } };
 };
 
-test("incomplete editor PATCHes an admitted avatar and Text AI-approved changed text while omitting unchanged media", async ({ page }) => {
+test("incomplete editor PATCHes an admitted avatar and changed text without Text AI while omitting unchanged media", async ({ page }) => {
   test.setTimeout(60_000);
   const initial = profile("incomplete");
   let observed: Record<string, unknown> | null = null;
-  const fixture = await installProfileRoute(page, initial, { admission: { decision: "PASS", reference: "incomplete-avatar-admission" }, text: "ALLOW" }, body => {
+  const fixture = await installProfileRoute(page, initial, { admission: { decision: "PASS", reference: "incomplete-avatar-admission" } }, body => {
     observed = body;
-    const expected = { avatar: { kind: "ADMISSION", admissionReference: "incomplete-avatar-admission" }, bio: "Changed incomplete profile text.", textModerationAdmission: allowText.admissionToken };
+    const expected = { avatar: { kind: "ADMISSION", admissionReference: "incomplete-avatar-admission" }, bio: "Changed incomplete profile text." };
     if (JSON.stringify(body) !== JSON.stringify(expected)) return { status: 400, json: { message: "Incomplete PATCH body did not match the admission contract." } };
     return { json: { profile: { ...initial, avatar: "https://media.invalid/persisted-incomplete-replacement.jpg", bio: expected.bio } } };
   });
@@ -67,12 +64,11 @@ test("incomplete editor PATCHes an admitted avatar and Text AI-approved changed 
   await page.goto(`${e2eOrigin}/profile`);
   await page.getByRole("button", { name: "Edit Profile" }).click();
   await page.locator('textarea').fill("Changed incomplete profile text.");
-  await expect.poll(() => fixture.textRequests).toBeGreaterThan(0);
   await page.locator('input[type="file"]').nth(0).setInputFiles(image("incomplete-avatar.jpg"));
   await expect(page.getByText("Image approved and ready to save.")).toBeVisible();
   await page.getByRole("button", { name: "Save Changes" }).click();
   await expect.poll(() => observed).not.toBeNull();
-  expect(fixture.admissionRequests).toBe(1); expect(fixture.textRequests).toBeGreaterThan(0); expect(fixture.patchRequests).toBe(1);
+  expect(fixture.admissionRequests).toBe(1); expect(fixture.textRequests).toBe(0); expect(fixture.patchRequests).toBe(1);
   await expect(page.getByText("Changed incomplete profile text.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit Profile" })).toBeVisible();
 });
@@ -99,9 +95,9 @@ test("verified editor PATCHes an admitted cover and a supported field without re
   await expect(page.getByText("verified", { exact: true })).toBeVisible();
 });
 
-test("blocked media and blocked Text AI never produce a PATCH request", async ({ page }) => {
+test("blocked media never produces a PATCH request", async ({ page }) => {
   const initial = profile("verified");
-  const fixture = await installProfileRoute(page, initial, { admission: { decision: "BLOCK", message: "Image is not eligible." }, text: "BLOCK" });
+  const fixture = await installProfileRoute(page, initial, { admission: { decision: "BLOCK", message: "Image is not eligible." } });
   await page.goto(`${e2eOrigin}/profile`);
   await page.getByRole("button", { name: "Edit Profile" }).click();
   await page.locator('input[type="file"]').nth(0).setInputFiles(image("blocked-avatar.jpg"));
@@ -110,12 +106,21 @@ test("blocked media and blocked Text AI never produce a PATCH request", async ({
   await expect(page.getByText("Image moderation must approve every selected image before it can be saved.")).toBeVisible();
   expect(fixture.patchRequests).toBe(0);
 
-  await page.getByRole("button", { name: "Cancel" }).click();
+  expect(fixture.textRequests).toBe(0);
+});
+
+test("changed profile text persists even when the Text AI endpoint would be unavailable", async ({ page }) => {
+  const initial = profile("verified");
+  const fixture = await installProfileRoute(page, initial, {}, body => {
+    if (JSON.stringify(body) !== JSON.stringify({ bio: "Text AI is disabled for this save." })) return { status: 400, json: { message: "Unexpected text PATCH." } };
+    return { json: { profile: { ...initial, bio: "Text AI is disabled for this save." } } };
+  });
+  await page.goto(`${e2eOrigin}/profile`);
   await page.getByRole("button", { name: "Edit Profile" }).click();
-  await page.locator('textarea').fill("Blocked replacement text.");
+  await page.locator("textarea").fill("Text AI is disabled for this save.");
   await page.getByRole("button", { name: "Save Changes" }).click();
-  await expect(page.getByText("Profile text was blocked.").first()).toBeVisible();
-  expect(fixture.textRequests).toBeGreaterThan(0); expect(fixture.patchRequests).toBe(0);
+  await expect(page.getByText("Text AI is disabled for this save.")).toBeVisible();
+  expect(fixture.textRequests).toBe(0); expect(fixture.patchRequests).toBe(1);
 });
 
 test("unavailable image moderation cannot be serialized into a PATCH claim", async ({ page }) => {

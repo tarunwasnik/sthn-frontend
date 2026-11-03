@@ -62,11 +62,12 @@ export default function ChatImage({
           block
           w-full
           overflow-hidden
-          rounded-xl
+          rounded-[var(--radius-control)]
           border
-          border-white/10
-          hover:border-white/20
+          border-theme-border
+          hover:border-theme-accent
           transition
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           ${isGroup ? "h-[180px]" : "h-[320px]"}
         `}
       >
@@ -142,17 +143,17 @@ export default function ChatImage({
               flex
               items-center
               justify-center
-              bg-red-700/60
+              bg-theme-danger/60
             "
           >
             <div
               className="
                 rounded-xl
-                bg-red-600
+                bg-theme-danger
                 px-4
                 py-2
                 text-sm
-                text-white
+                text-theme-primary-text
               "
             >
               Upload Failed
@@ -168,7 +169,7 @@ export default function ChatImage({
             items-center
             justify-between
             text-xs
-            text-white/60
+            text-theme-muted
           "
         >
           <span className="truncate">{msg.attachment?.originalFileName}</span>

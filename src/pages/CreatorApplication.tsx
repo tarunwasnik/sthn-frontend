@@ -1,34 +1,12 @@
 // frontend/src/pages/CreatorApplication.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { currencies } from "../constants/currencies";
-import { UPLOAD_PRESET } from "../config/cloudinary";
-import { useLiveTextModeration } from "../hooks/useLiveTextModeration";
-
-/* ================= CLOUDINARY ================= */
-
-const uploadToCloudinary = async (file: File): Promise<string> => {
-  const formData = new FormData();
-
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "creator_profiles");
-
-  const res = await fetch(
-    "https://api.cloudinary.com/v1_1/dg8hixi8e/image/upload",
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
-
-  const data = await res.json();
-
-  return data.secure_url;
-};
+import { imageAdmissionErrorMessage, releaseUserProfileTemporaryImage, submitUserProfileImageAdmission } from "../api/imageModeration";
+import { createProfileMediaSelection, disposeProfileMediaPreview, isCurrentProfileMediaOperation, markProfileMediaModerating, profileMediaStatusClassName, resolveProfileMediaAdmission, temporaryProfileMediaRelease, toProfileMediaClaim, type ProfileMediaItem } from "../features/profileMedia/profileMedia";
 
 interface CreatorApplicationData {
   displayName: string;
@@ -60,9 +38,9 @@ export default function CreatorApplication() {
     languages: "",
   });
 
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [media, setMedia] = useState<string[]>([]);
+  const [avatar, setAvatar] = useState<ProfileMediaItem | null>(null);
+  const [cover, setCover] = useState<ProfileMediaItem | null>(null);
+  const [media, setMedia] = useState<ProfileMediaItem[]>([]);
 
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState("");
@@ -76,27 +54,28 @@ export default function CreatorApplication() {
 
   const [error, setError] = useState("");
 
-  const [activeUploads, setActiveUploads] = useState(0);
-
-  const isUploading = activeUploads > 0;
+  const mediaRef = useRef({ avatar, cover, media });
+  useEffect(() => { mediaRef.current = { avatar, cover, media }; }, [avatar, cover, media]);
+  useEffect(() => () => {
+    const current = mediaRef.current;
+    [current.avatar, current.cover, ...current.media]
+      .filter((item): item is ProfileMediaItem => item !== null)
+      .forEach(disposeProfileMediaPreview);
+  }, []);
+  const isUploading = [avatar, cover, ...media].some((item) => item?.state === "UPLOADING" || item?.state === "MODERATING");
+  const activeUploads = [avatar, cover, ...media].filter((item) => item?.state === "UPLOADING" || item?.state === "MODERATING").length;
+  const previewUrl = (item: ProfileMediaItem) => item.state === "EXISTING" ? item.reference : item.previewUrl;
+  const mediaMessage = (item: ProfileMediaItem | null) => {
+    if (!item || item.state === "EXISTING") return null;
+    if (item.state === "APPROVED") return "Image approved.";
+    if (item.state === "UPLOADING" || item.state === "MODERATING") return "Image moderation is in progress.";
+    if (item.state === "BLOCKED" || item.state === "UNAVAILABLE" || item.state === "FAILED") return item.message;
+    return null;
+  };
 
   const isVerified = profileStatus === "verified";
 
   const isResubmission = application?.status === "rejected";
-  const moderatedServices = useMemo(
-    () => form.services.split(",").map((service) => service.trim()).filter(Boolean),
-    [form.services],
-  );
-  const moderationPayload = useMemo(() => form.publicBio.trim()
-    ? {
-      domain: "CREATOR_APPLICATION" as const,
-      publicBio: form.publicBio,
-      services: moderatedServices,
-    }
-    : null, [form.publicBio, moderatedServices]);
-  const textModeration = useLiveTextModeration(moderationPayload);
-  const isBlocked = (field: "publicBio" | "services") =>
-    textModeration.status === "BLOCK" && textModeration.result?.target?.field === field;
 
   /* ================= FETCH PROFILE + APPLICATION ================= */
 
@@ -149,11 +128,10 @@ export default function CreatorApplication() {
         : "",
     });
 
-    setAvatarUrl(application.avatarUrl ?? null);
-
-    setCoverUrl(application.coverUrl ?? null);
-
-    setMedia(Array.isArray(application.media) ? application.media : []);
+    const existing = (reference: string, surface: "CREATOR_APPLICATION_AVATAR" | "CREATOR_APPLICATION_COVER" | "CREATOR_APPLICATION_MEDIA"): ProfileMediaItem => ({ clientId: `creator-legacy-${surface}-${reference}`, operationId: 0, state: "EXISTING", surface, reference });
+    setAvatar(application.avatarUrl ? existing(application.avatarUrl, "CREATOR_APPLICATION_AVATAR") : null);
+    setCover(application.coverUrl ? existing(application.coverUrl, "CREATOR_APPLICATION_COVER") : null);
+    setMedia((application.media ?? []).map((reference) => existing(reference, "CREATOR_APPLICATION_MEDIA")));
 
     if (application.currency) {
       const selectedCurrency = currencies.find(
@@ -205,45 +183,19 @@ export default function CreatorApplication() {
 
   /* ================= AVATAR ================= */
 
-  const handleAvatarUpload = async (file: File) => {
-    const preview = URL.createObjectURL(file);
-
-    setAvatarUrl(preview);
-    setActiveUploads((previous) => previous + 1);
-
-    try {
-      const url = await uploadToCloudinary(file);
-
-      setAvatarUrl(url);
-    } catch {
-      setAvatarUrl(null);
-      setError("Failed to upload avatar.");
-    } finally {
-      setActiveUploads((previous) => Math.max(0, previous - 1));
-      URL.revokeObjectURL(preview);
-    }
+  const release = (item: ProfileMediaItem, reportFailure = true) => { const temporary = temporaryProfileMediaRelease(item); if (temporary) void releaseUserProfileTemporaryImage(temporary.assetReference, temporary.surface).catch(() => { if (reportFailure) setError("The image was removed, but secure cleanup is pending and will be retried safely."); }); };
+  const startSlotAdmission = async (file: File, surface: "CREATOR_APPLICATION_AVATAR" | "CREATOR_APPLICATION_COVER", setter: React.Dispatch<React.SetStateAction<ProfileMediaItem | null>>) => {
+    const selected = createProfileMediaSelection(file, surface); const previous = surface === "CREATOR_APPLICATION_AVATAR" ? mediaRef.current.avatar : mediaRef.current.cover;
+    if (previous) { release(previous); disposeProfileMediaPreview(previous); }
+    setter(selected);
+    try { const moderating = markProfileMediaModerating(selected); setter((current) => current && isCurrentProfileMediaOperation(current, selected) ? moderating : current); const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(file, surface)); setter((current) => { if (current && isCurrentProfileMediaOperation(current, moderating)) return resolved; disposeProfileMediaPreview(resolved); release(resolved, false); return current; }); }
+    catch (error) { setter((current) => current && isCurrentProfileMediaOperation(current, selected) ? { ...selected, state: "FAILED", message: imageAdmissionErrorMessage(error) } : current); }
   };
+  const handleAvatarUpload = (file: File) => startSlotAdmission(file, "CREATOR_APPLICATION_AVATAR", setAvatar);
 
   /* ================= COVER ================= */
 
-  const handleCoverUpload = async (file: File) => {
-    const preview = URL.createObjectURL(file);
-
-    setCoverUrl(preview);
-    setActiveUploads((previous) => previous + 1);
-
-    try {
-      const url = await uploadToCloudinary(file);
-
-      setCoverUrl(url);
-    } catch {
-      setCoverUrl(null);
-      setError("Failed to upload cover.");
-    } finally {
-      setActiveUploads((previous) => Math.max(0, previous - 1));
-      URL.revokeObjectURL(preview);
-    }
-  };
+  const handleCoverUpload = (file: File) => startSlotAdmission(file, "CREATOR_APPLICATION_COVER", setCover);
 
   /* ================= MEDIA ================= */
 
@@ -251,34 +203,26 @@ export default function CreatorApplication() {
     const selectedFiles = Array.from(files);
 
     const uploads = selectedFiles.map(async (file) => {
-      const preview = URL.createObjectURL(file);
-
-      setMedia((previous) => [...previous, preview]);
-      setActiveUploads((previous) => previous + 1);
-
-      try {
-        const url = await uploadToCloudinary(file);
-
-        setMedia((previous) =>
-          previous.map((item) => (item === preview ? url : item)),
-        );
-      } catch {
-        setMedia((previous) => previous.filter((item) => item !== preview));
-
-        setError("Failed to upload one of the media images.");
-      } finally {
-        setActiveUploads((previous) => Math.max(0, previous - 1));
-        URL.revokeObjectURL(preview);
-      }
+      const selected = createProfileMediaSelection(file, "CREATOR_APPLICATION_MEDIA"); setMedia((previous) => [...previous, selected]);
+      try { const moderating = markProfileMediaModerating(selected); setMedia((previous) => previous.map((item) => isCurrentProfileMediaOperation(item, selected) ? moderating : item)); const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(file, "CREATOR_APPLICATION_MEDIA")); setMedia((previous) => previous.some((item) => isCurrentProfileMediaOperation(item, moderating)) ? previous.map((item) => isCurrentProfileMediaOperation(item, moderating) ? resolved : item) : (disposeProfileMediaPreview(resolved), release(resolved, false), previous)); }
+      catch (error) { setMedia((previous) => previous.map((item) => isCurrentProfileMediaOperation(item, selected) ? { ...selected, state: "FAILED", message: imageAdmissionErrorMessage(error) } : item)); }
     });
 
     await Promise.all(uploads);
   };
 
   const removeMedia = (index: number) => {
-    setMedia((previous) =>
-      previous.filter((_, mediaIndex) => mediaIndex !== index),
-    );
+    setMedia((previous) => { const removed = previous[index]; if (removed) { release(removed); disposeProfileMediaPreview(removed); } return previous.filter((_, mediaIndex) => mediaIndex !== index); });
+  };
+
+  const removeSlot = (slot: "avatar" | "cover") => {
+    const item = slot === "avatar" ? mediaRef.current.avatar : mediaRef.current.cover;
+    if (item) {
+      release(item);
+      disposeProfileMediaPreview(item);
+    }
+    if (slot === "avatar") setAvatar(null);
+    else setCover(null);
   };
 
   /* ================= SUBMIT ================= */
@@ -300,9 +244,15 @@ export default function CreatorApplication() {
       return;
     }
 
-    const moderation = await textModeration.checkNow();
-    if (moderation?.decision !== "ALLOW" || !moderation.admissionToken) {
-      setError(moderation?.message || "Please check your application text before submitting.");
+    let avatarClaim;
+    let coverClaim;
+    let mediaClaims;
+    try {
+      avatarClaim = avatar ? toProfileMediaClaim(avatar) : undefined;
+      coverClaim = cover ? toProfileMediaClaim(cover) : undefined;
+      mediaClaims = media.map((item) => toProfileMediaClaim(item));
+    } catch (claimError) {
+      setError(claimError instanceof Error ? claimError.message : "Image moderation must approve every selected image before it can be saved.");
       return;
     }
 
@@ -313,16 +263,14 @@ export default function CreatorApplication() {
       await api.post("/v1/creator-applications", {
         ...form,
 
-        avatarUrl,
-        coverUrl,
-        media,
+        ...(avatarClaim ? { avatar: avatarClaim } : {}),
+        ...(coverClaim ? { cover: coverClaim } : {}),
+        media: mediaClaims,
 
         services: form.services
           .split(",")
           .map((service) => service.trim())
           .filter(Boolean),
-        textModerationAdmission: moderation.admissionToken,
-
         languages: form.languages
           .split(",")
           .map((language) => language.trim())
@@ -344,8 +292,8 @@ export default function CreatorApplication() {
 
   if (pageLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 text-white bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617]">
-        <p className="text-white/60">Loading creator application...</p>
+      <div className="min-h-screen flex items-center justify-center bg-theme-bg px-4 text-theme-muted">
+        <p>Loading creator application...</p>
       </div>
     );
   }
@@ -353,33 +301,33 @@ export default function CreatorApplication() {
   /* ================= UI ================= */
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10 text-white bg-gradient-to-br from-[#041c1c] via-[#052828] to-[#020617]">
-      <div className="w-full max-w-lg bg-white/5 border border-white/10 backdrop-blur-xl rounded-2xl p-6">
+    <div className="min-h-screen flex items-center justify-center bg-theme-bg px-4 py-10 text-theme-text">
+      <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6">
         <h2 className="text-2xl font-bold mb-2">
           {isResubmission ? "Update Creator Application" : "Become a Creator"}
         </h2>
 
-        <p className="text-gray-400 text-sm mb-6">
+        <p className="mb-6 text-sm text-theme-muted">
           {isResubmission
             ? "Update your application according to the administrator's feedback. Saving your changes will automatically resubmit it for review."
             : "Submit your creator application for review."}
         </p>
 
         {isResubmission && application?.rejectionReason && (
-          <div className="mb-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-            <p className="mb-2 text-sm font-semibold text-red-300">
+          <div className="mb-6 rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4">
+            <p className="mb-2 text-sm font-semibold text-theme-danger">
               Administrator Feedback
             </p>
 
-            <p className="text-sm leading-relaxed text-white/80">
+            <p className="text-sm leading-relaxed text-theme-text">
               {application.rejectionReason}
             </p>
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/5 p-3">
-            <p className="text-sm text-red-400">{error}</p>
+          <div className="mb-4 rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-3">
+            <p className="text-sm text-theme-danger">{error}</p>
           </div>
         )}
 
@@ -443,7 +391,7 @@ export default function CreatorApplication() {
             {currencyOpen && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-lg bg-white border border-white/10 shadow-xl"
+                className="absolute z-50 mt-2 max-h-60 w-full overflow-y-auto rounded-[var(--radius-dropdown)] border border-theme-border bg-theme-surface shadow-lg"
               >
                 {filteredCurrencies.length > 0 ? (
                   filteredCurrencies.map((currency) => (
@@ -462,13 +410,13 @@ export default function CreatorApplication() {
 
                         setCurrencyOpen(false);
                       }}
-                      className="block w-full px-3 py-2 text-left hover:bg-black/10 cursor-pointer text-sm text-black"
+                      className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-theme-text hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                     >
                       {currency.code} — {currency.label}
                     </button>
                   ))
                 ) : (
-                  <div className="px-3 py-2 text-gray-400 text-sm">
+                  <div className="px-3 py-2 text-sm text-theme-muted">
                     No results found
                   </div>
                 )}
@@ -481,11 +429,8 @@ export default function CreatorApplication() {
             value={form.services}
             placeholder="Services"
             onChange={handleChange}
-            onBlur={() => { void textModeration.checkNow(); }}
-            aria-invalid={isBlocked("services")}
-            className={`input ${isBlocked("services") ? "ring-1 ring-red-500" : ""}`}
+            className="input"
           />
-          {isBlocked("services") && <p className="-mt-3 text-xs text-red-400">{textModeration.result?.message}</p>}
 
           <input
             name="languages"
@@ -500,12 +445,8 @@ export default function CreatorApplication() {
             value={form.publicBio}
             placeholder="Public Bio"
             onChange={handleChange}
-            onBlur={() => { void textModeration.checkNow(); }}
-            aria-invalid={isBlocked("publicBio")}
-            className={`input min-h-28 resize-y ${isBlocked("publicBio") ? "ring-1 ring-red-500" : ""}`}
+            className="input min-h-28 resize-y"
           />
-          {isBlocked("publicBio") && <p className="-mt-3 text-xs text-red-400">{textModeration.result?.message}</p>}
-          {textModeration.status === "UNAVAILABLE" && <p className="text-xs text-amber-300">{textModeration.result?.message}</p>}
 
           {/* ================= AVATAR ================= */}
 
@@ -524,23 +465,24 @@ export default function CreatorApplication() {
               }}
             />
 
-            {avatarUrl && (
+            {avatar && (
               <div className="relative w-20 h-20 mt-2">
                 <img
-                  src={avatarUrl}
+                  src={previewUrl(avatar)}
                   alt="Creator avatar"
-                  className="w-20 h-20 object-cover rounded-full"
+                  className={`w-20 h-20 object-cover rounded-full ${profileMediaStatusClassName(avatar)}`}
                 />
 
                 <button
                   type="button"
-                  onClick={() => setAvatarUrl(null)}
+                  onClick={() => removeSlot("avatar")}
                   className="absolute top-0 right-0 bg-black/60 text-xs px-1 rounded"
                 >
                   ✕
                 </button>
               </div>
             )}
+            {mediaMessage(avatar) && <p className={`mt-1 text-xs ${avatar?.state === "BLOCKED" ? "text-red-400" : avatar?.state === "UNAVAILABLE" ? "text-amber-300" : avatar?.state === "FAILED" ? "text-orange-300" : "text-gray-400"}`}>{mediaMessage(avatar)}</p>}
           </div>
 
           {/* ================= COVER ================= */}
@@ -560,23 +502,24 @@ export default function CreatorApplication() {
               }}
             />
 
-            {coverUrl && (
+            {cover && (
               <div className="relative mt-2">
                 <img
-                  src={coverUrl}
+                  src={previewUrl(cover)}
                   alt="Creator cover"
-                  className="w-full h-24 object-cover rounded-lg"
+                  className={`w-full h-24 object-cover rounded-lg ${profileMediaStatusClassName(cover)}`}
                 />
 
                 <button
                   type="button"
-                  onClick={() => setCoverUrl(null)}
+                  onClick={() => removeSlot("cover")}
                   className="absolute top-1 right-1 bg-black/60 text-xs px-2 py-1 rounded"
                 >
                   ✕
                 </button>
               </div>
             )}
+            {mediaMessage(cover) && <p className={`mt-1 text-xs ${cover?.state === "BLOCKED" ? "text-red-400" : cover?.state === "UNAVAILABLE" ? "text-amber-300" : cover?.state === "FAILED" ? "text-orange-300" : "text-gray-400"}`}>{mediaMessage(cover)}</p>}
           </div>
 
           {/* ================= MEDIA ================= */}
@@ -597,11 +540,11 @@ export default function CreatorApplication() {
 
             <div className="grid grid-cols-3 gap-2 mt-2">
               {media.map((image, index) => (
-                <div key={`${image}-${index}`} className="relative">
+                <div key={image.clientId} className="relative">
                   <img
-                    src={image}
+                    src={previewUrl(image)}
                     alt={`Creator media ${index + 1}`}
-                    className="h-20 w-full object-cover rounded"
+                    className={`h-20 w-full object-cover rounded ${profileMediaStatusClassName(image)}`}
                   />
 
                   <button
@@ -611,6 +554,7 @@ export default function CreatorApplication() {
                   >
                     ✕
                   </button>
+                  {mediaMessage(image) && <p className={`mt-1 text-xs ${image.state === "BLOCKED" ? "text-red-400" : "text-gray-400"}`}>{mediaMessage(image)}</p>}
                 </div>
               ))}
             </div>
@@ -621,7 +565,7 @@ export default function CreatorApplication() {
           <button
             type="submit"
             disabled={loading || !isVerified || isUploading}
-            className="w-full bg-teal-400 text-black py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full rounded-[var(--radius-control)] bg-theme-primary py-3 font-semibold text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             {isUploading
               ? `Uploading images... (${activeUploads})`
@@ -639,11 +583,18 @@ export default function CreatorApplication() {
           .input {
             width: 100%;
             padding: 10px;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius-control);
+            background: var(--color-surface-inset);
+            border: 1px solid var(--color-border);
             outline: none;
-            color: white;
+            color: var(--color-text);
+          }
+          .input::placeholder {
+            color: var(--color-text-muted);
+          }
+          .input:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 2px;
           }
         `}
       </style>

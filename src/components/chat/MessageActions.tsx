@@ -40,9 +40,9 @@ export default function MessageActions({
     -translate-x-1/2
     z-[99999]
     min-w-[220px]
-    rounded-2xl
-    border border-white/10
-    bg-[#111]
+    rounded-[var(--radius-dialog)]
+    border border-theme-border
+    bg-theme-surface
     shadow-xl
     overflow-hidden
   "
@@ -57,10 +57,11 @@ export default function MessageActions({
     px-4
     py-3
     text-left
-    text-white
-    hover:bg-white/5
+    text-theme-text
+    hover:bg-theme-inset
     border-b
-    border-white/10
+    border-theme-border
+    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
   "
         >
           Reply
@@ -77,8 +78,9 @@ export default function MessageActions({
               px-4
               py-3
               text-left
-              text-red-400
-              hover:bg-white/5
+              text-theme-danger
+              hover:bg-theme-danger-tint
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             Delete Message

@@ -22,7 +22,7 @@ export default function AdminAvatar({
       <img
         src={src}
         alt={name}
-        className={`${sizes[size]} rounded-xl border border-slate-700 object-cover`}
+        className={`${sizes[size]} rounded-[var(--radius-card)] border border-theme-border object-cover`}
       />
     );
   }
@@ -42,12 +42,12 @@ export default function AdminAvatar({
         flex
         items-center
         justify-center
-        rounded-xl
+        rounded-[var(--radius-card)]
         border
-        border-slate-700
-        bg-slate-800
+        border-theme-border
+        bg-theme-inset
         font-semibold
-        text-slate-300
+        text-theme-muted
       `}
     >
       {initials}

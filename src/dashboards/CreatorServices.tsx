@@ -1,9 +1,20 @@
 // frontend/src/dashboards/CreatorServices.tsx
 
-import { useEffect, useState, useRef } from "react"; // ✅ added useRef
+import { useEffect, useRef, useState } from "react";
 import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
-import { UPLOAD_PRESET } from "../config/cloudinary";
+import { imageAdmissionErrorMessage, releaseUserProfileTemporaryImage, submitUserProfileImageAdmission } from "../api/imageModeration";
+import {
+  createProfileMediaSelection,
+  disposeProfileMediaPreview,
+  isCurrentProfileMediaOperation,
+  markProfileMediaModerating,
+  profileMediaStatusClassName,
+  resolveProfileMediaAdmission,
+  temporaryProfileMediaRelease,
+  toProfileMediaClaim,
+  type ProfileMediaItem,
+} from "../features/profileMedia/profileMedia";
 
 /* ================= TYPES ================= */
 
@@ -18,43 +29,55 @@ interface Service {
   media?: string[];
 }
 
-/* ================= CLOUDINARY ================= */
+type ServiceForm = Readonly<{
+  title: string;
+  description: string;
+  durationMinutes: number;
+  price: string | number;
+  media: ProfileMediaItem[];
+}>;
 
-const uploadToCloudinary = async (file: File): Promise<string> => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "creator_services");
+type EditableServiceForm = ServiceForm & Pick<Service, "_id" | "currency" | "isActive"> & Readonly<{
+  /** A temporary candidate; committed media remains in `media` until save. */
+  replacement: ProfileMediaItem | null;
+}>;
 
-  const res = await fetch(
-    "https://api.cloudinary.com/v1_1/dg8hixi8e/image/upload",
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-
-  const data = await res.json();
-  return data.secure_url;
+const newServiceForm = (): ServiceForm => ({ title: "", description: "", durationMinutes: 60, price: "", media: [] });
+const newEditableServiceForm = (): EditableServiceForm => ({ ...newServiceForm(), _id: "", currency: "", isActive: false, replacement: null });
+const existingServiceMedia = (reference: string, index: number): ProfileMediaItem => ({
+  clientId: `creator-service-existing-${index}-${reference}`,
+  operationId: 0,
+  state: "EXISTING",
+  surface: "CREATOR_SERVICE_MEDIA",
+  reference,
+});
+const previewUrl = (item: ProfileMediaItem) => item.state === "EXISTING" ? item.reference : item.previewUrl;
+const isPending = (item: ProfileMediaItem) => item.state === "UPLOADING" || item.state === "MODERATING";
+const mediaMessage = (item: ProfileMediaItem) => {
+  if (item.state === "APPROVED") return "Image approved.";
+  if (isPending(item)) return "Image moderation is in progress.";
+  if (item.state === "BLOCKED" || item.state === "UNAVAILABLE" || item.state === "FAILED") return item.message;
+  return null;
 };
 
 export default function CreatorServices() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<any>(null);
+  const [editForm, setEditForm] = useState<EditableServiceForm>(newEditableServiceForm);
+  const [form, setForm] = useState<ServiceForm>(newServiceForm);
+  const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    durationMinutes: 60,
-    price: "",
-    media: [] as string[],
-  });
-
-  const fileInputRef = useRef<HTMLInputElement | null>(null); // ✅ added
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaRef = useRef({ form: form.media, edit: [] as ProfileMediaItem[], replacement: null as ProfileMediaItem | null });
+  useEffect(() => { mediaRef.current = { form: form.media, edit: editForm.media, replacement: editForm.replacement }; }, [form.media, editForm.media, editForm.replacement]);
+  useEffect(() => () => {
+    [...mediaRef.current.form, ...mediaRef.current.edit, mediaRef.current.replacement]
+      .filter((item): item is ProfileMediaItem => item !== null)
+      .forEach(disposeProfileMediaPreview);
+  }, []);
+  const createMediaUploading = form.media.some(isPending);
+  const editMediaUploading = Boolean(editForm.replacement && isPending(editForm.replacement));
 
   /* ================= FETCH ================= */
 
@@ -77,34 +100,25 @@ export default function CreatorServices() {
 
   const handleCreate = async () => {
     if (!form.title || !form.description || !form.price) return;
+    if (form.media.length !== 1) {
+      setError("Select one image and wait for its approval before creating this service.");
+      return;
+    }
 
     try {
-      const cleanMedia = form.media.filter((url) =>
-        url.startsWith("http")
-      );
+      const media = [toProfileMediaClaim(form.media[0])];
 
       await api.post("/v1/creator/services", {
         title: form.title,
         description: form.description,
         durationMinutes: form.durationMinutes,
         price: Number(form.price),
-        media: cleanMedia,
+        media,
       });
 
-      // ✅ cleanup blob urls
-      form.media.forEach((url) => {
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
-
-      setForm({
-        title: "",
-        description: "",
-        durationMinutes: 60,
-        price: "",
-        media: [],
-      });
+      form.media.forEach(disposeProfileMediaPreview);
+      setForm(newServiceForm());
+      setError("");
 
       // ✅ reset file input
       if (fileInputRef.current) {
@@ -112,8 +126,8 @@ export default function CreatorServices() {
       }
 
       fetchServices();
-    } catch {
-      console.error("Failed to create service");
+    } catch (createError) {
+      setError(imageAdmissionErrorMessage(createError, "Failed to create service."));
     }
   };
 
@@ -123,147 +137,107 @@ export default function CreatorServices() {
     setEditingId(service._id);
     setEditForm({
       ...service,
-      media: service.media || [],
+      price: service.price,
+      media: (service.media ?? []).map(existingServiceMedia),
+      replacement: null,
     });
   };
 
   const cancelEdit = () => {
+    if (editForm.replacement) { releaseTemporary(editForm.replacement); disposeProfileMediaPreview(editForm.replacement); }
     setEditingId(null);
-    setEditForm(null);
+    setEditForm(newEditableServiceForm());
   };
 
   const saveEdit = async () => {
+    if (!editingId) return;
     try {
-      const cleanMedia = editForm.media.filter((url: string) =>
-        url.startsWith("http")
-      );
+      const media = editForm.replacement ? [toProfileMediaClaim(editForm.replacement)] : undefined;
 
       await api.patch(`/v1/creator/services/${editingId}`, {
-        ...editForm,
-        media: cleanMedia,
+        title: editForm.title,
+        description: editForm.description,
+        durationMinutes: editForm.durationMinutes,
         price: Number(editForm.price),
+        ...(media ? { media } : {}),
       });
 
+      if (editForm.replacement) disposeProfileMediaPreview(editForm.replacement);
       setEditingId(null);
+      setEditForm(newEditableServiceForm());
+      setError("");
       fetchServices();
-    } catch {
-      console.error("Update failed");
+    } catch (updateError) {
+      setError(imageAdmissionErrorMessage(updateError, "Update failed."));
     }
   };
 
   /* ================= MEDIA ================= */
 
-const handleMediaUpload = async (
-  files: FileList,
-  isEdit = false
-) => {
-
-  setIsUploading(true);
-
-  try {
-
-    const arr = Array.from(files);
-
-    for (const file of arr) {
-
-      const preview =
-        URL.createObjectURL(file);
-
-      if (isEdit) {
-
-        setEditForm((p: any) => ({
-          ...p,
-          media: [...p.media, preview],
-        }));
-
-      } else {
-
-        setForm((p) => ({
-          ...p,
-          media: [...p.media, preview],
-        }));
-
-      }
-
-      const url =
-        await uploadToCloudinary(file);
-
-      if (isEdit) {
-
-        setEditForm((p: any) => {
-
-          const updated = [...p.media];
-
-          const index =
-            updated.indexOf(preview);
-
-          if (index !== -1) {
-            updated[index] = url;
-          }
-
-          return {
-            ...p,
-            media: updated,
-          };
-        });
-
-      } else {
-
-        setForm((p) => {
-
-          const updated = [...p.media];
-
-          const index =
-            updated.indexOf(preview);
-
-          if (index !== -1) {
-            updated[index] = url;
-          }
-
-          return {
-            ...p,
-            media: updated,
-          };
-        });
-
-      }
+  const releaseTemporary = (item: ProfileMediaItem, reportFailure = true) => {
+    const temporary = temporaryProfileMediaRelease(item);
+    if (temporary) void releaseUserProfileTemporaryImage(temporary.assetReference, temporary.surface).catch(() => {
+      if (reportFailure) setError("The image was removed, but secure cleanup is pending and will be retried safely.");
+    });
+  };
+  const admitCreateMedia = async (file: File) => {
+    const selected = createProfileMediaSelection(file, "CREATOR_SERVICE_MEDIA");
+    const previous = mediaRef.current.form[0];
+    if (previous) { releaseTemporary(previous); disposeProfileMediaPreview(previous); }
+    setForm((current) => ({ ...current, media: [selected] }));
+    try {
+      const moderating = markProfileMediaModerating(selected);
+      setForm((current) => current.media.some((item) => isCurrentProfileMediaOperation(item, selected)) ? { ...current, media: [moderating] } : current);
+      const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(file, "CREATOR_SERVICE_MEDIA"));
+      setForm((current) => current.media.some((item) => isCurrentProfileMediaOperation(item, moderating))
+        ? { ...current, media: [resolved] }
+        : (disposeProfileMediaPreview(resolved), releaseTemporary(resolved, false), current));
+    } catch (admissionError) {
+      setForm((current) => current.media.some((item) => isCurrentProfileMediaOperation(item, selected))
+        ? { ...current, media: [{ ...selected, state: "FAILED", message: imageAdmissionErrorMessage(admissionError) }] }
+        : current);
     }
-
-  } finally {
-
-    setIsUploading(false);
-
-  }
-};
-
-  const removeMedia = (index: number, isEdit = false) => {
-    if (isEdit) {
-      setEditForm((p: any) => {
-        const removed = p.media[index];
-
-        if (removed?.startsWith("blob:")) {
-          URL.revokeObjectURL(removed);
-        }
-
-        return {
-          ...p,
-          media: p.media.filter((_: any, i: number) => i !== index),
-        };
-      });
-    } else {
-      setForm((p) => {
-        const removed = p.media[index];
-
-        if (removed?.startsWith("blob:")) {
-          URL.revokeObjectURL(removed);
-        }
-
-        return {
-          ...p,
-          media: p.media.filter((_, i) => i !== index),
-        };
-      });
+  };
+  const admitEditReplacement = async (file: File) => {
+    if (mediaRef.current.edit.length > 1) return;
+    const selected = createProfileMediaSelection(file, "CREATOR_SERVICE_MEDIA");
+    const previous = mediaRef.current.replacement;
+    if (previous) { releaseTemporary(previous); disposeProfileMediaPreview(previous); }
+    setEditForm((current) => ({ ...current, replacement: selected }));
+    try {
+      const moderating = markProfileMediaModerating(selected);
+      setEditForm((current) => current.replacement && isCurrentProfileMediaOperation(current.replacement, selected) ? { ...current, replacement: moderating } : current);
+      const resolved = resolveProfileMediaAdmission(moderating, await submitUserProfileImageAdmission(file, "CREATOR_SERVICE_MEDIA"));
+      setEditForm((current) => current.replacement && isCurrentProfileMediaOperation(current.replacement, moderating)
+        ? { ...current, replacement: resolved }
+        : (disposeProfileMediaPreview(resolved), releaseTemporary(resolved, false), current));
+    } catch (admissionError) {
+      setEditForm((current) => current.replacement && isCurrentProfileMediaOperation(current.replacement, selected)
+        ? { ...current, replacement: { ...selected, state: "FAILED", message: imageAdmissionErrorMessage(admissionError) } }
+        : current);
     }
+  };
+  const handleMediaUpload = (files: FileList, isEdit = false) => {
+    const file = files.item(0);
+    if (file) void (isEdit ? admitEditReplacement(file) : admitCreateMedia(file));
+  };
+  const removeCreateMedia = () => {
+    const item = mediaRef.current.form[0];
+    if (item) { releaseTemporary(item); disposeProfileMediaPreview(item); }
+    setForm((current) => ({ ...current, media: [] }));
+  };
+  const removeEditReplacement = () => {
+    const item = mediaRef.current.replacement;
+    if (item) { releaseTemporary(item); disposeProfileMediaPreview(item); }
+    setEditForm((current) => ({ ...current, replacement: null }));
+  };
+  const retryMedia = (isEdit = false) => {
+    const item = isEdit ? mediaRef.current.replacement : mediaRef.current.form[0];
+    if (!item || item.state === "EXISTING" || item.state === "APPROVED" || isPending(item)) return;
+    releaseTemporary(item); disposeProfileMediaPreview(item);
+    if (isEdit) setEditForm((current) => ({ ...current, replacement: null }));
+    else setForm((current) => ({ ...current, media: [] }));
+    void (isEdit ? admitEditReplacement(item.sourceFile) : admitCreateMedia(item.sourceFile));
   };
 
   /* ================= ACTIONS ================= */
@@ -288,11 +262,11 @@ const handleMediaUpload = async (
 
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-semibold text-white">
+        <h1 className="text-2xl font-semibold text-theme-text">
           Your Services
         </h1>
 
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="mt-1 text-sm text-theme-muted">
           Manage your offerings and pricing
         </p>
       </div>
@@ -303,10 +277,9 @@ const handleMediaUpload = async (
         {/* LEFT: ADD SERVICE */}
         <div
   className="
-    bg-white/5
-    backdrop-blur-xl
-    border border-white/10
-    rounded-2xl
+    bg-theme-surface
+    border border-theme-border
+    rounded-[var(--radius-card)]
     p-6
     space-y-5
     h-fit
@@ -315,7 +288,7 @@ const handleMediaUpload = async (
   "
 >
 
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-base font-semibold text-theme-text">
             Add New Service
           </h2>
 
@@ -323,6 +296,7 @@ const handleMediaUpload = async (
 
             <input
               type="text"
+              aria-label="Service title"
               placeholder="Service Title"
               value={form.title}
               onChange={(e) =>
@@ -331,12 +305,13 @@ const handleMediaUpload = async (
                   title: e.target.value,
                 })
               }
-              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
+              className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
             />
 
             <div className="relative">
               <select
                 value={form.durationMinutes}
+                aria-label="Service duration"
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -346,17 +321,15 @@ const handleMediaUpload = async (
                 className="
                   w-full
                   appearance-none
-                  bg-white/5
-                  border border-white/10
-                  rounded-xl
+                  bg-theme-inset
+                  border border-theme-border
+                  rounded-[var(--radius-control)]
                   p-3
                   pr-10
                   text-sm
-                  text-white
-                  outline-none
-                  focus:outline-none
-                  focus:ring-0
-                  transition
+                  text-theme-text
+                  transition-colors
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                 "
               >
                 {[30, 45, 60, 90, 120].map((d) => (
@@ -364,8 +337,8 @@ const handleMediaUpload = async (
                     key={d}
                     value={d}
                     className="
-                      bg-[#0f0f0f]
-                      text-white
+                      bg-theme-surface
+                      text-theme-text
                     "
                   >
                     {d} minutes
@@ -373,13 +346,14 @@ const handleMediaUpload = async (
                 ))}
               </select>
 
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-theme-muted">
                 ▼
               </div>
             </div>
 
             <textarea
               placeholder="Service Description"
+              aria-label="Service description"
               value={form.description}
               onChange={(e) =>
                 setForm({
@@ -387,11 +361,12 @@ const handleMediaUpload = async (
                   description: e.target.value,
                 })
               }
-              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
+              className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
             />
 
             <input
               type="number"
+              aria-label="Service price"
               placeholder="Service Price"
               value={form.price}
               onChange={(e) =>
@@ -400,39 +375,43 @@ const handleMediaUpload = async (
                   price: e.target.value,
                 })
               }
-              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-gray-400"
+              className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
             />
 
             <input
               ref={fileInputRef}
               type="file"
-              multiple
-              onChange={(e) =>
-                e.target.files &&
-                handleMediaUpload(e.target.files)
-              }
-              className="text-xs text-gray-400"
+              accept="image/*"
+              onChange={(e) => { if (e.target.files) handleMediaUpload(e.target.files); e.target.value = ""; }}
+              className="text-xs text-theme-muted file:mr-3 file:rounded-[var(--radius-control)] file:border-0 file:bg-theme-inset file:px-3 file:py-2 file:text-sm file:font-medium file:text-theme-text"
             />
+
+            {error && <p className="rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-3 text-xs text-theme-danger" role="alert">{error}</p>}
 
             {/* PREVIEW */}
             {form.media.length > 0 && (
               <div className="flex gap-2 overflow-x-auto">
-                {form.media.map((img, i) => (
+                {form.media.map((item, i) => (
                   <div
-                    key={i}
+                    key={item.clientId}
                     className="relative h-20 w-20 min-w-[80px]"
                   >
                     <img
-                      src={img}
-                      className="w-full h-full object-cover rounded-lg border border-white/10"
+                      src={previewUrl(item)}
+                      alt={`Selected service media ${i + 1}`}
+                      className={`w-full h-full object-cover rounded-lg ${profileMediaStatusClassName(item)}`}
                     />
 
                     <button
-                      onClick={() => removeMedia(i)}
-                      className="absolute top-1 right-1 bg-black/70 text-xs px-1 rounded"
+                      onClick={removeCreateMedia}
+                      className="absolute right-1 top-1 rounded-[var(--radius-control)] bg-theme-primary px-1 text-xs text-theme-primary-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                     >
                       ✕
                     </button>
+                    {mediaMessage(item) && <p className={`mt-1 text-[10px] ${item.state === "BLOCKED" || item.state === "FAILED" ? "text-theme-danger" : item.state === "UNAVAILABLE" ? "text-theme-warning" : "text-theme-muted"}`}>{mediaMessage(item)}</p>}
+                    {(item.state === "FAILED" || item.state === "UNAVAILABLE") && (
+                      <button type="button" onClick={() => retryMedia()} className="absolute bottom-1 left-1 rounded-[var(--radius-control)] bg-theme-primary px-1 text-[10px] text-theme-primary-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Retry</button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -440,30 +419,30 @@ const handleMediaUpload = async (
 
             <button
               onClick={handleCreate}
-              disabled={isUploading}
+              disabled={createMediaUploading || form.media.length !== 1 || form.media[0]?.state !== "APPROVED"}
               className={`
                 w-full
-                rounded-xl
+                rounded-[var(--radius-control)]
                 py-3
                 text-sm
                 font-medium
-                transition
+                transition-opacity
                 ${
-                  isUploading
+                  createMediaUploading
                     ? `
-                      bg-white/5
-                      text-white/40
+                      bg-theme-inset
+                      text-theme-muted
                       cursor-not-allowed
                     `
                     : `
-                      bg-white/10
-                      hover:bg-white/20
+                      bg-theme-primary text-theme-primary-text
+                      hover:opacity-90
                     `
                 }
               `}
             >
-              {isUploading
-                ? "Uploading Media..."
+              {createMediaUploading
+                ? "Moderating Media..."
                 : "+ Add Service"}
             </button>
 
@@ -477,31 +456,24 @@ const handleMediaUpload = async (
             services.map((service) => {
               const isEditing =
                 editingId === service._id;
+              const legacyMultiImage = isEditing && editForm.media.length > 1;
+              const editableMedia = editForm.replacement ? [editForm.replacement] : editForm.media;
 
               return (
                 <div
                   key={service._id}
                   className={`
                     group
-                    bg-gradient-to-br from-white/[0.045] to-white/[0.015]
-                    border border-white/10
-                    rounded-2xl px-5 py-4
+                    bg-theme-surface
+                    border border-theme-border
+                    rounded-[var(--radius-card)] px-5 py-4
                     space-y-3
                     relative
                     overflow-hidden
-                    transition-all duration-300
-                    hover:shadow-[0_10px_30px_rgba(0,0,0,0.35)]
-                    hover:-translate-y-[2px]
-                    ${
-                      service.isActive
-                        ? "shadow-[0_0_20px_rgba(34,197,94,0.08)]"
-                        : ""
-                    }
+                    transition-colors
+                    hover:bg-theme-surface-raised
                   `}
                 >
-
-                  {/* glow layer */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-white/[0.05] to-transparent pointer-events-none rounded-2xl" />
 
                   {
 !isEditing ? (
@@ -519,8 +491,8 @@ const handleMediaUpload = async (
       <h2 className="
         text-[24px]
         leading-[0.95]
-        font-bold
-        text-white
+        font-semibold
+        text-theme-text
         break-words
       ">
         {service.title}
@@ -529,7 +501,7 @@ const handleMediaUpload = async (
       <p className="
         mt-2
         text-[13px]
-        text-white/55
+        text-theme-muted
         leading-relaxed
       ">
         {service.description}
@@ -545,11 +517,10 @@ const handleMediaUpload = async (
         px-2.5 py-1
         rounded-lg
         whitespace-nowrap
-        backdrop-blur
         ${
           service.isActive
-            ? "bg-green-500/10 text-green-300 border border-green-500/20"
-            : "bg-red-500/10 text-red-300 border border-red-500/20"
+            ? "border border-theme-success bg-theme-success-tint text-theme-success"
+            : "border border-theme-danger bg-theme-danger-tint text-theme-danger"
         }
       `}
     >
@@ -573,8 +544,8 @@ const handleMediaUpload = async (
           w-full
           h-[150px]
           object-cover
-          rounded-xl
-          border border-white/10
+          rounded-[var(--radius-card)]
+          border border-theme-border
         "
       />
 
@@ -584,13 +555,13 @@ const handleMediaUpload = async (
         className="
           w-full
           h-[140px]
-          rounded-xl
-          border border-white/10
-          bg-white/[0.03]
+          rounded-[var(--radius-card)]
+          border border-theme-border
+          bg-theme-inset
           flex
           items-center
           justify-center
-          text-white/25
+          text-theme-muted
           text-xs
         "
       >
@@ -607,41 +578,41 @@ const handleMediaUpload = async (
     <div className="flex gap-6">
 
       <div>
-        <p className="text-[10px] text-white/35">
+        <p className="text-[10px] text-theme-muted">
           Duration
         </p>
 
         <p className="
           text-[18px]
           font-semibold
-          text-white
+          text-theme-text
           mt-1
           leading-none
         ">
           {service.durationMinutes}
         </p>
 
-        <p className="text-[11px] text-white/40 mt-1">
+        <p className="mt-1 text-[11px] text-theme-muted">
           mins
         </p>
       </div>
 
       <div>
-        <p className="text-[10px] text-white/35">
+        <p className="text-[10px] text-theme-muted">
           Price
         </p>
 
         <p className="
           text-[16px]
           font-semibold
-          text-white
+          text-theme-text
           mt-1
           leading-none
         ">
           {service.currency}
         </p>
 
-        <p className="text-[13px] text-white/65 mt-1">
+        <p className="mt-1 text-[13px] text-theme-text">
           {service.price}
         </p>
       </div>
@@ -665,9 +636,10 @@ const handleMediaUpload = async (
       }
       className="
         text-[12px]
-        text-white/70
-        hover:text-white
-        transition
+        text-theme-text
+        hover:text-theme-accent
+        transition-colors
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       Edit
@@ -677,10 +649,10 @@ const handleMediaUpload = async (
       onClick={() =>
         handleToggle(service)
       }
-      className={`text-[12px] transition ${
+      className={`text-[12px] transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${
         service.isActive
-          ? "text-yellow-300 hover:text-yellow-200"
-          : "text-green-300 hover:text-green-200"
+          ? "text-theme-warning hover:opacity-75"
+          : "text-theme-success hover:opacity-75"
       }`}
     >
       {service.isActive
@@ -694,9 +666,10 @@ const handleMediaUpload = async (
       }
       className="
         text-[12px]
-        text-red-400
-        hover:text-red-300
-        transition
+        text-theme-danger
+        hover:opacity-75
+        transition-opacity
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       Delete
@@ -719,8 +692,8 @@ const handleMediaUpload = async (
 
             <p className="
               text-[22px]
-              font-bold
-              text-white
+              font-semibold
+              text-theme-text
               tracking-tight
               leading-none
             ">
@@ -729,7 +702,7 @@ const handleMediaUpload = async (
 
             <p className="
               text-[14px]
-              text-white/50
+              text-theme-muted
               line-clamp-2
               max-w-[420px]
             ">
@@ -744,11 +717,10 @@ const handleMediaUpload = async (
               px-3 py-1.5
               rounded-lg
               whitespace-nowrap
-              backdrop-blur
               ${
                 service.isActive
-                  ? "bg-green-500/10 text-green-300 border border-green-500/20"
-                  : "bg-red-500/10 text-red-300 border border-red-500/20"
+                  ? "border border-theme-success bg-theme-success-tint text-theme-success"
+                  : "border border-theme-danger bg-theme-danger-tint text-theme-danger"
               }
             `}
           >
@@ -765,7 +737,7 @@ const handleMediaUpload = async (
           items-center
           gap-4
           text-[14px]
-          text-white/45
+          text-theme-muted
           mt-5
         ">
 
@@ -773,7 +745,7 @@ const handleMediaUpload = async (
             {service.durationMinutes} mins
           </span>
 
-          <span className="w-[4px] h-[4px] bg-white/30 rounded-full" />
+          <span className="h-[4px] w-[4px] rounded-full bg-theme-border-strong" />
 
           <span>
             {service.currency} {service.price}
@@ -788,11 +760,7 @@ const handleMediaUpload = async (
             items-center
             gap-4
             mt-8
-            opacity-0
-            translate-y-1
-            group-hover:opacity-100
-            group-hover:translate-y-0
-            transition-all duration-200
+            transition-opacity duration-200
           "
         >
 
@@ -802,9 +770,10 @@ const handleMediaUpload = async (
             }
             className="
               text-[13px]
-              text-white/70
-              hover:text-white
-              transition
+              text-theme-text
+              hover:text-theme-accent
+              transition-colors
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             Edit
@@ -814,10 +783,10 @@ const handleMediaUpload = async (
             onClick={() =>
               handleToggle(service)
             }
-            className={`text-[13px] transition ${
+            className={`text-[13px] transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${
               service.isActive
-                ? "text-yellow-300 hover:text-yellow-200"
-                : "text-green-300 hover:text-green-200"
+                ? "text-theme-warning hover:opacity-75"
+                : "text-theme-success hover:opacity-75"
             }`}
           >
             {service.isActive
@@ -831,9 +800,10 @@ const handleMediaUpload = async (
             }
             className="
               text-[13px]
-              text-red-400
-              hover:text-red-300
-              transition
+              text-theme-danger
+              hover:opacity-75
+              transition-opacity
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             Delete
@@ -871,8 +841,8 @@ const handleMediaUpload = async (
                   h-50
                   w-40
                   object-cover
-                  rounded-2xl
-                  border border-white/10
+                  rounded-[var(--radius-card)]
+                  border border-theme-border
                 "
               />
 
@@ -885,14 +855,14 @@ const handleMediaUpload = async (
           <div className="
             h-40
             w-40
-            rounded-2xl
-            border border-white/10
-            bg-white/[0.03]
+            rounded-[var(--radius-card)]
+            border border-theme-border
+            bg-theme-inset
             flex
             items-center
             justify-center
             text-[13px]
-            text-white/25
+            text-theme-muted
           ">
             No media
           </div>
@@ -907,7 +877,7 @@ const handleMediaUpload = async (
 ) : (
                     <>
                       {/* EDIT MODE */}
-                      <h3 className="text-sm text-gray-300">
+                      <h3 className="text-sm font-medium text-theme-text">
                         Edit Service
                       </h3>
 
@@ -921,7 +891,8 @@ const handleMediaUpload = async (
                               title: e.target.value,
                             })
                           }
-                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                          aria-label="Service title"
+                          className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                         />
 
                        <div className="relative">
@@ -929,6 +900,7 @@ const handleMediaUpload = async (
     value={
       editForm.durationMinutes
     }
+    aria-label="Service duration"
     onChange={(e) =>
       setEditForm({
         ...editForm,
@@ -940,17 +912,15 @@ const handleMediaUpload = async (
     className="
       w-full
       appearance-none
-      bg-white/5
-      border border-white/10
-      rounded-xl
+      bg-theme-inset
+      border border-theme-border
+      rounded-[var(--radius-control)]
       p-3
       pr-10
       text-sm
-      text-white
-      outline-none
-      focus:outline-none
-      focus:ring-0
-      transition
+      text-theme-text
+      transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
     "
   >
     {[30, 45, 60, 90, 120].map(
@@ -959,8 +929,8 @@ const handleMediaUpload = async (
           key={d}
           value={d}
           className="
-            bg-[#0f0f0f]
-            text-white
+            bg-theme-surface
+            text-theme-text
           "
         >
           {d} minutes
@@ -969,7 +939,7 @@ const handleMediaUpload = async (
     )}
   </select>
 
-  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
+  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-theme-muted">
     ▼
   </div>
 </div>
@@ -982,11 +952,13 @@ const handleMediaUpload = async (
                                 e.target.value,
                             })
                           }
-                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                          aria-label="Service description"
+                          className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                         />
 
                         <input
                           type="number"
+                          aria-label="Service price"
                           value={editForm.price}
                           onChange={(e) =>
                             setEditForm({
@@ -994,51 +966,48 @@ const handleMediaUpload = async (
                               price: e.target.value,
                             })
                           }
-                          className="bg-white/5 border border-white/10 rounded-xl p-3 text-white"
+                          className="rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                         />
 
                         {/* FILE INPUT */}
                         <input
                           type="file"
-                          multiple
-                          onChange={(e) =>
-                            e.target.files &&
-                            handleMediaUpload(
-                              e.target.files,
-                              true
-                            )
-                          }
-                          className="text-xs text-gray-400"
+                          accept="image/*"
+                          disabled={legacyMultiImage}
+                          onChange={(e) => { if (e.target.files) handleMediaUpload(e.target.files, true); e.target.value = ""; }}
+                          className="text-xs text-theme-muted file:mr-3 file:rounded-[var(--radius-control)] file:border-0 file:bg-theme-inset file:px-3 file:py-2 file:text-sm file:font-medium file:text-theme-text"
                         />
 
+                        {legacyMultiImage && (
+                          <p className="text-xs text-theme-warning" role="status">
+                            This legacy service has multiple images. Its media is preserved and must be migrated before it can be changed.
+                          </p>
+                        )}
+
+                        {editForm.replacement && editForm.media.length > 0 && (
+                          <p className="text-xs text-theme-muted">Your current service image remains authoritative until this replacement is saved.</p>
+                        )}
+
                         {/* MEDIA PREVIEW */}
-                        {editForm.media.length > 0 && (
+                        {editableMedia.length > 0 && (
                           <div className="grid grid-cols-3 gap-2">
-                            {editForm.media.map(
-                              (
-                                img: string,
-                                i: number
-                              ) => (
+                            {editableMedia.map(
+                              (item, i) => (
                                 <div
-                                  key={i}
-                                  className="relative h-20 rounded-lg overflow-hidden border border-white/10"
+                                  key={item.clientId}
+                                  className={`relative h-20 rounded-lg overflow-hidden ${profileMediaStatusClassName(item)}`}
                                 >
                                   <img
-                                    src={img}
+                                    src={previewUrl(item)}
+                                    alt={`Service media ${i + 1}`}
                                     className="w-full h-full object-cover"
                                   />
 
-                                  <button
-                                    onClick={() =>
-                                      removeMedia(
-                                        i,
-                                        true
-                                      )
-                                    }
-                                    className="absolute top-1 right-1 bg-black/70 text-xs px-1 rounded"
-                                  >
-                                    ✕
-                                  </button>
+                                  {!legacyMultiImage && editForm.replacement && <button onClick={removeEditReplacement} className="absolute right-1 top-1 rounded-[var(--radius-control)] bg-theme-primary px-1 text-xs text-theme-primary-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">✕</button>}
+                                  {mediaMessage(item) && <p className={`absolute inset-x-0 bottom-0 bg-theme-surface-raised px-1 text-[10px] ${item.state === "BLOCKED" || item.state === "FAILED" ? "text-theme-danger" : item.state === "UNAVAILABLE" ? "text-theme-warning" : "text-theme-muted"}`}>{mediaMessage(item)}</p>}
+                                  {(item.state === "FAILED" || item.state === "UNAVAILABLE") && (
+                                    <button type="button" onClick={() => retryMedia(true)} className="absolute bottom-0 left-0 rounded-[var(--radius-control)] bg-theme-primary px-1 text-[10px] text-theme-primary-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Retry</button>
+                                  )}
                                 </div>
                               )
                             )}
@@ -1050,14 +1019,15 @@ const handleMediaUpload = async (
 
                           <button
                             onClick={saveEdit}
-                            className="flex-1 bg-white/10 hover:bg-white/20 transition py-3 rounded-xl"
+                            disabled={editMediaUploading}
+                            className="flex-1 rounded-[var(--radius-control)] bg-theme-primary py-3 text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                           >
-                            Save Changes
+                            {editMediaUploading ? "Moderating Media..." : "Save Changes"}
                           </button>
 
                           <button
                             onClick={cancelEdit}
-                            className="flex-1 bg-white/10 hover:bg-white/20 transition py-3 rounded-xl"
+                            className="flex-1 rounded-[var(--radius-control)] border border-theme-border bg-theme-surface py-3 text-theme-text transition-colors hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                           >
                             Cancel
                           </button>

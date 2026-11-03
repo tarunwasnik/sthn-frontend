@@ -1,10 +1,11 @@
-import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import api from "../api/axios";
 import { getConversations, type Conversation } from "../api/chat";
 import { socket } from "../lib/socket";
 import { useAuth } from "../hooks/useAuth";
+import { MessagingContext } from "./MessagingContextValue";
 
 interface ConversationUpdate {
   bookingId: unknown;
@@ -18,16 +19,6 @@ interface ConversationSeenUpdate {
   bookingId: unknown;
   seenBy: unknown;
 }
-
-export interface MessagingContextValue {
-  conversations: Conversation[];
-  loading: boolean;
-  totalUnread: number;
-  markConversationSeen: (bookingId: string) => Promise<boolean>;
-  reconcileConversations: () => Promise<void>;
-}
-
-export const MessagingContext = createContext<MessagingContextValue | undefined>(undefined);
 
 export function MessagingProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth();

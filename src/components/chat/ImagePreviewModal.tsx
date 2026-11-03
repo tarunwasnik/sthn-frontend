@@ -16,6 +16,18 @@ interface ImagePreviewModalProps {
   ) => void | Promise<void>;
 }
 
+const previewSessionKeys = new WeakMap<File[], number>();
+let nextPreviewSessionKey = 0;
+
+function getPreviewSessionKey(files: File[]): number {
+  const existingKey = previewSessionKeys.get(files);
+  if (existingKey !== undefined) return existingKey;
+
+  nextPreviewSessionKey += 1;
+  previewSessionKeys.set(files, nextPreviewSessionKey);
+  return nextPreviewSessionKey;
+}
+
 export default function ImagePreviewModal({
   open,
   files,
@@ -23,6 +35,25 @@ export default function ImagePreviewModal({
   onCancel,
   onSend,
 }: ImagePreviewModalProps) {
+  if (!open || files.length === 0) return null;
+
+  return (
+    <ImagePreviewDialog
+      key={getPreviewSessionKey(files)}
+      files={files}
+      sending={sending}
+      onCancel={onCancel}
+      onSend={onSend}
+    />
+  );
+}
+
+function ImagePreviewDialog({
+  files,
+  sending,
+  onCancel,
+  onSend,
+}: Omit<ImagePreviewModalProps, "open">) {
   const [currentIndex, setCurrentIndex] =
     useState(0);
 
@@ -44,14 +75,6 @@ export default function ImagePreviewModal({
   }, [previewUrls]);
 
   useEffect(() => {
-    if (!open) return;
-
-    setCurrentIndex(0);
-  }, [open, files]);
-
-  useEffect(() => {
-    if (!open) return;
-
     const handleKeyDown = (
       e: KeyboardEvent
     ) => {
@@ -95,14 +118,11 @@ export default function ImagePreviewModal({
         "";
     };
   }, [
-    open,
     onCancel,
     files.length,
   ]);
 
   if (
-    !open ||
-    files.length === 0 ||
     !currentFile
   ) {
     return null;
@@ -131,8 +151,9 @@ export default function ImagePreviewModal({
         max-w-[95vw]
         flex-col
         overflow-hidden
-        rounded-2xl
-        bg-[#111]
+        rounded-[var(--radius-dialog)]
+        border border-theme-border
+        bg-theme-surface
       "
       onClick={(e) =>
         e.stopPropagation()
@@ -171,6 +192,7 @@ export default function ImagePreviewModal({
           backdrop-blur-md
           transition-all
           hover:bg-black/70
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
         "
       >
         ❮
@@ -199,11 +221,12 @@ export default function ImagePreviewModal({
           justify-center
           rounded-full
           bg-black/45
-          text2xl
+          text-2xl
           text-white
           backdrop-blur-md
           transition-all
           hover:bg-black/70
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
         "
       >
         ❯
@@ -253,17 +276,17 @@ export default function ImagePreviewModal({
           justify-between
           gap-4
           border-t
-          border-white/10
+          border-theme-border
           p-4
         "
       >
         {/* Image Details */}
         <div className="min-w-0">
-          <p className="truncate text-sm text-white">
+          <p className="truncate text-sm text-theme-text">
             {currentFile.name}
           </p>
 
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-theme-muted">
             {(currentFile.size /
               1024 /
               1024).toFixed(2)}{" "}
@@ -281,13 +304,14 @@ export default function ImagePreviewModal({
             onClick={onCancel}
             disabled={sending}
             className="
-              rounded-lg
+              rounded-[var(--radius-control)]
               border
-              border-white/10
+              border-theme-border
               px-4
               py-2
-              text-white
-              hover:bg-white/10
+              text-theme-text
+              hover:bg-theme-inset
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             Cancel
@@ -300,13 +324,14 @@ export default function ImagePreviewModal({
             }
             disabled={sending}
             className="
-              rounded-lg
-              bg-white
+              rounded-[var(--radius-control)]
+              bg-theme-primary
               px-4
               py-2
               font-medium
-              text-black
+              text-theme-primary-text
               disabled:opacity-50
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
             "
           >
             {sending

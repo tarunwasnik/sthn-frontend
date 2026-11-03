@@ -14,8 +14,8 @@ export default function CreatorWallet() {
   return (
     <DashboardLayout>
       <WalletView
-        badge="Creator Wallet"
-        subtitle="Balances across all your wallets"
+        badge="Legacy Wallet"
+        subtitle="Legacy wallet balances. This is not a provider-backed Creator earnings or payout view."
         wallet={wallet}
       />
     </DashboardLayout>

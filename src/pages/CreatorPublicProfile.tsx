@@ -1,7 +1,7 @@
 // frontend/src/pages/CreatorPublicProfile.tsx
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { fetchCreatorProfile } from "../api/public";
 import api from "../api/axios";
@@ -43,11 +43,86 @@ interface Review {
   };
 }
 
+type StoredProviderCheckoutAttempt = {
+  intentKey: string;
+  idempotencyKey: string;
+  checkoutQuote: string;
+  serviceId: string;
+  slotIds: string[];
+  provider: "INTERNAL" | "RAZORPAY";
+};
+
+const internalSimulatorAvailable =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_ENABLE_INTERNAL_PAYMENT_SIMULATOR === "true";
+
+const razorpaySandboxKey = import.meta.env.VITE_RAZORPAY_TEST_KEY_ID;
+const razorpaySandboxAvailable =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_ENABLE_RAZORPAY_SANDBOX_CHECKOUT === "true" &&
+  typeof razorpaySandboxKey === "string" &&
+  razorpaySandboxKey.startsWith("rzp_test_");
+
+type RazorpayCheckoutResponse = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayCheckoutInstance = {
+  open: () => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: {
+      key: string;
+      amount: number;
+      currency: "INR";
+      order_id: string;
+      name: string;
+      description: string;
+      handler: (response: RazorpayCheckoutResponse) => void;
+      modal: { ondismiss: () => void };
+    }) => RazorpayCheckoutInstance;
+  }
+}
+
+const loadRazorpaySandboxCheckout = async (): Promise<NonNullable<Window["Razorpay"]>> => {
+  if (window.Razorpay) return window.Razorpay;
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Razorpay test checkout could not be loaded."));
+    document.head.appendChild(script);
+  });
+  if (!window.Razorpay) throw new Error("Razorpay test checkout is unavailable.");
+  return window.Razorpay;
+};
+
+const customerScope = (): string | null => {
+  const token = localStorage.getItem("accessToken");
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const subject = payload.sub ?? payload.userId ?? payload.id;
+    return typeof subject === "string" && subject ? subject : null;
+  } catch {
+    return null;
+  }
+};
+
+const checkoutStorageKey = (scope: string) => `sthn:provider-booking-attempt:${scope}`;
+
 /* ================= COMPONENT ================= */
 
 export default function CreatorPublicProfile() {
 
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
 
   const [data, setData] =
     useState<CreatorPublicProfileDTO | null>(null);
@@ -65,9 +140,18 @@ export default function CreatorPublicProfile() {
 
   const [loadingBooking, setLoadingBooking] =
     useState(false);
-  const { preview: bookingPreview, loading: loadingPreview, error: previewError, refresh: refreshPreview } = useBookingPricingPreview(selectedService?.id, selectedSlots);
+  const [bookingSubmissionMessage, setBookingSubmissionMessage] =
+    useState<string | null>(null);
+  const [providerChoice, setProviderChoice] =
+    useState<"INTERNAL" | "RAZORPAY">(
+      !internalSimulatorAvailable && razorpaySandboxAvailable ? "RAZORPAY" : "INTERNAL",
+    );
+  const { preview: bookingPreview, loading: loadingPreview, error: previewError } = useBookingPricingPreview(selectedService?.id, selectedSlots);
   const bookingCurrencies = useBookingCurrencyMetadata();
   const bookingIntentRef = useRef<{ key: string; idempotencyKey: string } | null>(null);
+  const activeProvider = !internalSimulatorAvailable && razorpaySandboxAvailable
+    ? "RAZORPAY"
+    : providerChoice;
 
   const [reviews, setReviews] =
     useState<Review[]>([]);
@@ -296,7 +380,7 @@ export default function CreatorPublicProfile() {
   if (!data) {
 
     return (
-      <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-theme-bg text-theme-muted">
         Loading...
       </div>
     );
@@ -387,47 +471,113 @@ export default function CreatorPublicProfile() {
       try {
 
         setLoadingBooking(true);
+        setBookingSubmissionMessage(null);
 
-        if (!bookingPreview?.walletFunding.sufficient) return;
-        const intentKey = `${selectedService.id}:${[...selectedSlots].sort().join(",")}`;
-        if (!bookingIntentRef.current || bookingIntentRef.current.key !== intentKey) bookingIntentRef.current = { key: intentKey, idempotencyKey: crypto.randomUUID() };
-        const idempotencyKey = bookingIntentRef.current.idempotencyKey;
-        await api.post(
-  "/v1/bookings/request",
-  {
-    serviceId:
-      selectedService.id,
-    slotIds:
-      selectedSlots,
-    paymentMethod: "WALLET",
-    idempotencyKey,
-  }
-);
+        const selectedProvider = activeProvider === "RAZORPAY" && razorpaySandboxAvailable
+          ? "RAZORPAY"
+          : "INTERNAL";
+        if ((selectedProvider === "INTERNAL" && !internalSimulatorAvailable) ||
+          (selectedProvider === "RAZORPAY" && !razorpaySandboxAvailable)) {
+          setBookingSubmissionMessage("Provider payment is unavailable in this environment.");
+          return;
+        }
+        if (!bookingPreview?.checkoutQuote?.token) {
+          setBookingSubmissionMessage("A current checkout quote is required before submitting.");
+          return;
+        }
 
-alert(
-  "Booking request sent successfully."
-);
+        const intentKey = `${selectedService.id}:${[...selectedSlots].sort().join(",")}:${bookingPreview.checkoutQuote.fingerprint}:${selectedProvider}`;
+        const scope = customerScope();
+        const savedAttempt = scope
+          ? JSON.parse(sessionStorage.getItem(checkoutStorageKey(scope)) ?? "null") as StoredProviderCheckoutAttempt | null
+          : null;
+        const intendedSlots = [...selectedSlots].sort();
+        const attempt = savedAttempt?.serviceId === selectedService.id &&
+          savedAttempt.provider === selectedProvider &&
+          savedAttempt.slotIds.join(",") === intendedSlots.join(",")
+          ? savedAttempt
+          : {
+              intentKey,
+              idempotencyKey: crypto.randomUUID(),
+              checkoutQuote: bookingPreview.checkoutQuote.token,
+              serviceId: selectedService.id,
+              slotIds: intendedSlots,
+              provider: selectedProvider,
+            };
 
-setSelectedSlots([]);
-bookingIntentRef.current = null;
+        bookingIntentRef.current = { key: intentKey, idempotencyKey: attempt.idempotencyKey };
+        if (scope) sessionStorage.setItem(checkoutStorageKey(scope), JSON.stringify(attempt));
 
-if (
-  selectedDate &&
-  selectedService
-) {
-  await fetchSlots(
-    selectedDate,
-    selectedService.id
-  );
-}
+        const response = await api.post<{ booking?: { _id?: string }; payment?: { _id?: string; status?: string; providerOrderId?: string; providerPaymentId?: string; amount?: number; currency?: string } }>(
+          "/v1/bookings/request",
+          {
+            serviceId: attempt.serviceId,
+            slotIds: attempt.slotIds,
+            paymentMethod: attempt.provider === "RAZORPAY" ? "CARD" : "INTERNAL",
+            ...(attempt.provider === "RAZORPAY" ? { paymentProvider: "RAZORPAY", sandbox: true } : {}),
+            checkoutQuote: attempt.checkoutQuote,
+            idempotencyKey: attempt.idempotencyKey,
+          },
+          { headers: { "Idempotency-Key": attempt.idempotencyKey } },
+        );
+
+        const bookingId = response.data.booking?._id;
+        if (!bookingId) {
+          setBookingSubmissionMessage("The booking request completed without a booking identity. Retry with the same request.");
+          return;
+        }
+
+        if (attempt.provider === "RAZORPAY") {
+          const payment = response.data.payment;
+          const orderId = payment?.providerOrderId ?? payment?.providerPaymentId;
+          const amount = payment?.amount;
+          if (!payment?._id || !orderId?.startsWith("order_") || payment.currency !== "INR" || typeof amount !== "number" || !Number.isSafeInteger(amount) || amount <= 0 || !razorpaySandboxKey) {
+            setBookingSubmissionMessage("The test checkout session is incomplete. Retry with the same request.");
+            return;
+          }
+          const Razorpay = await loadRazorpaySandboxCheckout();
+          new Razorpay({
+            key: razorpaySandboxKey,
+            amount,
+            currency: "INR",
+            order_id: orderId,
+            name: "STHN Sandbox",
+            description: selectedService.title,
+            handler: async (evidence) => {
+              try {
+                setBookingSubmissionMessage("Verifying test payment with Razorpay…");
+                await api.post(`/v1/bookings/${bookingId}/razorpay-sandbox-confirm`, {
+                  paymentId: payment._id,
+                  razorpayOrderId: evidence.razorpay_order_id,
+                  razorpayPaymentId: evidence.razorpay_payment_id,
+                  razorpaySignature: evidence.razorpay_signature,
+                });
+                if (scope) sessionStorage.removeItem(checkoutStorageKey(scope));
+                bookingIntentRef.current = null;
+                setSelectedSlots([]);
+                navigate(`/dashboard/user/bookings/${bookingId}`);
+              } catch {
+                setBookingSubmissionMessage("Payment was submitted, but its verified funding outcome is still pending. Reopen this booking to retry confirmation safely.");
+              }
+            },
+            modal: { ondismiss: () => setBookingSubmissionMessage("Test checkout was closed. The pending booking can be reopened with the same request.") },
+          }).open();
+          return;
+        }
+
+        if (scope) sessionStorage.removeItem(checkoutStorageKey(scope));
+        bookingIntentRef.current = null;
+        setSelectedSlots([]);
+        navigate(`/dashboard/user/bookings/${bookingId}`);
 
       } catch (err: unknown) {
-        await refreshPreview();
         const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
-
-        alert(
-          (typeof responseData?.message === "string" && responseData.message) ||
-          "Booking failed"
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+        const message = (typeof responseData?.message === "string" && responseData.message) || "The request could not be completed. Retry with the same request.";
+        setBookingSubmissionMessage(
+          status === 409
+            ? `Booking conflict: ${message}`
+            : message,
         );
 
       } finally {
@@ -455,7 +605,40 @@ if (
     reviews.length || 1;
 
 return (
-  <div className="min-h-screen bg-[#050505] text-white">
+  <div className="creator-public-profile min-h-screen bg-theme-bg text-theme-text">
+    <style>{`
+      .creator-public-profile .bg-white\\/\\[0\\.02\\],
+      .creator-public-profile .bg-white\\/\\[0\\.03\\],
+      .creator-public-profile .bg-white\\/\\[0\\.035\\],
+      .creator-public-profile .bg-white\\/\\[0\\.04\\],
+      .creator-public-profile .bg-white\\/\\[0\\.06\\] { background-color: var(--color-surface) !important; }
+      .creator-public-profile .border-white\\/10,
+      .creator-public-profile .border-white\\/15,
+      .creator-public-profile .border-white\\/20,
+      .creator-public-profile .border-white\\/\\[0\\.06\\],
+      .creator-public-profile .border-white\\/\\[0\\.08\\] { border-color: var(--color-border) !important; }
+      .creator-public-profile .text-white\\/35,
+      .creator-public-profile .text-white\\/40,
+      .creator-public-profile .text-white\\/45,
+      .creator-public-profile .text-white\\/50,
+      .creator-public-profile .text-white\\/55,
+      .creator-public-profile .text-white\\/60,
+      .creator-public-profile .text-white\\/65,
+      .creator-public-profile .text-white\\/70,
+      .creator-public-profile .text-white\\/75,
+      .creator-public-profile .text-white\\/80,
+      .creator-public-profile .text-white\\/85 { color: var(--color-text-muted) !important; }
+      .creator-public-profile .text-white { color: var(--color-text) !important; }
+      .creator-public-profile .profile-hero .text-white,
+      .creator-public-profile .profile-hero .text-white\\/60 { color: #fff !important; }
+      .creator-public-profile .profile-hero .border-white\\/10 { border-color: rgb(255 255 255 / 0.35) !important; }
+      .creator-public-profile input,
+      .creator-public-profile select,
+      .creator-public-profile textarea { background: var(--color-surface-inset) !important; border-color: var(--color-border) !important; color: var(--color-text) !important; }
+      .creator-public-profile input:focus-visible,
+      .creator-public-profile select:focus-visible,
+      .creator-public-profile textarea:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    `}</style>
 
     {/* ================= IMAGE PREVIEW MODAL ================= */}
 
@@ -546,19 +729,19 @@ return (
 
 <div
   className="
-    relative
+    profile-hero relative
     overflow-hidden
 
     rounded-[28px]
     md:rounded-[36px]
 
-    border border-white/10
+    border border-theme-border
 
     h-[220px]
     sm:h-[260px]
     md:h-[520px]
 
-    bg-white/[0.03]
+    bg-theme-surface
   "
 >
 
@@ -1596,10 +1779,9 @@ return (
     lg:sticky
     lg:top-24
     h-fit
-    rounded-[28px]
-    border border-white/10
-    bg-white/[0.03]
-    backdrop-blur-xl
+    rounded-[var(--radius-card)]
+    border border-theme-border
+    bg-theme-surface
     p-5 md:p-6
     space-y-6
   "
@@ -1650,9 +1832,9 @@ return (
 
       <div
         className="
-          rounded-2xl
-          border border-white/10
-          bg-black/20
+          rounded-[var(--radius-control)]
+          border border-theme-border
+          bg-theme-inset
           p-4
           space-y-2
         "
@@ -1693,12 +1875,13 @@ return (
 }}
           className="
             w-full
-            rounded-xl
-            border border-white/10
-            bg-white/[0.03]
+            rounded-[var(--radius-control)]
+            border border-theme-border
+            bg-theme-inset
             px-4 py-3
-            text-white
+            text-theme-text
             outline-none
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         />
         {selectedDate && (
@@ -1706,11 +1889,11 @@ return (
     className="
       mt-3
       rounded-xl
-      bg-cyan-500/10
-      border border-cyan-500/20
+      bg-theme-info-tint
+      border border-theme-info
       p-3
       text-sm
-      text-cyan-200
+      text-theme-info
     "
   >
     <div>
@@ -1888,12 +2071,13 @@ return (
 
           </div>
 
-          {loadingPreview && <p className="text-sm text-white/60">Checking Wallet funding…</p>}
+          {loadingPreview && <p className="text-sm text-white/60">Checking booking price…</p>}
           {previewError && <p className="text-sm text-red-300">{previewError}</p>}
-          {bookingPreview && <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/70"><p className="text-xs font-semibold uppercase tracking-wider text-white/45">Wallet booking review</p><div className="space-y-2 border-b border-white/10 pb-3"><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(bookingPreview.serviceAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Customer platform fee</span><span>{formatBookingMoney(bookingPreview.customerFeeAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between text-base font-semibold text-white"><span>Total Wallet requirement</span><span>{formatBookingMoney(bookingPreview.grossFundingAmount, bookingPreview.currency, bookingCurrencies)}</span></p></div><div className={bookingPreview.walletFunding.sufficient ? "rounded-xl bg-emerald-500/10 p-3 text-emerald-200" : "rounded-xl bg-amber-500/10 p-3 text-amber-100"}><p className="font-medium">{bookingPreview.walletFunding.sufficient ? "Wallet ready" : "Wallet funding needed"}</p><p className="mt-1 text-xs">{bookingPreview.walletFunding.walletExists ? `Available: ${formatBookingMoney(bookingPreview.walletFunding.availableAmount, bookingPreview.currency, bookingCurrencies)}` : `This booking requires a ${bookingPreview.currency} Wallet.`}</p>{!bookingPreview.walletFunding.sufficient && <a href="/dashboard/user/wallet" className="mt-2 inline-block text-xs font-semibold underline">Open Wallet</a>}</div><p className="text-xs text-white/45">Pricing, Wallet availability, and slots are checked again when you submit.</p></div>}
+          {bookingPreview && <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/70"><p className="text-xs font-semibold uppercase tracking-wider text-white/45">Booking payment review</p><div className="space-y-2 border-b border-white/10 pb-3"><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(bookingPreview.serviceAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Customer platform fee</span><span>{formatBookingMoney(bookingPreview.customerFeeAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between text-base font-semibold text-white"><span>Total</span><span>{formatBookingMoney(bookingPreview.grossFundingAmount, bookingPreview.currency, bookingCurrencies)}</span></p></div>{razorpaySandboxAvailable && <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-violet-300/30 bg-violet-500/10 p-3 text-violet-100"><input type="radio" name="booking-payment-provider" checked={providerChoice === "RAZORPAY"} onChange={() => setProviderChoice("RAZORPAY")} /><span><span className="block font-medium">Razorpay test checkout</span><span className="mt-1 block text-xs">Sandbox only. Funding is verified by the backend before the booking is payable.</span></span></label>}<label className="flex cursor-pointer items-start gap-2 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sky-100"><input type="radio" name="booking-payment-provider" checked={providerChoice === "INTERNAL"} disabled={!internalSimulatorAvailable} onChange={() => setProviderChoice("INTERNAL")} /><span><span className="block font-medium">Development payment simulator</span><span className="mt-1 block text-xs">This local simulator is not a real bank or external payment provider.</span></span></label>{!internalSimulatorAvailable && !razorpaySandboxAvailable && <div className="rounded-xl bg-amber-500/10 p-3 text-amber-100"><p className="font-medium">Payment provider unavailable</p><p className="mt-1 text-xs">No development payment provider is available for this environment.</p></div>}<p className="text-xs text-white/45">Price and slot availability are verified again when you submit. Payment status is shown on the booking after it is created.</p></div>}
+          {bookingSubmissionMessage && <p className="text-sm text-amber-200">{bookingSubmissionMessage}</p>}
 
           <button
-            disabled={loadingBooking || loadingPreview || !bookingPreview?.walletFunding.sufficient}
+            disabled={loadingBooking || loadingPreview || !bookingPreview?.checkoutQuote?.token || (!internalSimulatorAvailable && !razorpaySandboxAvailable)}
             onClick={handleBooking}
             className="
               w-full
@@ -1910,8 +2094,12 @@ return (
           >
 
             {loadingBooking
-              ? "Processing..."
-              : "Book Experience"}
+              ? "Submitting booking..."
+              : activeProvider === "RAZORPAY" && razorpaySandboxAvailable
+                ? "Continue to Razorpay test checkout"
+                : internalSimulatorAvailable
+                  ? "Book with development simulator"
+                  : "Payment unavailable"}
 
           </button>
 

@@ -60,18 +60,18 @@ export default function CreatorDashboard() {
         <div className="flex flex-col gap-4 mb-8">
           <div className="flex items-start justify-between gap-4">
             <div className="max-w-xl">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-white">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-theme-text">
                 Welcome, {data.creatorProfile.displayName}
               </h1>
 
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="mt-1 text-sm text-theme-muted">
                 Here's what's happening with your experiences today.
               </p>
             </div>
 
             <button
               onClick={() => navigate("/creator/profile")}
-              className="px-4 py-2 rounded-xl bg-white/10 border border-white/10 backdrop-blur-md hover:bg-white/20 active:scale-[0.97] transition text-sm text-white flex items-center gap-2"
+              className="flex items-center gap-2 rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
             >
               <User size={16} />
               Profile
@@ -83,7 +83,7 @@ export default function CreatorDashboard() {
         {errorCode && (
           <div className="mb-6">
             <SectionCard title="Error">
-              <p className="text-red-400 text-sm">
+              <p className="text-sm text-theme-danger">
                 {errorMessage}
               </p>
             </SectionCard>
@@ -122,7 +122,7 @@ export default function CreatorDashboard() {
               <div className="min-h-[140px]">
                 {data.recentActivity.length === 0 ? (
                   <div className="py-4">
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-theme-muted">
                       No recent bookings yet
                     </p>
                   </div>
@@ -133,21 +133,21 @@ export default function CreatorDashboard() {
                         key={activity.id}
                         className="
                           p-4
-                          rounded-xl
-                          bg-white/5
+                          rounded-[var(--radius-card)]
+                          bg-theme-inset
                           border
-                          border-white/10
-                          hover:bg-white/10
-                          transition
+                          border-theme-border
+                          hover:bg-theme-surface-raised
+                          transition-colors
                         "
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-sm text-white">
+                            <p className="text-sm text-theme-text">
                               {activity.status}
                             </p>
 
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-theme-muted">
                               {new Date(
                                 activity.createdAt
                               ).toLocaleString()}
@@ -155,7 +155,7 @@ export default function CreatorDashboard() {
                           </div>
 
                           {activity.earning > 0 && (
-                            <span className="text-green-400 text-sm font-medium">
+                            <span className="text-sm font-medium text-theme-success">
                               +₹{activity.earning}
                             </span>
                           )}
@@ -205,6 +205,8 @@ export default function CreatorDashboard() {
                     navigate("/dashboard/creator/services")
                   }
                 />
+                <ActionButton icon={<TrendingUp size={18} />} label="Payout Destinations" onClick={() => navigate("/dashboard/creator/payout-destinations")} />
+                <ActionButton icon={<TrendingUp size={18} />} label="Entitlements" onClick={() => navigate("/dashboard/creator/earnings")} />
               </div>
             </SectionCard>
 
@@ -216,22 +218,22 @@ export default function CreatorDashboard() {
     <div
       className="
         p-4
-        rounded-xl
-        bg-white/5
+        rounded-[var(--radius-card)]
+        bg-theme-inset
         border
-        border-white/10
+        border-theme-border
       "
     >
-      <p className="text-xs text-gray-400 mb-2">
+      <p className="mb-2 text-xs text-theme-muted">
         Next Booking
       </p>
 
-      <h4 className="text-sm font-medium text-white">
+      <h4 className="text-sm font-medium text-theme-text">
         {data.nextUpcomingBooking.serviceTitle}
       </h4>
 
       <div className="mt-2">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-theme-muted">
           {new Date(
             data.nextUpcomingBooking.startTime
           ).toLocaleDateString(undefined, {
@@ -241,7 +243,7 @@ export default function CreatorDashboard() {
           })}
         </p>
 
-        <p className="text-sm text-white/80 mt-1">
+        <p className="mt-1 text-sm text-theme-text">
           {new Date(
             data.nextUpcomingBooking.startTime
           ).toLocaleTimeString([], {
@@ -256,11 +258,11 @@ export default function CreatorDashboard() {
           className={`px-2 py-1 rounded-full text-xs ${
             data.nextUpcomingBooking.status ===
             "REQUESTED"
-              ? "bg-yellow-500/10 text-yellow-400"
+              ? "bg-theme-warning-tint text-theme-warning"
               : data.nextUpcomingBooking.status ===
                 "CONFIRMED"
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-white/10 text-white/60"
+              ? "bg-theme-success-tint text-theme-success"
+              : "bg-theme-surface-raised text-theme-muted"
           }`}
         >
           {data.nextUpcomingBooking.status}

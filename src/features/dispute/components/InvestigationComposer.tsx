@@ -77,7 +77,7 @@ export default function InvestigationComposer({
   const canSubmit = !pending && !disabled && (Boolean(text.trim()) || Boolean(selectedFile));
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.045] to-white/[0.015] p-3 backdrop-blur-xl sm:p-4">
+    <div className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-3 sm:p-4">
       {/* Hidden file input for images & documents */}
       <input
         ref={fileInputRef}
@@ -90,10 +90,10 @@ export default function InvestigationComposer({
 
       {/* Selected file preview pill */}
       {selectedFile && (
-        <div className="mb-3 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-3">
+        <div className="mb-3 rounded-[var(--radius-control)] border border-theme-accent bg-theme-accent-tint p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/20 text-cyan-200">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-theme-accent-tint text-theme-accent">
                 {selectedFile.type.startsWith("image/") ? (
                   <ImageIcon className="h-4 w-4" />
                 ) : (
@@ -101,8 +101,8 @@ export default function InvestigationComposer({
                 )}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-white">{selectedFile.name}</p>
-                <p className="text-[11px] text-cyan-200/70">
+                <p className="truncate text-xs font-medium text-theme-text">{selectedFile.name}</p>
+                <p className="text-[11px] text-theme-accent">
                   {selectedFile.type.startsWith("image/") ? "Image" : "Document"} • {formatFileSize(selectedFile.size)}
                 </p>
               </div>
@@ -111,7 +111,7 @@ export default function InvestigationComposer({
               type="button"
               onClick={handleRemoveFile}
               disabled={pending}
-              className="rounded-lg p-1 text-white/50 transition hover:bg-white/10 hover:text-white"
+              className="rounded-[var(--radius-control)] p-1 text-theme-muted transition hover:bg-theme-inset hover:text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
               title="Remove attachment"
             >
               <X className="h-4 w-4" />
@@ -126,7 +126,7 @@ export default function InvestigationComposer({
             maxLength={500}
             placeholder="Add optional note or caption for this evidence..."
             disabled={pending || disabled}
-            className="mt-2.5 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs text-white placeholder-white/40 outline-none transition focus:border-cyan-400/50"
+            className="mt-2.5 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-3 py-1.5 text-xs text-theme-text placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           />
         </div>
       )}
@@ -141,7 +141,7 @@ export default function InvestigationComposer({
           disabled={disabled || pending}
           placeholder="Type your response to the moderation team... (Ctrl+Enter to send)"
           rows={3}
-          className="w-full resize-none rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white placeholder-white/35 outline-none transition focus:border-cyan-400/50 focus:bg-black/30 disabled:opacity-50"
+          className="w-full resize-none rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent disabled:opacity-50"
         />
 
         <div className="mt-2.5 flex items-center justify-between gap-3">
@@ -150,13 +150,13 @@ export default function InvestigationComposer({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || pending || Boolean(selectedFile)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-xs font-medium text-white/80 transition hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-3 py-2 text-xs font-medium text-theme-text transition hover:bg-theme-surface-raised disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
               title="Attach evidence (Image or Document)"
             >
               <Paperclip className="h-3.5 w-3.5" />
               <span>Attach evidence</span>
             </button>
-            <span className="hidden text-[11px] text-white/40 sm:inline">
+            <span className="hidden text-[11px] text-theme-muted sm:inline">
               Images (PNG, JPG, WebP) and documents (PDF, DOCX, TXT)
             </span>
           </div>
@@ -164,7 +164,7 @@ export default function InvestigationComposer({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-300 px-4 py-2 text-xs font-semibold text-neutral-950 transition hover:bg-cyan-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-theme-primary px-4 py-2 text-xs font-semibold text-theme-primary-text transition-opacity hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             <Send className="h-3.5 w-3.5" />
             <span>{pending ? "Submitting..." : "Send response"}</span>

@@ -128,7 +128,7 @@ test("onboarding keeps the newer approved cover when a stale cover BLOCK resolve
   await input.setInputFiles(image("cover-b.jpg")); await expect.poll(() => fixture.pendingCount).toBe(2);
   const secondPreview = fixture.audit.created[1];
   fixture.release(1, "PASS");
-  await expect(page.getByText("Image approved. Save the draft before face verification.")).toBeVisible();
+  await expect(page.getByText("Image approved. Save the draft before face verification.").first()).toBeVisible();
   fixture.release(0, "BLOCK");
   await expect(page.getByText("Blocked 0")).toHaveCount(0);
   await page.getByRole("button", { name: "Face Verification" }).click();
@@ -140,31 +140,96 @@ test("onboarding keeps the newer approved cover when a stale cover BLOCK resolve
   await expect.poll(() => fixture.audit.revoked).toContain(secondPreview);
 });
 
-test("gallery keeps its order, ignores a removed delayed PASS, and serializes only current admissions", async ({ page }) => {
+test("onboarding presents avatar, cover, and gallery before profile fields without horizontal overflow", async ({ page }) => {
+  const fixture = await installDeferredFixture(page, profile("incomplete"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${e2eOrigin}/onboarding`);
+  const avatarBox = await page.getByText("Avatar", { exact: true }).boundingBox();
+  const coverBox = await page.getByText("Cover", { exact: true }).boundingBox();
+  const galleryBox = await page.getByText("Profile Photos (2–6 required)", { exact: true }).boundingBox();
+  const usernameBox = await page.getByPlaceholder("Username").boundingBox();
+  const realNameBox = await page.getByPlaceholder("Real name").boundingBox();
+  const countryBox = await page.getByPlaceholder("Country").boundingBox();
+  expect(avatarBox?.y).toBeLessThan(coverBox?.y ?? 0);
+  expect(coverBox?.y).toBeLessThan(galleryBox?.y ?? 0);
+  expect(galleryBox?.y).toBeLessThan(usernameBox?.y ?? 0);
+  expect(usernameBox?.y).toBeLessThan(realNameBox?.y ?? 0);
+  expect(realNameBox?.y).toBeLessThan(countryBox?.y ?? 0);
+  await expect(page.getByText("Avatar", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Cover", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Profile Photos (2–6 required)", { exact: true })).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(fixture.pendingCount).toBe(0);
+});
+
+test("gallery admits single selections concurrently, ignores a removed delayed PASS, and serializes only current admissions", async ({ page }) => {
   const fixture = await installDeferredFixture(page, profile("incomplete"));
   await page.goto(`${e2eOrigin}/onboarding`);
-  await page.locator('input[type="file"][multiple]').setInputFiles([image("gallery-a.jpg"), image("gallery-b.jpg")]);
-  await expect.poll(() => fixture.pendingCount).toBe(2);
-  const firstPreview = fixture.audit.created[0]; const secondPreview = fixture.audit.created[1];
-  const aRequest = [0, 1].find(index => fixture.requestBody(index)?.includes("gallery-a.jpg"));
-  const bRequest = [0, 1].find(index => fixture.requestBody(index)?.includes("gallery-b.jpg"));
-  if (aRequest === undefined || bRequest === undefined) throw new Error("Gallery request filenames were not observed.");
-  fixture.release(bRequest, "PASS");
-  await expect(page.getByText("Image approved. Save the draft before face verification.")).toBeVisible();
+  const galleryInput = page.getByLabel("Add one gallery photo");
+  expect(await galleryInput.getAttribute("multiple")).toBeNull();
+  await galleryInput.setInputFiles(image("gallery-a.jpg"));
+  await expect.poll(() => fixture.pendingCount).toBe(1);
+  const firstPreview = fixture.audit.created[0];
+  await expect(galleryInput).toBeEnabled();
+  await galleryInput.setInputFiles(image("gallery-b.jpg"));
+  await galleryInput.setInputFiles(image("gallery-c.jpg"));
+  await expect.poll(() => fixture.pendingCount).toBe(3);
+  const secondPreview = fixture.audit.created[1];
+  const thirdPreview = fixture.audit.created[2];
+  await expect(galleryInput).toBeEnabled();
   await page.locator(`img[src="${firstPreview}"]`).locator("..").getByRole("button", { name: "✕" }).click();
   expect(fixture.audit.revoked).toContain(firstPreview);
-  expect(fixture.audit.revoked).not.toContain(secondPreview);
-  fixture.release(aRequest, "PASS");
-  await expect(page.getByText(`Approved ${aRequest}`)).toHaveCount(0);
+  fixture.release(2, "PASS");
+  await expect(page.locator(`img[src="${thirdPreview}"]`)).toBeVisible();
+  fixture.release(1, "PASS");
+  await expect(page.locator(`img[src="${secondPreview}"]`)).toBeVisible();
+  fixture.release(0, "PASS");
+  await expect(page.getByText("Approved 0")).toHaveCount(0);
+  await expect(page.getByText("Image approved. Save the draft before face verification.").first()).toBeVisible();
   await page.getByRole("button", { name: "Face Verification" }).click();
   await expect.poll(() => fixture.draftBodies).toHaveLength(1);
   const draft = fixture.draftBodies[0] as { profilePhotos?: unknown[] };
   expect(draft.profilePhotos).toEqual([
     { kind: "UNCHANGED", reference: "https://media.invalid/race-one.jpg" },
     { kind: "UNCHANGED", reference: "https://media.invalid/race-two.jpg" },
-    { kind: "ADMISSION", admissionReference: `admission-${bRequest}` },
+    { kind: "ADMISSION", admissionReference: "admission-1" },
+    { kind: "ADMISSION", admissionReference: "admission-2" },
   ]);
-  expect(JSON.stringify(draft)).not.toContain(`admission-${aRequest}`);
+  expect(JSON.stringify(draft)).not.toContain("admission-0");
   await unmountCurrentRoute(page, "/profile");
   await expect.poll(() => fixture.audit.revoked).toContain(secondPreview);
+});
+
+test("gallery reserves at most six current slots while each admission remains independent", async ({ page }) => {
+  const fixture = await installDeferredFixture(page, profile("incomplete"));
+  await page.goto(`${e2eOrigin}/onboarding`);
+  const galleryInput = page.getByLabel("Add one gallery photo");
+  for (const name of ["gallery-a.jpg", "gallery-b.jpg", "gallery-c.jpg", "gallery-d.jpg"]) {
+    await galleryInput.setInputFiles(image(name));
+  }
+  await expect.poll(() => fixture.pendingCount).toBe(4);
+  await expect(galleryInput).toBeDisabled();
+  fixture.release(3, "UNAVAILABLE");
+  fixture.release(2, "PASS");
+  fixture.release(1, "BLOCK");
+  fixture.release(0, "PASS");
+  await expect(page.getByText("Unavailable 3")).toBeVisible();
+  await expect(page.getByText("Blocked 1")).toBeVisible();
+  await expect(page.getByText("Image approved. Save the draft before face verification.").first()).toBeVisible();
+});
+
+test("profile editor permits independent gallery admissions while an earlier selection is pending", async ({ page }) => {
+  const fixture = await installDeferredFixture(page, profile("verified"));
+  await page.goto(`${e2eOrigin}/profile`);
+  await page.getByRole("button", { name: "Edit Profile" }).click();
+  const galleryInput = page.getByLabel("Add one gallery photo");
+  await galleryInput.setInputFiles(image("editor-gallery-a.jpg"));
+  await expect.poll(() => fixture.pendingCount).toBe(1);
+  await expect(galleryInput).toBeEnabled();
+  await galleryInput.setInputFiles(image("editor-gallery-b.jpg"));
+  await expect.poll(() => fixture.pendingCount).toBe(2);
+  fixture.release(1, "PASS");
+  fixture.release(0, "BLOCK");
+  await expect(page.getByText("Blocked 0")).toBeVisible();
+  await expect(page.getByText("Image approved and ready to save.")).toBeVisible();
 });

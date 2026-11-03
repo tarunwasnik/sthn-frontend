@@ -1,6 +1,6 @@
 import { useContext } from "react";
 
-import { MessagingContext, type MessagingContextValue } from "../context/MessagingContext";
+import { MessagingContext, type MessagingContextValue } from "../context/MessagingContextValue";
 
 export function useMessaging(): MessagingContextValue {
   const context = useContext(MessagingContext);

@@ -1079,7 +1079,7 @@ export default function ChatPage() {
     flex
     flex-col
     overflow-hidden
-    text-[#F8FAFC]
+    text-theme-text
     px-2
     md:px-6
     py-2
@@ -1111,14 +1111,11 @@ export default function ChatPage() {
     overflow-y-auto
     overflow-x-hidden
     overscroll-contain
-    rounded-[22px]
+    rounded-[var(--radius-card)]
     pr-1
     [mask-image:linear-gradient(to_bottom,black,black)]
-    border border-white/10
-    bg-gradient-to-br
-    from-white/[0.045]
-    to-white/[0.015]
-    backdrop-blur-xl
+    border border-theme-border
+    bg-theme-surface
     px-3
     md:px-5
     py-3
@@ -1190,7 +1187,7 @@ export default function ChatPage() {
           {`
     .chat-scrollbar {
       scrollbar-width: thin;
-      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      scrollbar-color: var(--color-border-strong) transparent;
     }
 
     .chat-scrollbar::-webkit-scrollbar {
@@ -1203,12 +1200,12 @@ export default function ChatPage() {
     }
 
     .chat-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.10);
+      background: var(--color-border-strong);
       border-radius: 999px;
     }
 
     .chat-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(255,255,255,0.16);
+      background: var(--color-accent);
     }
   `}
         </style>

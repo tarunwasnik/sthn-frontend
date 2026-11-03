@@ -54,6 +54,19 @@ export default function LocationPickerModal({
 }: LocationPickerModalProps) {
   if (!open) return null;
 
+  return (
+    <LocationPickerModalContent
+      onClose={onClose}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+function LocationPickerModalContent({
+  onClose,
+  onConfirm,
+}: Omit<LocationPickerModalProps, "open">) {
+
   const [selectedPosition, setSelectedPosition] =
     useState<[number, number] | null>(null);
 
@@ -99,17 +112,17 @@ export default function LocationPickerModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-xl shadow-xl w-[95vw] max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
+      <div className="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface text-theme-text shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between border-b border-theme-border px-4 py-3">
           <h2 className="text-lg font-semibold">
             Select Meeting Location
           </h2>
 
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-black text-xl leading-none"
+            className="rounded text-xl leading-none text-theme-muted hover:text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             ✕
           </button>
@@ -145,26 +158,26 @@ export default function LocationPickerModal({
       right-4
       bottom-4
       rounded-xl
-      bg-white
+      bg-theme-surface
       shadow-xl
-      border
+      border border-theme-border
       p-4
       space-y-3
       z-[1000]
     "
   >
     {loadingLocation ? (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-theme-muted">
         Loading location...
       </p>
     ) : (
       <>
         <div>
-          <h3 className="font-semibold text-gray-900">
+          <h3 className="font-semibold text-theme-text">
             {locationName}
           </h3>
 
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="mt-1 text-sm text-theme-muted">
             {locationAddress}
           </p>
         </div>
@@ -184,13 +197,14 @@ export default function LocationPickerModal({
           }}
           className="
             w-full
-            rounded-lg
-            bg-blue-600
-            hover:bg-blue-700
-            text-white
+            rounded-[var(--radius-control)]
+            bg-theme-primary
+            hover:opacity-90
+            text-theme-primary-text
             py-2
             font-medium
-            transition
+            transition-opacity
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
           "
         >
           Confirm Location

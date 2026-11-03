@@ -3,6 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        var key = "sthn.theme-preference";
+        var preference = "system";
+
+        try {
+          var stored = window.localStorage.getItem(key);
+          if (stored === "light" || stored === "dark" || stored === "system") preference = stored;
+        } catch (_) {}
+
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = preference === "system" ? (prefersDark ? "dark" : "light") : preference;
+      })();
+    </script>
     <title>STHN</title>
   </head>
   <body>

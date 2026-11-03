@@ -54,21 +54,21 @@ export default function ReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-      <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#0A0A0A] shadow-[0_20px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4">
+      <div className="w-full max-w-md rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface p-5">
         <div>
-  <h2 className="text-[18px] font-semibold text-white">
+  <h2 className="text-[18px] font-semibold text-theme-text">
     Submit Review
   </h2>
 
-  <p className="mt-1 text-[11px] text-white/45">
+  <p className="mt-1 text-[11px] text-theme-muted">
     Share your experience with this booking.
   </p>
 </div>
 
         {/* ⭐ STAR RATING (REPLACED SELECT) */}
         <div>
-          <p className="mb-2 text-[11px] text-white/50">
+          <p className="mb-2 text-[11px] text-theme-muted">
   Rating
 </p>
 
@@ -80,24 +80,24 @@ export default function ReviewModal({
           placeholder="Write a comment..."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="min-h-[120px] w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-3 text-[12px] text-white outline-none transition focus:border-white/20"
+          className="min-h-[120px] w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset px-3 py-3 text-[12px] text-theme-text outline-none transition-colors placeholder:text-theme-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
         />
 
         {/* REPORT FLAG */}
-        <label className="flex items-center gap-2 text-[11px] text-white/55">
+        <label className="flex items-center gap-2 text-[11px] text-theme-muted">
           <input
   type="checkbox"
   checked={reportFlag}
   onChange={(e) =>
     setReportFlag(e.target.checked)
   }
-  className="h-4 w-4 rounded border-white/20 bg-transparent"
+  className="h-4 w-4 rounded border-theme-border bg-theme-surface text-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
 />
           Report this user
         </label>
 
         {errorMessage && (
-          <p role="alert" className="text-[11px] text-red-200">
+          <p role="alert" className="text-[11px] text-theme-danger">
             {errorMessage}
           </p>
         )}
@@ -106,16 +106,18 @@ export default function ReviewModal({
         <div className="mt-5 flex gap-2">
 
   <button
+    type="button"
     onClick={onClose}
-    className="flex-1 rounded-[16px] border border-white/10 bg-white/[0.05] px-4 py-3 text-[11px] font-semibold text-white transition hover:bg-white/[0.08]"
+    className="flex-1 rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-3 text-[11px] font-semibold text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
   >
     Cancel
   </button>
 
   <button
+    type="button"
     onClick={handleSubmit}
     disabled={loading}
-    className="flex-1 rounded-[16px] border border-green-500/20 bg-green-500/15 px-4 py-3 text-[11px] font-semibold text-[#86EFAC] transition hover:bg-green-500/25 disabled:opacity-60"
+    className="flex-1 rounded-[var(--radius-control)] border border-theme-success bg-theme-success-tint px-4 py-3 text-[11px] font-semibold text-theme-success transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
   >
     {loading
       ? "Submitting..."

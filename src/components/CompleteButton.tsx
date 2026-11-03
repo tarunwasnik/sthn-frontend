@@ -2,21 +2,26 @@
 
 import { useState } from "react";
 import api from "../api/axios";
+import { getApiErrorMessage } from "../api/errorMessage";
 
-interface Props {
+interface CompletionResponse<T> {
+  booking: T;
+}
+
+interface Props<T> {
   bookingId: string;
-  onCompleted: (updatedBooking: any) => void;
+  onCompleted: (updatedBooking: T) => void;
   disabled?: boolean;
 
   role?: "creator" | "user";
 }
 
-export default function CompleteButton({
+export default function CompleteButton<T>({
   bookingId,
   onCompleted,
   disabled,
   role = "creator",
-}: Props) {
+}: Props<T>) {
   const [loading, setLoading] =
     useState(false);
 
@@ -37,23 +42,21 @@ export default function CompleteButton({
             : `/v1/bookings/${bookingId}/complete/user`;
 
         const res =
-          await api.post(
+          await api.post<CompletionResponse<T>>(
             endpoint
           );
 
         onCompleted(
           res.data.booking
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(
           "COMPLETE ERROR:",
           err
         );
 
         alert(
-          err?.response?.data
-            ?.message ||
-            "Failed to complete booking"
+          getApiErrorMessage(err, "Failed to complete booking")
         );
       } finally {
         setLoading(false);
@@ -62,6 +65,7 @@ export default function CompleteButton({
 
   return (
     <button
+      type="button"
       onClick={handleComplete}
       disabled={
         loading || disabled
@@ -69,19 +73,17 @@ export default function CompleteButton({
       className="
         w-full
         flex items-center justify-center gap-2
-        rounded-[18px]
-        border border-emerald-400/25
-        bg-gradient-to-r
-        from-emerald-500
-        to-green-500
+        rounded-[var(--radius-control)]
+        border border-theme-success
+        bg-theme-success-tint
         px-4 py-4
         text-[12px]
         font-semibold
-        text-white
-        transition-all duration-200
-        hover:brightness-110
-        hover:shadow-[0_0_30px_rgba(34,197,94,0.20)]
-        disabled:opacity-60
+        text-theme-success
+        transition-opacity
+        hover:opacity-80
+        disabled:cursor-not-allowed disabled:opacity-60
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       {/* ICON */}

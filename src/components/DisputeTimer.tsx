@@ -35,7 +35,7 @@ export default function DisputeTimer({
 
   if (remaining <= 0) {
     return (
-      <p className="text-red-400 text-sm">
+      <p className="rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint px-3 py-2 text-sm text-theme-danger">
         Dispute window expired
       </p>
     );
@@ -50,7 +50,7 @@ export default function DisputeTimer({
   );
 
   return (
-    <p className="text-yellow-400 text-sm">
+    <p className="rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint px-3 py-2 text-sm text-theme-warning">
       Dispute available for {hours}h {minutes}m
     </p>
   );

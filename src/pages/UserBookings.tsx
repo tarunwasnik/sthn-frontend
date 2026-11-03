@@ -62,11 +62,12 @@ export default function UserBookings() {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
 
   const fetchBookings = async () => {
     try {
-      setLoading(true);
+      setLoading(true); setError(null);
 
       const res = await getUserBookingsAPI();
 
@@ -76,6 +77,7 @@ export default function UserBookings() {
         "Failed to fetch user bookings",
         err
       );
+      setError("Unable to load bookings. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -97,53 +99,25 @@ export default function UserBookings() {
   ) => {
     switch (status) {
       case "CONFIRMED":
-        return `
-          bg-[rgba(34,197,94,0.14)]
-          text-[#86EFAC]
-          border border-[rgba(34,197,94,0.22)]
-        `;
+        return "border border-theme-success bg-theme-success-tint text-theme-success";
 
       case "REQUESTED":
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#E5E7EB]
-          border border-[rgba(255,255,255,0.10)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "REJECTED":
-        return `
-          bg-[rgba(239,68,68,0.14)]
-          text-[#FCA5A5]
-          border border-[rgba(239,68,68,0.22)]
-        `;
+        return "border border-theme-danger bg-theme-danger-tint text-theme-danger";
 
       case "EXPIRED":
-        return `
-          bg-[rgba(107,114,128,0.16)]
-          text-[#E5E7EB]
-          border border-[rgba(107,114,128,0.20)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-muted";
 
       case "CANCELLED":
-        return `
-          bg-[rgba(249,115,22,0.14)]
-          text-[#FDBA74]
-          border border-[rgba(249,115,22,0.20)]
-        `;
+        return "border border-theme-warning bg-theme-warning-tint text-theme-warning";
 
       case "COMPLETED":
-        return `
-          bg-[rgba(6,182,212,0.14)]
-          text-[#67E8F9]
-          border border-[rgba(6,182,212,0.22)]
-        `;
+        return "border border-theme-info bg-theme-info-tint text-theme-info";
 
       default:
-        return `
-          bg-[rgba(255,255,255,0.05)]
-          text-[#F8FAFC]
-          border border-[rgba(255,255,255,0.08)]
-        `;
+        return "border border-theme-border bg-theme-inset text-theme-text";
     }
 
     
@@ -152,17 +126,9 @@ export default function UserBookings() {
    const getPaymentText = (
     booking: Booking
      ) => {
-    if (
-    booking.status === "EXPIRED" ||
-    booking.status === "CANCELLED" ||
-    booking.status === "REJECTED"
-   ) {
-    return "REFUNDED";
-   }
-
    return (
     booking.paymentStatus ||
-    "PAID"
+    "Unavailable"
    );
       };
 
@@ -170,15 +136,15 @@ export default function UserBookings() {
     <UserDashboardLayout>
       <div className="min-h-screen">
 
-        <div className="max-w-6xl mx-auto px-1 md:px-2 pb-24 space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8 px-1 pb-24 md:px-2">
 
           {/* HEADER */}
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-[#F8FAFC]">
+            <h1 className="text-3xl font-semibold tracking-tight text-theme-text md:text-4xl">
               My Bookings
             </h1>
 
-            <p className="mt-2 text-white/55 text-sm md:text-base">
+            <p className="mt-2 text-sm text-theme-muted md:text-base">
               Manage all your bookings
             </p>
           </div>
@@ -192,19 +158,20 @@ export default function UserBookings() {
               }
               className="
                 w-full
-                bg-white/[0.03]
-                border border-white/10
-                rounded-[20px]
+                bg-theme-surface
+                border border-theme-border
+                rounded-[var(--radius-control)]
                 px-4 py-3
-                text-white
+                text-theme-text
                 outline-none
+                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
               "
             >
               {filters.map((status) => (
                 <option
                   key={status}
                   value={status}
-                  className="bg-[#111111]"
+                  className="bg-theme-surface text-theme-text"
                 >
                   {status}
                 </option>
@@ -223,24 +190,25 @@ export default function UserBookings() {
                 className={`
                   h-12
                   px-6
-                  rounded-[18px]
+                  rounded-[var(--radius-control)]
                   text-[15px]
-                  transition-all
+                  transition-colors
                   border
                   ${
                     filter === status
                       ? `
-                        bg-white/[0.07]
-                        text-white
-                        border-white/20
+                        bg-theme-accent-tint
+                        text-theme-accent
+                        border-theme-accent
                       `
                       : `
-                        bg-white/[0.03]
-                        text-white/70
-                        border-white/10
-                        hover:bg-white/[0.05]
+                        bg-theme-surface
+                        text-theme-muted
+                        border-theme-border
+                        hover:bg-theme-inset hover:text-theme-text
                       `
                   }
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                 `}
               >
                 {status}
@@ -256,9 +224,9 @@ export default function UserBookings() {
                   key={item}
                   className="
                     h-[240px]
-                    rounded-[30px]
-                    border border-white/10
-                    bg-white/[0.03]
+                    rounded-[var(--radius-card)]
+                    border border-theme-border
+                    bg-theme-inset
                     animate-pulse
                   "
                 />
@@ -266,25 +234,28 @@ export default function UserBookings() {
             </div>
           )}
 
+          {!loading && error && (
+            <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-6 text-center text-sm text-theme-danger">{error}<button type="button" onClick={() => void fetchBookings()} className="ml-3 rounded font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Retry</button></div>
+          )}
+
           {/* EMPTY */}
-          {!loading &&
+          {!loading && !error &&
             filteredBookings.length ===
               0 && (
               <div
                 className="
-                  rounded-[34px]
-                  border border-white/10
-                  bg-white/[0.03]
-                  backdrop-blur-xl
+                  rounded-[var(--radius-card)]
+                  border border-theme-border
+                  bg-theme-surface
                   p-10 md:p-14
                   text-center
                 "
               >
-                <h3 className="text-2xl font-semibold text-white">
+                <h3 className="text-2xl font-semibold text-theme-text">
                   No bookings yet
                 </h3>
 
-                <p className="text-white/50 mt-3 max-w-md mx-auto">
+                <p className="mx-auto mt-3 max-w-md text-theme-muted">
                   Browse creators and schedule
                   your first experience.
                 </p>
@@ -299,12 +270,11 @@ export default function UserBookings() {
                     mt-6
                     h-12
                     px-6
-                    rounded-2xl
-                    bg-white/[0.05]
-                    border border-white/10
-                    text-white
-                    hover:bg-white/[0.08]
-                    transition-all
+                    rounded-[var(--radius-control)]
+                    bg-theme-primary
+                    text-theme-primary-text
+                    transition-opacity hover:opacity-90
+                    focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
                   "
                 >
                   Explore Creators
@@ -313,7 +283,7 @@ export default function UserBookings() {
             )}
 
           {/* LIST */}
-{!loading && (
+{!loading && !error && (
   <div className="space-y-5">
 
     {filteredBookings.map((b) => {
@@ -338,19 +308,13 @@ export default function UserBookings() {
             group
             relative
             overflow-hidden
-            rounded-[30px]
-            border border-white/10
-            bg-gradient-to-br
-            from-white/[0.045]
-            to-white/[0.015]
-            backdrop-blur-xl
+            rounded-[var(--radius-card)]
+            border border-theme-border
+            bg-theme-surface
             px-5
             py-5
-            shadow-[0_10px_30px_rgba(0,0,0,0.35)]
-            transition-all
-            duration-300
-            hover:-translate-y-[2px]
-            hover:shadow-[0_14px_40px_rgba(0,0,0,0.45)]
+            transition-colors
+            hover:bg-theme-surface-raised
           "
         >
 
@@ -363,7 +327,7 @@ export default function UserBookings() {
               {/* LEFT */}
               <div className="flex-1 min-w-0">
 
-                <p className="text-[26px] font-bold text-[#F8FAFC] leading-none">
+                <p className="text-[26px] font-semibold leading-none text-theme-text">
                   {b.service?.title || "Untitled Service"}
                 </p>
 
@@ -377,7 +341,7 @@ export default function UserBookings() {
                       );
                     }
                   }}
-                  className="flex items-center gap-3 mt-5"
+                  className="mt-5 flex items-center gap-3 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
                 >
 
                   {b.creator?.profile?.avatarUrl ? (
@@ -389,7 +353,7 @@ export default function UserBookings() {
                         h-11
                         rounded-full
                         object-cover
-                        border border-[rgba(255,255,255,0.08)]
+                        border border-theme-border
                       "
                     />
                   ) : (
@@ -398,11 +362,11 @@ export default function UserBookings() {
                         w-11
                         h-11
                         rounded-full
-                        bg-[rgba(255,255,255,0.05)]
+                        bg-theme-inset
                         flex
                         items-center
                         justify-center
-                        text-white
+                        text-theme-text
                       "
                     >
                       {(
@@ -414,11 +378,11 @@ export default function UserBookings() {
 
                   <div className="text-left">
 
-                    <p className="text-xs text-[rgba(255,255,255,0.42)]">
+                    <p className="text-xs text-theme-muted">
                       Creator
                     </p>
 
-                    <p className="text-[17px] font-semibold text-[#F8FAFC]">
+                    <p className="text-[17px] font-semibold text-theme-text">
                       {b.creator?.profile?.displayName ||
                         "Unknown"}
                     </p>
@@ -464,11 +428,11 @@ export default function UserBookings() {
                         className="
                           px-3
                           py-2
-                          rounded-xl
-                          bg-[rgba(255,255,255,0.03)]
-                          border border-[rgba(255,255,255,0.07)]
+                          rounded-[var(--radius-control)]
+                          bg-theme-inset
+                          border border-theme-border
                           text-[11px]
-                          text-[#F8FAFC]
+                          text-theme-text
                           whitespace-nowrap
                         "
                       >
@@ -502,10 +466,10 @@ export default function UserBookings() {
   className="
     w-full
     h-[190px]
-    rounded-[28px]
+    rounded-[var(--radius-card)]
     overflow-hidden
-    border border-[rgba(255,255,255,0.08)]
-    bg-white/[0.03]
+    border border-theme-border
+    bg-theme-inset
   "
 >
 
@@ -527,7 +491,7 @@ export default function UserBookings() {
         flex
         items-center
         justify-center
-        text-[rgba(255,255,255,0.35)]
+        text-theme-muted
         text-sm
       "
     >
@@ -541,7 +505,7 @@ export default function UserBookings() {
 <div className="flex items-end justify-between">
 
   <div>
-    <p className="text-[12px] text-[rgba(255,255,255,0.50)]">
+    <p className="text-[12px] text-theme-muted">
       Payment: {getPaymentText(b)}
     </p>
   </div>
@@ -550,7 +514,7 @@ export default function UserBookings() {
 
     <p
       className="
-        text-[#4ADE80]
+        text-theme-text
         text-sm
         font-semibold
       "
@@ -560,7 +524,7 @@ export default function UserBookings() {
 
     <p
       className="
-        text-[#4ADE80]
+        text-theme-text
         text-[25px]
         font-bold
         leading-none
@@ -585,12 +549,12 @@ export default function UserBookings() {
     className="
       w-full
       h-[54px]
-      rounded-2xl
-      bg-[rgba(255,255,255,0.04)]
-      border border-[rgba(255,255,255,0.08)]
-      text-white
-      hover:bg-[rgba(255,255,255,0.07)]
-      transition
+      rounded-[var(--radius-control)]
+      bg-theme-surface
+      border border-theme-border
+      text-theme-text
+      transition-colors hover:border-theme-border-strong hover:bg-theme-inset
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       font-semibold
       text-[17px]
     "
@@ -609,12 +573,12 @@ export default function UserBookings() {
       className="
         w-full
         h-[54px]
-        rounded-2xl
-        bg-[rgba(255,255,255,0.04)]
-        border border-[rgba(255,255,255,0.08)]
-        text-white
-        hover:bg-[rgba(255,255,255,0.07)]
-        transition
+        rounded-[var(--radius-control)]
+        bg-theme-surface
+        border border-theme-border
+        text-theme-text
+        transition-colors hover:border-theme-border-strong hover:bg-theme-inset
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
         font-medium
       "
     >
@@ -626,7 +590,7 @@ export default function UserBookings() {
 </div>
 
 {b.status === "REQUESTED" && (
-  <p className="text-xs text-[rgba(255,255,255,0.40)]">
+  <p className="text-xs text-theme-muted">
     Expires at{" "}
     {new Date(
       b.expiresAt
@@ -652,7 +616,7 @@ export default function UserBookings() {
     {/* TOP */}
     <div className="flex items-center gap-3 flex-wrap">
 
-      <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+      <p className="text-[11px] text-theme-muted">
         {new Date(
           b.createdAt
         ).toLocaleString()}
@@ -678,7 +642,7 @@ export default function UserBookings() {
     {/* SERVICE */}
     <div className="mt-3">
 
-      <p className="text-[rgba(255,255,255,0.38)] text-sm">
+      <p className="text-sm text-theme-muted">
         Service
       </p>
 
@@ -686,7 +650,7 @@ export default function UserBookings() {
         className="
           text-[16px]
           font-bold
-          text-[#F8FAFC]
+          text-theme-text
           mt-1
           truncate
         "
@@ -711,7 +675,7 @@ export default function UserBookings() {
         flex
         items-center
         gap-3
-        mt-4
+        mt-4 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
 
@@ -726,7 +690,7 @@ export default function UserBookings() {
             h-9
             rounded-full
             object-cover
-            border border-[rgba(255,255,255,0.08)]
+            border border-theme-border
           "
         />
       ) : (
@@ -735,11 +699,11 @@ export default function UserBookings() {
             w-9
             h-9
             rounded-full
-            bg-[rgba(255,255,255,0.05)]
+            bg-theme-inset
             flex
             items-center
             justify-center
-            text-white
+            text-theme-text
             text-sm
           "
         >
@@ -753,11 +717,11 @@ export default function UserBookings() {
 
       <div className="text-left">
 
-        <p className="text-[rgba(255,255,255,0.38)] text-[11px]">
+        <p className="text-[11px] text-theme-muted">
           Creator
         </p>
 
-        <p className="text-[#F8FAFC] font-semibold text-[15px]">
+        <p className="text-[15px] font-semibold text-theme-text">
           {b.creator?.profile
             ?.displayName ||
             "Unknown"}
@@ -786,11 +750,11 @@ export default function UserBookings() {
             className="
               px-3
               py-2
-              rounded-xl
-              bg-white/[0.04]
-              border border-white/10
+              rounded-[var(--radius-control)]
+              bg-theme-inset
+              border border-theme-border
               text-[11px]
-              text-[#F8FAFC]
+              text-theme-text
             "
           >
             {start.toLocaleTimeString(
@@ -822,10 +786,10 @@ export default function UserBookings() {
     h-[190px]
     w-full
     max-w-[380px]
-    rounded-[28px]
+    rounded-[var(--radius-card)]
     overflow-hidden
-    border border-white/10
-    bg-white/[0.03]
+    border border-theme-border
+    bg-theme-inset
     justify-self-start
   "
 >
@@ -848,7 +812,7 @@ export default function UserBookings() {
         flex
         items-center
         justify-center
-        text-[rgba(255,255,255,0.35)]
+        text-theme-muted
         text-sm
       "
     >
@@ -871,7 +835,7 @@ export default function UserBookings() {
 
   <div className="text-right">
 
-    <p className="text-[rgba(255,255,255,0.50)] text-xs">
+    <p className="text-xs text-theme-muted">
       Payment:{" "}
       {getPaymentText(b)}
     </p>
@@ -880,7 +844,7 @@ export default function UserBookings() {
 
       <p
         className="
-          text-[#4ADE80]
+          text-theme-text
           text-xs
           font-semibold
         "
@@ -890,7 +854,7 @@ export default function UserBookings() {
 
       <p
         className="
-          text-[#4ADE80]
+          text-theme-text
           text-[26px]
           font-bold
           leading-none
@@ -915,14 +879,14 @@ export default function UserBookings() {
       className="
         w-full
         h-11
-        rounded-2xl
-        bg-[rgba(255,255,255,0.04)]
-        border border-[rgba(255,255,255,0.08)]
-        text-white
+        rounded-[var(--radius-control)]
+        bg-theme-surface
+        border border-theme-border
+        text-theme-text
         text-sm
         font-medium
-        hover:bg-[rgba(255,255,255,0.07)]
-        transition
+        transition-colors hover:border-theme-border-strong hover:bg-theme-inset
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
       "
     >
       View Details
@@ -949,13 +913,13 @@ export default function UserBookings() {
     className="
       w-full
       h-11
-      rounded-2xl
-      bg-[rgba(255,255,255,0.04)]
-      border border-[rgba(255,255,255,0.08)]
-      text-white
+      rounded-[var(--radius-control)]
+      bg-theme-surface
+      border border-theme-border
+      text-theme-text
       text-sm
-      hover:bg-[rgba(255,255,255,0.07)]
-      transition
+      transition-colors hover:border-theme-border-strong hover:bg-theme-inset
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent
     "
   >
     Open Chat
@@ -966,7 +930,7 @@ export default function UserBookings() {
   </div>
 
   {b.status === "REQUESTED" && (
-    <p className="mt-4 text-xs text-white/40 text-center">
+    <p className="mt-4 text-center text-xs text-theme-muted">
       Expires at{" "}
       {new Date(
         b.expiresAt

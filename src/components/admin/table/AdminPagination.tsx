@@ -19,25 +19,25 @@ export default function AdminPagination({
   const canNext = page < totalPages;
 
   return (
-    <div className="flex flex-col gap-4 border-t border-slate-800 bg-slate-900 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="text-sm text-slate-400">
+    <div className="flex flex-col gap-4 border-t border-theme-border bg-theme-surface px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="text-sm text-theme-muted">
         {typeof totalItems === "number" ? (
           <>
             Showing{" "}
-            <span className="font-medium text-white">
+            <span className="font-medium text-theme-text">
               {(page - 1) * (pageSize ?? 0) + 1}
             </span>{" "}
             -
-            <span className="font-medium text-white">
+            <span className="font-medium text-theme-text">
               {" "}
               {Math.min(page * (pageSize ?? totalItems), totalItems)}
             </span>{" "}
-            of <span className="font-medium text-white">{totalItems}</span>
+            of <span className="font-medium text-theme-text">{totalItems}</span>
           </>
         ) : (
           <>
-            Page <span className="font-medium text-white">{page}</span> of{" "}
-            <span className="font-medium text-white">{totalPages}</span>
+            Page <span className="font-medium text-theme-text">{page}</span> of{" "}
+            <span className="font-medium text-theme-text">{totalPages}</span>
           </>
         )}
       </div>
@@ -46,19 +46,19 @@ export default function AdminPagination({
         <button
           disabled={!canPrevious}
           onClick={() => onPageChange(page - 1)}
-          className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-[var(--radius-control)] border border-theme-border-strong bg-transparent px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:bg-theme-inset disabled:cursor-not-allowed disabled:opacity-50"
         >
           Previous
         </button>
 
-        <div className="rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium text-white">
+        <div className="rounded-[var(--radius-control)] border border-theme-accent bg-theme-accent-tint px-4 py-2 text-sm font-medium text-theme-accent">
           {page}
         </div>
 
         <button
           disabled={!canNext}
           onClick={() => onPageChange(page + 1)}
-          className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-[var(--radius-control)] border border-theme-border-strong bg-transparent px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:bg-theme-inset disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next
         </button>

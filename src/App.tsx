@@ -28,6 +28,8 @@ import CreatorApplicationsQueue from "./pages/admin/CreatorApplicationsQueue";
 import AdminEntry from "./pages/admin/AdminEntry";
 import SystemDashboard from "./pages/admin/system/SystemDashboard";
 import OperationsDashboard from "./pages/admin/operations/OperationsDashboard";
+import AdminCoreOperationsPage from "./pages/admin/operations/AdminCoreOperationsPage";
+import AdminRiskCenterPage from "./pages/admin/operations/AdminRiskCenterPage";
 import AdminTopUpOperationsPage from "./features/adminTopUp/AdminTopUpOperationsPage";
 import AdminWalletConversionOperationsPage from "./features/adminWalletConversion/AdminWalletConversionOperationsPage";
 import AdminEscrowOperationsPage from "./features/adminEscrow/AdminEscrowOperationsPage";
@@ -58,6 +60,8 @@ import UserBookings from "./pages/UserBookings";
 /* WALLET */
 import UserWallet from "./pages/UserWallet";
 import CreatorWallet from "./pages/CreatorWallet";
+import CreatorPayoutDestinations from "./pages/CreatorPayoutDestinations";
+import CreatorEarnings from "./pages/CreatorEarnings";
 
 /* ✅ NEW: USER BOOKING DETAIL */
 import UserBookingDetail from "./pages/UserBookingDetail";
@@ -71,6 +75,7 @@ import CreatorProfile from "./pages/profile/CreatorProfile";
 import MessagesPage from "./pages/MessagesPage";
 import ChatPage from "./pages/ChatPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -140,6 +145,11 @@ export default function App() {
             </AdminRoute>
           }
         />
+        <Route path="/admin/operations/users" element={<AdminRoute><AdminCoreOperationsPage kind="users" /></AdminRoute>} />
+        <Route path="/admin/operations/creators" element={<AdminRoute><AdminCoreOperationsPage kind="creators" /></AdminRoute>} />
+        <Route path="/admin/operations/bookings" element={<AdminRoute><AdminCoreOperationsPage kind="bookings" /></AdminRoute>} />
+        <Route path="/admin/operations/risk" element={<AdminRoute><AdminRiskCenterPage /></AdminRoute>} />
+        <Route path="/admin/operations/control-plane" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
 
         <Route
           path="/admin/operations/profile-verification"
@@ -187,6 +197,7 @@ export default function App() {
         <Route path="/admin/operations/disputes" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
         <Route path="/admin/operations/disputes/:disputeId" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
         <Route path="/admin/system/wallet-backfill" element={<AdminRoute><WalletBackfill /></AdminRoute>} />
+        <Route path="/admin/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
 
         {/* USER */}
         <Route path="/dashboard/user" element={<UserRoute><UserDashboard /></UserRoute>} />
@@ -199,13 +210,15 @@ export default function App() {
         />
 
         <Route path="/dashboard/user/wallet" element={<UserRoute><UserWallet /></UserRoute>} />
-        <Route path="/dashboard/user/settings" element={<UserRoute><Navigate to="/dashboard/user/settings/creator" replace /></UserRoute>} />
+        <Route path="/dashboard/user/settings" element={<UserRoute><Navigate to="/dashboard/user/settings/account" replace /></UserRoute>} />
+        <Route path="/dashboard/user/settings/account" element={<UserRoute><AccountSettingsPage actor="user" section="account" /></UserRoute>} />
         <Route path="/dashboard/user/settings/creator" element={<UserRoute><AccountSettingsPage actor="user" section="creator" /></UserRoute>} />
         <Route path="/dashboard/user/settings/disputes" element={<UserRoute><AccountSettingsPage actor="user" section="disputes" /></UserRoute>} />
         <Route path="/dashboard/user/settings/disputes/:disputeId" element={<UserRoute><ParticipantDisputeDetailPage actor="user" /></UserRoute>} />
         <Route path="/dashboard/user/disputes" element={<UserRoute><Navigate to="/dashboard/user/settings/disputes" replace /></UserRoute>} />
 
         <Route path="/dashboard/user/messages" element={<UserRoute><MessagesPage /></UserRoute>} />
+        <Route path="/dashboard/user/notifications" element={<UserRoute><NotificationsPage /></UserRoute>} />
         <Route path="/dashboard/user/browse" element={<UserRoute><UserBrowse /></UserRoute>} />
 
         {/* PROFILE */}
@@ -227,6 +240,7 @@ export default function App() {
         />
 
         <Route path="/dashboard/creator/messages" element={<CreatorRoute><MessagesPage /></CreatorRoute>} />
+        <Route path="/dashboard/creator/notifications" element={<CreatorRoute><NotificationsPage /></CreatorRoute>} />
 
         <Route
           path="/dashboard/creator/services"
@@ -246,6 +260,8 @@ export default function App() {
         />
 
         <Route path="/dashboard/creator/wallet" element={<CreatorRoute><CreatorWallet /></CreatorRoute>} />
+        <Route path="/dashboard/creator/payout-destinations" element={<CreatorRoute><CreatorPayoutDestinations /></CreatorRoute>} />
+        <Route path="/dashboard/creator/earnings" element={<CreatorRoute><CreatorEarnings /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/creator" replace /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings/creator" element={<CreatorRoute><AccountSettingsPage actor="creator" section="creator" /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings/disputes" element={<CreatorRoute><AccountSettingsPage actor="creator" section="disputes" /></CreatorRoute>} />

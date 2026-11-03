@@ -1,5 +1,5 @@
 import { FileText, Image as ImageIcon, Paperclip, Send, Shield, Upload, Users, X } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import type { DirectEvidenceAudience, InvestigationTarget } from "../types";
 
 interface AdminInvestigationComposerProps {
@@ -22,6 +22,10 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function defaultAudience(activeTab: "CUSTOMER" | "CREATOR"): DirectEvidenceAudience {
+  return activeTab === "CUSTOMER" ? "CUSTOMER" : "CREATOR";
+}
+
 export default function AdminInvestigationComposer({
   activeTab,
   onRequestInfo,
@@ -32,22 +36,29 @@ export default function AdminInvestigationComposer({
   const [activeMode, setActiveMode] = useState<"REQUEST" | "EVIDENCE">("REQUEST");
 
   // Request Information State
-  const [sendToBoth, setSendToBoth] = useState(false);
+  const [recipientState, setRecipientState] = useState<{
+    activeTab: "CUSTOMER" | "CREATOR";
+    audience: DirectEvidenceAudience;
+    sendToBoth: boolean;
+  }>({
+    activeTab,
+    audience: defaultAudience(activeTab),
+    sendToBoth: false,
+  });
   const [requestText, setRequestText] = useState("");
 
   // Evidence Upload State
-  const [audience, setAudience] = useState<DirectEvidenceAudience>(
-    activeTab === "CUSTOMER" ? "CUSTOMER" : "CREATOR"
-  );
   const [file, setFile] = useState<File | null>(null);
   const [evidenceNote, setEvidenceNote] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Sync default audience and reset sendToBoth when activeTab changes
-  useEffect(() => {
-    setAudience(activeTab === "CUSTOMER" ? "CUSTOMER" : "CREATOR");
-    setSendToBoth(false);
-  }, [activeTab]);
+  const recipient = recipientState.activeTab === activeTab
+    ? recipientState
+    : { activeTab, audience: defaultAudience(activeTab), sendToBoth: false };
+  const { audience, sendToBoth } = recipient;
+  const updateRecipient = (next: Partial<Omit<typeof recipientState, "activeTab">>) => {
+    setRecipientState({ ...recipient, ...next, activeTab });
+  };
 
   const targetRecipient: InvestigationTarget = sendToBoth ? "BOTH" : activeTab;
   const participantName = activeTab === "CUSTOMER" ? "Customer" : "Creator";
@@ -58,7 +69,7 @@ export default function AdminInvestigationComposer({
 
     await onRequestInfo(targetRecipient, requestText.trim());
     setRequestText("");
-    setSendToBoth(false);
+    updateRecipient({ sendToBoth: false });
   };
 
   const handleEvidenceSubmit = async (e?: FormEvent) => {
@@ -139,7 +150,7 @@ export default function AdminInvestigationComposer({
               <input
                 type="checkbox"
                 checked={sendToBoth}
-                onChange={(e) => setSendToBoth(e.target.checked)}
+                onChange={(e) => updateRecipient({ sendToBoth: e.target.checked })}
                 disabled={pending}
                 className="rounded border-neutral-700 text-sky-500 focus:ring-0"
               />
@@ -207,7 +218,7 @@ export default function AdminInvestigationComposer({
             <label className="text-xs font-medium text-neutral-400">Audience / Visibility:</label>
             <select
               value={audience}
-              onChange={(e) => setAudience(e.target.value as DirectEvidenceAudience)}
+              onChange={(e) => updateRecipient({ audience: e.target.value as DirectEvidenceAudience })}
               disabled={pending}
               className="rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-1 text-xs font-semibold text-amber-200 outline-none focus:border-amber-400"
             >

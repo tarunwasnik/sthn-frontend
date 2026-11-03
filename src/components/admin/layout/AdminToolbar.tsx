@@ -9,7 +9,7 @@ interface AdminToolbarProps {
 
 export default function AdminToolbar({ left, right }: AdminToolbarProps) {
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900 p-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-3">{left}</div>
 
       {right && (

@@ -10,18 +10,18 @@ interface AdminButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const variants: Record<Variant, string> = {
-  primary: "bg-blue-600 hover:bg-blue-500 text-white border border-blue-500",
+  primary: "border border-transparent bg-theme-primary text-theme-primary-text hover:opacity-90 active:opacity-80",
 
   secondary:
-    "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700",
+    "border border-theme-border-strong bg-transparent text-theme-text hover:bg-theme-inset",
 
   success:
-    "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500",
+    "border border-theme-success bg-theme-success-tint text-theme-success hover:opacity-90",
 
-  danger: "bg-red-600 hover:bg-red-500 text-white border border-red-500",
+  danger: "border border-theme-danger bg-theme-danger-tint text-theme-danger hover:opacity-90",
 
   ghost:
-    "bg-transparent hover:bg-slate-800 text-slate-300 border border-slate-700",
+    "border border-transparent bg-transparent text-theme-muted hover:bg-theme-inset hover:text-theme-text",
 };
 
 export default function AdminButton({
@@ -41,11 +41,12 @@ export default function AdminButton({
         h-10
         items-center
         justify-center
-        rounded-lg
+        rounded-[var(--radius-control)]
         px-4
         text-sm
         font-medium
         transition-colors
+        focus-visible:outline-none
         disabled:cursor-not-allowed
         disabled:opacity-50
         ${variants[variant]}
