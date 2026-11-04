@@ -39,4 +39,3 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </div>
   </ToastContext.Provider>;
 }
-
