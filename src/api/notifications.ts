@@ -7,7 +7,7 @@ export interface NotificationRecord {
   title: string;
   body: string;
   navigationPath?: string;
-  metadata?: { entityType?: string; entityId?: string; reference?: string; amount?: number; currency?: string };
+  metadata?: { entityType?: string; entityId?: string; reference?: string };
   readAt: string | null;
   createdAt: string;
   expiresAt: string;

@@ -21,6 +21,9 @@ import { formatBookingMoney } from "../features/bookingFunding/money";
 import { providerFundingLabel } from "../features/bookingFunding/providerFundingLabel";
 import { useBookingReview } from "../features/review/useBookingReview";
 import { useBookingDispute } from "../features/dispute/useBookingDispute";
+import { getMyAppealForDispute, type ParticipantAppeal } from "../features/appeal/api";
+import { bookingLocalTimeZone, formatBookingLocalDateTime, formatBookingLocalTime } from "../utils/bookingDateTime";
+import { useToast } from "../hooks/useToast";
 
 /* ================= MODAL ================= */
 
@@ -68,6 +71,24 @@ function ConfirmModal({
   );
 }
 
+function AppealModal({ disputeId, onClose, onSubmitted }: { disputeId: string; onClose: () => void; onSubmitted: () => void }) {
+  const [reason, setReason] = useState("");
+  const [evidence, setEvidence] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async () => {
+    if (!reason.trim()) return;
+    try {
+      setSubmitting(true); setError(null);
+      await api.post(`/v1/appeals/${encodeURIComponent(disputeId)}`, { reason: reason.trim(), evidence: evidence.split("\n").map((item) => item.trim()).filter(Boolean) });
+      onSubmitted();
+    } catch (requestError) {
+      setError(axios.isAxiosError(requestError) && typeof requestError.response?.data?.message === "string" ? requestError.response.data.message : "Unable to submit appeal.");
+    } finally { setSubmitting(false); }
+  };
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"><div className="w-full max-w-md rounded-[var(--radius-dialog)] border border-theme-border bg-theme-surface p-5"><h2 className="text-lg font-semibold text-theme-text">Appeal dispute decision</h2><p className="mt-1 text-sm text-theme-muted">Explain why the resolved or rejected dispute decision should be reviewed.</p>{error && <p role="alert" className="mt-3 text-sm text-theme-danger">{error}</p>}<textarea value={reason} maxLength={1500} onChange={(event) => setReason(event.target.value)} placeholder="Appeal reason" className="mt-4 min-h-32 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text"/><textarea value={evidence} onChange={(event) => setEvidence(event.target.value)} placeholder="Optional evidence references (one per line)" className="mt-3 min-h-20 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-inset p-3 text-sm text-theme-text"/><div className="mt-4 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-[var(--radius-control)] border border-theme-border px-4 py-3 text-sm text-theme-text">Cancel</button><button type="button" disabled={submitting || !reason.trim()} onClick={() => void submit()} className="flex-1 rounded-[var(--radius-control)] bg-theme-primary px-4 py-3 text-sm font-semibold text-theme-primary-text disabled:opacity-50">{submitting ? "Submitting..." : "Submit appeal"}</button></div></div></div>;
+}
+
 /* ================= TYPES ================= */
 
 interface Slot {
@@ -104,6 +125,7 @@ interface Booking {
 /* ================= COMPONENT ================= */
 
 export default function CreatorBookingDetails() {
+  const { showToast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -126,6 +148,7 @@ export default function CreatorBookingDetails() {
 
   const [loading, setLoading] =
     useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [processing, setProcessing] =
     useState(false);
@@ -141,6 +164,10 @@ export default function CreatorBookingDetails() {
 
   const [disputeOpen, setDisputeOpen] =
     useState(false);
+  const [appealOpen, setAppealOpen] = useState(false);
+  const [appeal, setAppeal] = useState<ParticipantAppeal | null>(null);
+  const [appealLoading, setAppealLoading] = useState(false);
+  const [appealError, setAppealError] = useState<string | null>(null);
 
   /* ================= FETCH ================= */
 
@@ -149,6 +176,7 @@ export default function CreatorBookingDetails() {
   ) => {
     try {
       if (!silent) setLoading(true);
+      if (!silent) setError(null);
 
       const res = await api.get(
         `/v1/creator/bookings/${id}`
@@ -156,7 +184,10 @@ export default function CreatorBookingDetails() {
 
       setBooking(res.data.booking);
     } catch (err: unknown) {
-      console.error(err);
+      if (!silent) {
+        setBooking(null);
+        setError(axios.isAxiosError(err) && typeof err.response?.data?.message === "string" ? err.response.data.message : "Unable to load this booking.");
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -165,6 +196,15 @@ export default function CreatorBookingDetails() {
   useEffect(() => {
     if (id) fetchBooking();
   }, [id]);
+
+  const refreshAppeal = async () => {
+    const disputeId = disputeState?.dispute?.disputeId;
+    if (!disputeId || !["RESOLVED", "REJECTED"].includes(disputeState.dispute?.status ?? "")) { setAppeal(null); return; }
+    try { setAppealLoading(true); setAppealError(null); setAppeal(await getMyAppealForDispute(disputeId)); }
+    catch { setAppealError("Appeal status is unavailable right now."); }
+    finally { setAppealLoading(false); }
+  };
+  useEffect(() => { void refreshAppeal(); }, [disputeState?.dispute?.disputeId, disputeState?.dispute?.status]);
 
   /* ================= POLLING ================= */
 
@@ -223,10 +263,12 @@ export default function CreatorBookingDetails() {
       );
       await fetchBooking(true);
       await refreshFunding();
+      showToast(decision === "ACCEPT" ? "Booking request accepted." : "Booking request rejected.", "success");
     } catch (err: unknown) {
-      alert(
+      showToast(
         (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
-          "Decision failed"
+          "Decision failed",
+        "error",
       );
     } finally {
       setProcessing(false);
@@ -251,14 +293,17 @@ export default function CreatorBookingDetails() {
       setProcessing(false);
       setShowModal(false);
 
+      showToast("Booking cancelled.", "success");
+
       window.location.href =
         "/dashboard/creator/bookings";
     } catch (err: unknown) {
       setProcessing(false);
 
-      alert(
+      showToast(
         (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
-          "Cancel failed"
+          "Cancel failed",
+        "error",
       );
     }
   };
@@ -272,12 +317,6 @@ export default function CreatorBookingDetails() {
   };
 
   /* ================= HELPERS ================= */
-
-  const formatTime = (date: string) =>
-    new Date(date).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString(
@@ -377,13 +416,14 @@ export default function CreatorBookingDetails() {
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="w-full max-w-md rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 text-center">
             <h2 className="text-lg font-semibold text-theme-text">
-              Booking not found
+              {error ? "Booking unavailable" : "Booking not found"}
             </h2>
 
             <p className="mt-2 text-sm text-theme-muted">
-              This booking may no longer
-              exist.
+              {error ?? "This booking may no longer exist."}
             </p>
+
+            {error && <button onClick={() => void fetchBooking()} className="mt-4 rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint px-3 py-2 text-sm font-medium text-theme-danger">Retry</button>}
 
             <button
               onClick={() => navigate(-1)}
@@ -420,9 +460,7 @@ return (
 
           <p className="mt-0.5 text-[10px] text-theme-muted">
             Created on{" "}
-            {new Date(
-              booking.createdAt
-            ).toLocaleString()}
+            {formatBookingLocalDateTime(booking.createdAt)}
           </p>
         </div>
 
@@ -549,6 +587,7 @@ return (
                   {booking.slots.length} slots
                 </div>
               </div>
+              <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {bookingLocalTimeZone}.</p>
 
               <div className="space-y-3">
 
@@ -585,11 +624,11 @@ return (
                             <div className="min-w-0">
 
                               <p className="text-[10px] font-semibold leading-relaxed text-theme-text">
-                                {formatTime(
+                                {formatBookingLocalTime(
                                   slot.startTime
                                 )}{" "}
                                 -{" "}
-                                {formatTime(
+                                {formatBookingLocalTime(
                                   slot.endTime
                                 )}
                               </p>
@@ -958,6 +997,11 @@ return (
             </div>
           )}
 
+          {appealLoading && <p className="px-1 text-[10px] text-theme-muted">Checking appeal status...</p>}
+          {appealError && <button type="button" onClick={() => void refreshAppeal()} className="w-full rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint px-4 py-3 text-[11px] font-semibold text-theme-danger">Appeal status unavailable — Retry</button>}
+          {appeal && <div className="rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint px-4 py-3 text-[10px] text-theme-warning"><p className="font-semibold">Appeal {appeal.status.toLowerCase()}</p><p className="mt-1">{appeal.decision ? `Decision: ${appeal.decision.action === "REVERSE_DECISION" ? "decision reversed" : "decision confirmed"}` : "Awaiting Admin decision."}</p></div>}
+          {disputeState?.hasDispute && disputeState.dispute && ["RESOLVED", "REJECTED"].includes(disputeState.dispute.status) && !appeal && !appealLoading && !appealError && <button type="button" onClick={() => setAppealOpen(true)} className="w-full rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint px-4 py-3 text-[11px] font-semibold text-theme-warning">Appeal decision</button>}
+
           {disputeState?.hasDispute === false && disputeState.canOpenDispute && !disputeLoading && (
             <button
               onClick={() =>
@@ -1003,6 +1047,8 @@ return (
         }
         onSubmitted={refreshDisputeState}
       />
+
+      {appealOpen && disputeState?.dispute && <AppealModal disputeId={disputeState.dispute.disputeId} onClose={() => setAppealOpen(false)} onSubmitted={() => { setAppealOpen(false); void refreshAppeal(); showToast("Appeal submitted.", "success"); }} />}
     </div>
   </DashboardLayout>
 );

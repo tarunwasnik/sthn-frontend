@@ -1,6 +1,6 @@
 // frontend/src/pages/admin/CreatorApplicationsQueue.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 import { getApiErrorMessage } from "../../api/errorMessage";
 import AdminLayout from "../../components/admin/layout/AdminLayout";
@@ -30,6 +30,7 @@ import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
 import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
 import AdminRejectDialog from "../../components/admin/feedback/AdminRejectDialog";
+import { useToast } from "../../hooks/useToast";
 
 interface CreatorApplication {
   _id: string;
@@ -52,6 +53,7 @@ interface CreatorApplication {
   media?: string[];
 
   status: string;
+  rejectionReason?: string;
 
   submittedForReviewAt?: string | null;
   createdAt: string;
@@ -62,16 +64,20 @@ interface CreatorApplication {
   };
 }
 type ConfirmAction = "approve" | "reject" | null;
+type ApplicationStatusFilter = "submitted" | "approved" | "rejected";
 
 const PAGE_SIZE = 10;
 
 export default function CreatorApplicationsQueue() {
+  const { showToast } = useToast();
   const [applications, setApplications] = useState<CreatorApplication[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<ApplicationStatusFilter>("submitted");
 
   const [page, setPage] = useState(1);
 
@@ -89,13 +95,13 @@ export default function CreatorApplicationsQueue() {
 
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const res = await api.get(
-        "/v1/admin/creator-applications?status=submitted",
+        `/v1/admin/creator-applications?status=${statusFilter}`,
       );
 
       setApplications(res.data.applications ?? []);
@@ -106,7 +112,7 @@ export default function CreatorApplicationsQueue() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   const approveApplication = async () => {
     if (!confirmApplication) return;
@@ -126,18 +132,17 @@ export default function CreatorApplicationsQueue() {
 
       setConfirmAction(null);
       setConfirmApplication(null);
+      showToast("Creator application approved.", "success");
     } catch (err: unknown) {
-      alert(
-        getApiErrorMessage(err, "Failed to approve creator application."),
-      );
+      showToast(getApiErrorMessage(err, "Failed to approve creator application."), "error");
     } finally {
       setProcessingId(null);
     }
   };
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    void fetchApplications();
+  }, [fetchApplications]);
 
   const rejectApplication = async () => {
     if (!confirmApplication) return;
@@ -169,10 +174,9 @@ export default function CreatorApplicationsQueue() {
       setConfirmAction(null);
       setRejectionReason("");
       setConfirmApplication(null);
+      showToast("Creator application rejected.", "success");
     } catch (err: unknown) {
-      alert(
-        getApiErrorMessage(err, "Failed to reject creator application."),
-      );
+      showToast(getApiErrorMessage(err, "Failed to reject creator application."), "error");
     } finally {
       setProcessingId(null);
     }
@@ -267,9 +271,9 @@ export default function CreatorApplicationsQueue() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <AdminMetricCard
-              label="Submitted Applications"
+              label={`${statusFilter.charAt(0).toUpperCase()}${statusFilter.slice(1)} Applications`}
               value={metrics.submitted}
-              subtitle="Pending admin approval"
+              subtitle={statusFilter === "submitted" ? "Pending admin approval" : "Decision history"}
             />
 
             <AdminMetricCard
@@ -298,6 +302,23 @@ export default function CreatorApplicationsQueue() {
                 />
 
                 <AdminFilterBar>
+                  <label className="sr-only" htmlFor="creator-application-status">
+                    Application status
+                  </label>
+                  <select
+                    id="creator-application-status"
+                    value={statusFilter}
+                    onChange={(event) => {
+                      setStatusFilter(event.target.value as ApplicationStatusFilter);
+                      setPage(1);
+                      setSelectedApplication(null);
+                    }}
+                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
+                  >
+                    <option value="submitted">Submitted</option>
+                    <option value="approved">Approved history</option>
+                    <option value="rejected">Rejected history</option>
+                  </select>
                   <span className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300">
                     Submitted: {metrics.submitted}
                   </span>
@@ -396,6 +417,7 @@ export default function CreatorApplicationsQueue() {
                       </AdminTableCell>
 
                       <AdminTableCell align="right">
+                      {application.status === "submitted" ? (
                         <div
                           className="flex justify-end gap-2"
                           onClick={(e) => e.stopPropagation()}
@@ -430,6 +452,9 @@ export default function CreatorApplicationsQueue() {
                             Reject
                           </AdminButton>
                         </div>
+                      ) : (
+                        <span className="text-sm text-slate-500">Decision final</span>
+                      )}
                       </AdminTableCell>
                     </AdminTableRow>
                   ))}
@@ -452,7 +477,7 @@ export default function CreatorApplicationsQueue() {
           title={selectedApplication?.displayName ?? "Creator Application"}
           subtitle={selectedApplication?.userId.email}
           footer={
-            selectedApplication && (
+            selectedApplication?.status === "submitted" && (
               <div className="flex justify-end gap-3">
                 <AdminButton
                   variant="success"
@@ -631,6 +656,17 @@ export default function CreatorApplicationsQueue() {
                     {selectedApplication.publicBio}
                   </p>
                 </div>
+
+                {selectedApplication.status === "rejected" && selectedApplication.rejectionReason && (
+                  <div className="md:col-span-2 rounded-xl border border-theme-danger bg-theme-danger-tint p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-theme-danger">
+                      Rejection reason
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-theme-text">
+                      {selectedApplication.rejectionReason}
+                    </p>
+                  </div>
+                )}
 
                 <div className="md:col-span-2">
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">

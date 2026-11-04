@@ -15,6 +15,7 @@ import {
   toProfileMediaClaim,
   type ProfileMediaItem,
 } from "../features/profileMedia/profileMedia";
+import { useToast } from "../hooks/useToast";
 
 /* ================= TYPES ================= */
 
@@ -61,6 +62,7 @@ const mediaMessage = (item: ProfileMediaItem) => {
 };
 
 export default function CreatorServices() {
+  const { showToast } = useToast();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -126,8 +128,10 @@ export default function CreatorServices() {
       }
 
       fetchServices();
+      showToast("Service created.", "success");
     } catch (createError) {
       setError(imageAdmissionErrorMessage(createError, "Failed to create service."));
+      showToast("Couldn't create the service.", "error");
     }
   };
 
@@ -167,8 +171,10 @@ export default function CreatorServices() {
       setEditForm(newEditableServiceForm());
       setError("");
       fetchServices();
+      showToast("Service updated.", "success");
     } catch (updateError) {
       setError(imageAdmissionErrorMessage(updateError, "Update failed."));
+      showToast("Couldn't update the service.", "error");
     }
   };
 
@@ -243,15 +249,16 @@ export default function CreatorServices() {
   /* ================= ACTIONS ================= */
 
   const handleToggle = async (service: Service) => {
-    await api.patch(`/v1/creator/services/${service._id}`, {
-      isActive: !service.isActive,
-    });
-    fetchServices();
+    try {
+      await api.patch(`/v1/creator/services/${service._id}`, { isActive: !service.isActive });
+      fetchServices();
+      showToast(service.isActive ? "Service deactivated." : "Service activated.", "success");
+    } catch (caught) { setError(imageAdmissionErrorMessage(caught, "Couldn't update the service.")); showToast("Couldn't update the service.", "error"); }
   };
 
   const handleDelete = async (id: string) => {
-    await api.delete(`/v1/creator/services/${id}`);
-    fetchServices();
+    try { await api.delete(`/v1/creator/services/${id}`); fetchServices(); showToast("Service deleted.", "success"); }
+    catch (caught) { setError(imageAdmissionErrorMessage(caught, "Couldn't delete the service.")); showToast("Couldn't delete the service.", "error"); }
   };
 
   /* ================= UI ================= */

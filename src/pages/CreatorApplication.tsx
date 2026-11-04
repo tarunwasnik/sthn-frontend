@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
+import { useToast } from "../hooks/useToast";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { currencies } from "../constants/currencies";
@@ -25,6 +26,7 @@ interface CreatorApplicationData {
 }
 
 export default function CreatorApplication() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -277,6 +279,7 @@ export default function CreatorApplication() {
           .filter(Boolean),
       });
 
+      showToast("Creator application submitted.", "success");
       navigate("/dashboard/user");
     } catch (err: unknown) {
       setError(
@@ -294,6 +297,46 @@ export default function CreatorApplication() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-theme-bg px-4 text-theme-muted">
         <p>Loading creator application...</p>
+      </div>
+    );
+  }
+
+  if (application?.status === "submitted") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-theme-bg px-4 py-10 text-theme-text">
+        <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 text-center">
+          <h2 className="text-2xl font-bold">Application under review</h2>
+          <p className="mt-3 text-sm leading-relaxed text-theme-muted">
+            Your Creator application has been submitted and is awaiting an administrator decision. You cannot submit another application while this review is active.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/user")}
+            className="mt-6 h-11 rounded-[var(--radius-control)] bg-theme-primary px-4 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
+          >
+            Back to dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (application?.status === "approved") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-theme-bg px-4 py-10 text-theme-text">
+        <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 text-center">
+          <h2 className="text-2xl font-bold">Creator application approved</h2>
+          <p className="mt-3 text-sm leading-relaxed text-theme-muted">
+            Your application has been approved. Your Creator dashboard is ready.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard/creator")}
+            className="mt-6 h-11 rounded-[var(--radius-control)] bg-theme-primary px-4 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
+          >
+            Open Creator dashboard
+          </button>
+        </div>
       </div>
     );
   }

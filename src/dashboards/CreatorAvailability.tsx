@@ -75,8 +75,9 @@ export default function CreatorAvailability() {
     setServices(
       (res.data.services || []).filter((s: Service) => s.isActive)
     );
-  } catch {
-    // Existing screen behavior keeps initial list-fetch failures non-blocking.
+  } catch (error: unknown) {
+    setServices([]);
+    setMessage({ type: "error", text: getApiErrorMessage(error, "Unable to load services.") });
   }
 };
 
@@ -88,8 +89,9 @@ export default function CreatorAvailability() {
         }
       });
       setAvailabilities(res.data.availabilities || []);
-    } catch {
-      // Existing screen behavior keeps initial list-fetch failures non-blocking.
+    } catch (error: unknown) {
+      setAvailabilities([]);
+      setMessage({ type: "error", text: getApiErrorMessage(error, "Unable to load availability.") });
     }
   };
 
@@ -98,8 +100,10 @@ export default function CreatorAvailability() {
       const res = await api.get(`/v1/creator/availability/${availabilityId}/slots`);
       setSlots(res.data.slots || []);
       setActiveAvailability(availabilityId);
-    } catch {
-      // Existing screen behavior keeps slot-fetch failures non-blocking.
+    } catch (error: unknown) {
+      setSlots([]);
+      setActiveAvailability(null);
+      setMessage({ type: "error", text: getApiErrorMessage(error, "Unable to load slots.") });
     }
   };
 
@@ -137,28 +141,13 @@ export default function CreatorAvailability() {
         Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
-    fetchAvailabilities();
+    await fetchAvailabilities();
 
     setTimeout(() => {
       setMessage(null);
     }, 4000);
 
   } catch (error: unknown) {
-
-  console.log(
-    "CREATE ERROR:",
-    error
-  );
-
-  console.log(
-    "RESPONSE:",
-    error
-  );
-
-  console.log(
-    "DATA:",
-    error
-  );
 
   setMessage({
     type: "error",

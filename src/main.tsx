@@ -10,6 +10,7 @@ import { MessagingProvider } from "./context/MessagingContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { BookingRequestsProvider } from "./context/BookingRequestsContext";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { ToastProvider } from "./context/ToastContext";
 
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -19,7 +20,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <AuthProvider>
           <MessagingProvider>
-            <NotificationProvider><BookingRequestsProvider><App /></BookingRequestsProvider></NotificationProvider>
+            <ToastProvider><NotificationProvider><BookingRequestsProvider><App /></BookingRequestsProvider></NotificationProvider></ToastProvider>
           </MessagingProvider>
         </AuthProvider>
       </BrowserRouter>

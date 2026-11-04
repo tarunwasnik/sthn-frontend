@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import { getUserBookingAPI } from "../api/userBooking";
+import { bookingLocalTimeZone } from "../utils/bookingDateTime";
 import api from "../api/axios";
 import axios from "axios";
 
@@ -18,6 +19,7 @@ import { providerFundingLabel } from "../features/bookingFunding/providerFunding
 import { useBookingReview } from "../features/review/useBookingReview";
 import { useBookingDispute } from "../features/dispute/useBookingDispute";
 import { getMyAppealForDispute, type ParticipantAppeal } from "../features/appeal/api";
+import { useToast } from "../hooks/useToast";
 
 /* ================= MODAL ================= */
 
@@ -158,6 +160,7 @@ const getStatusClasses = (status: string) => {
 /* ================= COMPONENT ================= */
 
 export default function UserBookingDetail() {
+  const { showToast } = useToast();
   const { bookingId } = useParams();
   const navigate = useNavigate();
 
@@ -251,11 +254,12 @@ export default function UserBookingDetail() {
       await fetchBooking();
 
       setShowModal(false);
+      showToast("Booking cancelled.", "success");
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? error.response?.data?.message
         : null;
-      alert(typeof message === "string" ? message : "Failed to cancel booking");
+      showToast(typeof message === "string" ? message : "Failed to cancel booking", "error");
     } finally {
       setCancelling(false);
     }
@@ -468,6 +472,7 @@ export default function UserBookingDetail() {
                     {booking.slots.length} slots
                   </div>
                 </div>
+                <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {bookingLocalTimeZone}.</p>
 
                 <div className="space-y-3">
                   {Object.entries(groupedSlots).map(([date, slots]) => (
@@ -661,6 +666,22 @@ export default function UserBookingDetail() {
                   </div>
                 )}
 
+                {booking.status === "REJECTED" && (
+                  <div className="flex items-start gap-2">
+                    <div className="mt-1 h-1.5 w-1.5 rounded-full bg-theme-danger" />
+
+                    <div>
+                      <p className="text-[9px] font-medium text-theme-text">
+                        Booking Request Declined
+                      </p>
+
+                      <p className="mt-0.5 text-[7px] text-theme-muted">
+                        The Creator declined this booking request.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {booking.status === "EXPIRED" && (
                   <div className="flex items-start gap-2">
                     <div className="mt-1 h-1.5 w-1.5 rounded-full bg-theme-warning" />
@@ -828,7 +849,7 @@ export default function UserBookingDetail() {
           onClose={() => setDisputeOpen(false)}
           onSubmitted={refreshDisputeState}
         />
-        {appealOpen && disputeState?.dispute && <AppealModal disputeId={disputeState.dispute.disputeId} onClose={() => setAppealOpen(false)} onSubmitted={() => { setAppealOpen(false); void refreshAppeal(); }} />}
+      {appealOpen && disputeState?.dispute && <AppealModal disputeId={disputeState.dispute.disputeId} onClose={() => setAppealOpen(false)} onSubmitted={() => { setAppealOpen(false); void refreshAppeal(); showToast("Appeal submitted.", "success"); }} />}
       </div>
     </UserDashboardLayout>
   );

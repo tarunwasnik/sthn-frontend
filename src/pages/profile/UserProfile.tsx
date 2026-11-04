@@ -11,6 +11,7 @@ import {
   replaceProfileMediaSelection, sharesProfileMediaPreview, temporaryProfileMediaRelease, type ProfileMediaItem, toProfileMediaRequest, updateProfileMediaOperation,
   profileMediaStatusClassName,
 } from "../../features/profileMedia/profileMedia";
+import { useToast } from "../../hooks/useToast";
 
 interface UserProfile {
   username: string; realName?: string | null; bio: string; interests: string[]; profilePhotos: string[];
@@ -34,6 +35,7 @@ const mediaMessage = (item: ProfileMediaItem | null) => {
 };
 
 export default function UserProfilePage() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState<FormState>({ realName: "", bio: "", interests: "", dateOfBirth: "", country: "", city: "", languages: "" });
@@ -149,8 +151,8 @@ export default function UserProfilePage() {
     });
     if (Object.keys(payload).length === 0) { setEditing(false); return; }
     setError(""); setSaving(true);
-    try { const { data } = await api.patch<{ profile: UserProfile }>("/v1/profile/me", payload); applyPersistedProfile(data.profile); setEditing(false); }
-    catch (caught) { setError((axios.isAxiosError(caught) && typeof caught.response?.data?.message === "string" && caught.response.data.message) || "Update failed"); }
+    try { const { data } = await api.patch<{ profile: UserProfile }>("/v1/profile/me", payload); applyPersistedProfile(data.profile); setEditing(false); showToast("Profile saved.", "success"); }
+    catch (caught) { setError((axios.isAxiosError(caught) && typeof caught.response?.data?.message === "string" && caught.response.data.message) || "Update failed"); showToast("Couldn't save your profile.", "error"); }
     finally { setSaving(false); }
   };
 

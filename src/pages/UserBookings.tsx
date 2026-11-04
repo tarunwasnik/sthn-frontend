@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import { getUserBookingsAPI } from "../api/userBooking";
+import { bookingLocalTimeZone, formatBookingLocalDateTime } from "../utils/bookingDateTime";
 
 interface Slot {
   _id: string;
@@ -147,6 +148,7 @@ export default function UserBookings() {
             <p className="mt-2 text-sm text-theme-muted md:text-base">
               Manage all your bookings
             </p>
+            <p className="mt-1 text-xs text-theme-muted">Booking and expiry times are shown in {bookingLocalTimeZone}.</p>
           </div>
 
           {/* MOBILE FILTER */}
@@ -592,9 +594,7 @@ export default function UserBookings() {
 {b.status === "REQUESTED" && (
   <p className="text-xs text-theme-muted">
     Expires at{" "}
-    {new Date(
-      b.expiresAt
-    ).toLocaleTimeString()}
+    {formatBookingLocalDateTime(b.expiresAt)}
   </p>
 )}
 
@@ -932,9 +932,7 @@ export default function UserBookings() {
   {b.status === "REQUESTED" && (
     <p className="mt-4 text-center text-xs text-theme-muted">
       Expires at{" "}
-      {new Date(
-        b.expiresAt
-      ).toLocaleTimeString()}
+      {formatBookingLocalDateTime(b.expiresAt)}
     </p>
   )}
 

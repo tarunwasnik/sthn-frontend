@@ -1,7 +1,6 @@
-// frontend/src/hooks/useCreatorDashboard.ts
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
+
 import api from "../api/axios";
 
 interface CreatorProfile {
@@ -16,7 +15,6 @@ interface CreatorProfile {
 
 interface DashboardStats {
   totalBookings: number;
-  pendingBookings: number;
   completedBookings: number;
 }
 
@@ -24,71 +22,70 @@ export interface RecentActivity {
   id: string;
   status: string;
   paymentStatus: string;
-  earning: number;
   createdAt: string;
 }
 
-export interface NextUpcomingBooking {
-  id: string;
-  serviceTitle: string;
-  status: string;
-  startTime: string;
-  endTime: string;
+export interface CreatorBooking {
+  _id: string;
+  status: "REQUESTED" | "CONFIRMED" | "REJECTED" | "CANCELLED" | "EXPIRED" | "COMPLETED";
+  createdAt?: string;
+  service?: { title?: string };
+  user?: { displayName?: string };
+  slots?: Array<{ startTime: string; endTime: string }>;
 }
 
 interface DashboardResponse {
   creatorProfile: CreatorProfile;
-
   stats: DashboardStats;
-
   recentActivity: RecentActivity[];
-
-  nextUpcomingBooking: NextUpcomingBooking | null;
 }
 
+interface DashboardData extends DashboardResponse {
+  pendingRequestCount: number;
+  activeServiceCount: number;
+  bookings: CreatorBooking[];
+}
+
+const getErrorMessage = (error: unknown) => {
+  if (axios.isAxiosError(error) && typeof error.response?.data?.message === "string") return error.response.data.message;
+  return "Unable to load the Creator dashboard right now.";
+};
+
 export function useCreatorDashboard() {
-  const [data, setData] =
-    useState<DashboardResponse | null>(null);
-
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorCode, setErrorCode] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [errorCode, setErrorCode] =
-    useState<number | null>(null);
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setErrorCode(null);
+    setErrorMessage(null);
+    setData(null);
 
-  const [errorMessage, setErrorMessage] =
-    useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await api.get(
-          "/v1/creator/dashboard"
-        );
-
-        setData(response.data);
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err) && err.response) {
-          setErrorCode(err.response.status);
-
-          setErrorMessage(
-            (typeof err.response.data?.message === "string" && err.response.data.message) ||
-              "Something went wrong"
-          );
-        } else {
-          setErrorMessage("Network error");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboard();
+    try {
+      const [dashboardResponse, bookingsResponse, servicesResponse, pendingResponse] = await Promise.all([
+        api.get<DashboardResponse>("/v1/creator/dashboard"),
+        api.get<{ bookings?: CreatorBooking[] }>("/v1/creator/bookings"),
+        api.get<{ services?: Array<{ isActive?: boolean }> }>("/v1/creator/services"),
+        api.get<{ pendingRequestCount?: unknown }>("/v1/creator/bookings/pending-count"),
+      ]);
+      const pendingRequestCount = Number(pendingResponse.data.pendingRequestCount);
+      setData({
+        ...dashboardResponse.data,
+        bookings: Array.isArray(bookingsResponse.data.bookings) ? bookingsResponse.data.bookings : [],
+        activeServiceCount: (servicesResponse.data.services ?? []).filter((service) => service.isActive).length,
+        pendingRequestCount: Number.isFinite(pendingRequestCount) ? Math.max(0, Math.floor(pendingRequestCount)) : 0,
+      });
+    } catch (error) {
+      setErrorCode(axios.isAxiosError(error) ? error.response?.status ?? null : null);
+      setErrorMessage(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return {
-    data,
-    loading,
-    errorCode,
-    errorMessage,
-  };
+  useEffect(() => { void reload(); }, [reload]);
+
+  return { data, loading, errorCode, errorMessage, reload };
 }

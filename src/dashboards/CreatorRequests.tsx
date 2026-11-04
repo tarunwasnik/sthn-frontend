@@ -6,6 +6,8 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
 import { decideBookingAPI } from "../api/creatorBooking";
 import { useBookingRequests } from "../hooks/useBookingRequests";
+import { formatBookingLocalDateTime, formatBookingLocalTime, bookingLocalTimeZone } from "../utils/bookingDateTime";
+import { getApiErrorMessage } from "../api/errorMessage";
 
 interface Slot {
   _id: string;
@@ -47,12 +49,14 @@ export default function CreatorRequests() {
 
   const [processingId, setProcessingId] =
     useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   /* ================= FETCH ================= */
 
   const fetchBookings = async () => {
     try {
       setLoading(true);
+      setError(null);
 
       const res = await api.get(
         "/v1/creator/bookings",
@@ -71,6 +75,8 @@ export default function CreatorRequests() {
         "Failed to fetch bookings",
         err
       );
+      setBookings([]);
+      setError(getApiErrorMessage(err, "Unable to load booking requests."));
     } finally {
       setLoading(false);
     }
@@ -87,6 +93,7 @@ export default function CreatorRequests() {
 
     try {
       setProcessingId(bookingId);
+      setError(null);
 
       await decideBookingAPI(
         bookingId,
@@ -100,6 +107,9 @@ export default function CreatorRequests() {
         "Decision failed",
         err
       );
+      setError(getApiErrorMessage(err, "Unable to update this booking request."));
+      await fetchBookings();
+      await refreshPendingRequestCount();
     } finally {
       setProcessingId(null);
     }
@@ -110,16 +120,6 @@ export default function CreatorRequests() {
   }, [refreshPendingRequestCount]);
 
   /* ================= HELPERS ================= */
-
-  const formatTime = (
-    date: string
-  ) =>
-    new Date(
-      date
-    ).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
 
   const getStatusStyle = (
     status: string
@@ -164,6 +164,7 @@ export default function CreatorRequests() {
               Manage incoming booking
               requests
             </p>
+            <p className="mt-1 text-xs text-theme-muted">Times are shown in {bookingLocalTimeZone}.</p>
           </div>
 
           {/* LOADING */}
@@ -171,6 +172,12 @@ export default function CreatorRequests() {
             <div className="text-theme-muted">
               Loading booking
               requests...
+            </div>
+          )}
+
+          {!loading && error && (
+            <div role="alert" className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">
+              {error}<button type="button" onClick={() => void fetchBookings()} className="ml-3 font-semibold underline">Retry</button>
             </div>
           )}
 
@@ -197,6 +204,7 @@ export default function CreatorRequests() {
             {!loading &&
               bookings.map(
                 (booking) => {
+                  const requestExpired = booking.status === "REQUESTED" && new Date(booking.expiresAt).getTime() <= Date.now();
                   const serviceTitle =
                     booking.service
                       ?.title ||
@@ -277,16 +285,12 @@ export default function CreatorRequests() {
                             <div className="mt-4 space-y-1">
                               <p className="text-[12px] text-theme-muted">
                                 Requested at{" "}
-                                {new Date(
-                                  booking.createdAt
-                                ).toLocaleString()}
+                                {formatBookingLocalDateTime(booking.createdAt)}
                               </p>
 
                               <p className="text-[12px] text-theme-muted">
                                 Expires at{" "}
-                                {new Date(
-                                  booking.expiresAt
-                                ).toLocaleString()}
+                                {formatBookingLocalDateTime(booking.expiresAt)}
                               </p>
                             </div>
                           </div>
@@ -353,11 +357,11 @@ export default function CreatorRequests() {
                                 whitespace-nowrap
                               "
                               >
-                                {formatTime(
+                                {formatBookingLocalTime(
                                   slot.startTime
                                 )}{" "}
                                 -{" "}
-                                {formatTime(
+                                {formatBookingLocalTime(
                                   slot.endTime
                                 )}
                               </div>
@@ -418,6 +422,9 @@ export default function CreatorRequests() {
 
                           {booking.status ===
                             "REQUESTED" && (
+                            requestExpired ? (
+                              <p className="rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint p-3 text-center text-sm text-theme-warning">This request has expired and is awaiting server refresh.</p>
+                            ) :
                             <button
                               disabled={
                                 processingId !==
@@ -451,7 +458,7 @@ export default function CreatorRequests() {
                           )}
 
                           {booking.status ===
-                            "REQUESTED" && (
+                            "REQUESTED" && !requestExpired && (
                             <button
                               disabled={
                                 processingId !==
@@ -501,9 +508,7 @@ export default function CreatorRequests() {
                           {/* TOP */}
                           <div className="flex items-center gap-3 flex-wrap">
                             <p className="text-[11px] text-theme-muted">
-                              {new Date(
-                                booking.createdAt
-                              ).toLocaleString()}
+                              {formatBookingLocalDateTime(booking.createdAt)}
                             </p>
 
                             <span
@@ -572,9 +577,7 @@ export default function CreatorRequests() {
 
                             <p className="text-[12px] text-theme-muted">
                               Expires at{" "}
-                              {new Date(
-                                booking.expiresAt
-                              ).toLocaleString()}
+                              {formatBookingLocalDateTime(booking.expiresAt)}
                             </p>
                           </div>
 
@@ -598,11 +601,11 @@ export default function CreatorRequests() {
                                   text-theme-text
                                 "
                                 >
-                                  {formatTime(
+                                  {formatBookingLocalTime(
                                     slot.startTime
                                   )}{" "}
                                   -{" "}
-                                  {formatTime(
+                                  {formatBookingLocalTime(
                                     slot.endTime
                                   )}
                                 </div>
@@ -716,6 +719,9 @@ export default function CreatorRequests() {
 
                             {booking.status ===
                               "REQUESTED" && (
+                              requestExpired ? (
+                                <p className="rounded-[var(--radius-control)] border border-theme-warning bg-theme-warning-tint p-3 text-center text-xs text-theme-warning">This request has expired and is awaiting server refresh.</p>
+                              ) :
                               <button
                                 disabled={
                                   processingId !==
@@ -749,7 +755,7 @@ export default function CreatorRequests() {
                             )}
 
                             {booking.status ===
-                              "REQUESTED" && (
+                              "REQUESTED" && !requestExpired && (
                               <button
                                 disabled={
                                   processingId !==

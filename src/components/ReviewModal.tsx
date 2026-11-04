@@ -4,6 +4,7 @@ import { useState } from "react";
 import axios from "axios";
 import StarRating from "./StarRating";
 import { submitReview } from "../features/review/api";
+import { useToast } from "../hooks/useToast";
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ export default function ReviewModal({
   onClose,
   onSubmitted,
 }: Props) {
+  const { showToast } = useToast();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [reportFlag, setReportFlag] = useState(false);
@@ -39,6 +41,7 @@ export default function ReviewModal({
 
       onSubmitted();
       onClose();
+      showToast("Review submitted.", "success");
     } catch (err: unknown) {
       console.error(err);
 
@@ -48,6 +51,7 @@ export default function ReviewModal({
         (typeof responseData?.message === "string" && responseData.message) ||
         "Failed to submit review",
       );
+      showToast("Couldn't submit the review.", "error");
     } finally {
       setLoading(false);
     }

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import { useToast } from "../../hooks/useToast";
 
 type AdminMode = "SYSTEM" | "OPERATIONS";
 
 export default function AdminEntry() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState<AdminMode | null>(null);
 
   const selectMode = async (mode: AdminMode) => {
@@ -22,7 +24,7 @@ export default function AdminEntry() {
       navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error("Failed to set admin mode", err);
-      alert("Failed to enter admin mode. Please try again.");
+      showToast("Failed to enter admin mode. Please try again.", "error");
       setLoading(null);
     }
   };

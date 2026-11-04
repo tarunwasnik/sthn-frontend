@@ -2,6 +2,7 @@
 
 import { useAuth } from "./hooks/useAuth";
 import { Routes, Route, Navigate } from "react-router-dom";
+import type { ReactNode } from "react";
 
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
@@ -12,6 +13,7 @@ import IdentityRefreshListener from "./components/IdentityRefreshListener";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import AdminRoute from "./components/AdminRoute";
+import AdminWorkspaceRoute from "./components/AdminWorkspaceRoute";
 import {
   AuthenticatedRoute,
   CreatorRoute,
@@ -39,6 +41,7 @@ import AdminSettlementOperationsPage from "./features/adminSettlement/AdminSettl
 import AdminPaymentOperationsPage from "./features/adminPayment/AdminPaymentOperationsPage";
 import AdminFxOperationsPage from "./features/adminFx/AdminFxOperationsPage";
 import AdminDisputeOperationsPage from "./features/adminDispute/AdminDisputeOperationsPage";
+import AdminAppealsPage from "./features/adminAppeal/AdminAppealsPage";
 import ParticipantDisputeDetailPage from "./pages/ParticipantDisputeDetailPage";
 
 /* Dashboards */
@@ -77,6 +80,14 @@ import ChatPage from "./pages/ChatPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 
+function OperationsAdminRoute({ children }: { children: ReactNode }) {
+  return <AdminRoute><AdminWorkspaceRoute workspace="operations">{children}</AdminWorkspaceRoute></AdminRoute>;
+}
+
+function SystemAdminRoute({ children }: { children: ReactNode }) {
+  return <AdminRoute><AdminWorkspaceRoute workspace="system">{children}</AdminWorkspaceRoute></AdminRoute>;
+}
+
 export default function App() {
   const { loading } = useAuth();
 
@@ -112,9 +123,9 @@ export default function App() {
         <Route
           path="/admin/operations/creator-applications"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <CreatorApplicationsQueue />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
 
@@ -131,72 +142,74 @@ export default function App() {
         <Route
           path="/admin/system"
           element={
-            <AdminRoute>
+            <SystemAdminRoute>
               <SystemDashboard />
-            </AdminRoute>
+            </SystemAdminRoute>
           }
         />
 
         <Route
           path="/admin/operations"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <OperationsDashboard />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
-        <Route path="/admin/operations/users" element={<AdminRoute><AdminCoreOperationsPage kind="users" /></AdminRoute>} />
-        <Route path="/admin/operations/creators" element={<AdminRoute><AdminCoreOperationsPage kind="creators" /></AdminRoute>} />
-        <Route path="/admin/operations/bookings" element={<AdminRoute><AdminCoreOperationsPage kind="bookings" /></AdminRoute>} />
-        <Route path="/admin/operations/risk" element={<AdminRoute><AdminRiskCenterPage /></AdminRoute>} />
-        <Route path="/admin/operations/control-plane" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin/operations/users" element={<OperationsAdminRoute><AdminCoreOperationsPage kind="users" /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/creators" element={<OperationsAdminRoute><AdminCoreOperationsPage kind="creators" /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/bookings" element={<OperationsAdminRoute><AdminCoreOperationsPage kind="bookings" /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/risk" element={<OperationsAdminRoute><AdminRiskCenterPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/control-plane" element={<OperationsAdminRoute><AdminDashboard /></OperationsAdminRoute>} />
 
         <Route
           path="/admin/operations/profile-verification"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <ProfileVerificationQueue />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
         <Route
           path="/admin/operations/profile-verification/admin-review"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <AdminReviewQueue />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
         <Route
           path="/admin/operations/wallet-top-ups"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <AdminTopUpOperationsPage />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
         <Route
           path="/admin/operations/wallet-top-ups/:topUpReference"
           element={
-            <AdminRoute>
+            <OperationsAdminRoute>
               <AdminTopUpOperationsPage />
-            </AdminRoute>
+            </OperationsAdminRoute>
           }
         />
-        <Route path="/admin/operations/wallet-conversions" element={<AdminRoute><AdminWalletConversionOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/wallet-conversions/:conversionReference" element={<AdminRoute><AdminWalletConversionOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/booking-escrow" element={<AdminRoute><AdminEscrowOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/booking-escrow/:bookingReference" element={<AdminRoute><AdminEscrowOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/platform-revenue" element={<AdminRoute><AdminPlatformRevenuePage /></AdminRoute>} />
-        <Route path="/admin/operations/settlements" element={<AdminRoute><AdminSettlementOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/settlements/:settlementReference" element={<AdminRoute><AdminSettlementOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/payments" element={<AdminRoute><AdminPaymentOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/payments/:paymentReference" element={<AdminRoute><AdminPaymentOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/fx-rates" element={<AdminRoute><AdminFxOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/governance" element={<AdminRoute><AdminGovernancePage /></AdminRoute>} />
-        <Route path="/admin/operations/disputes" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
-        <Route path="/admin/operations/disputes/:disputeId" element={<AdminRoute><AdminDisputeOperationsPage /></AdminRoute>} />
-        <Route path="/admin/system/wallet-backfill" element={<AdminRoute><WalletBackfill /></AdminRoute>} />
+        <Route path="/admin/operations/wallet-conversions" element={<OperationsAdminRoute><AdminWalletConversionOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/wallet-conversions/:conversionReference" element={<OperationsAdminRoute><AdminWalletConversionOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/booking-escrow" element={<OperationsAdminRoute><AdminEscrowOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/booking-escrow/:bookingReference" element={<OperationsAdminRoute><AdminEscrowOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/platform-revenue" element={<OperationsAdminRoute><AdminPlatformRevenuePage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/settlements" element={<OperationsAdminRoute><AdminSettlementOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/settlements/:settlementReference" element={<OperationsAdminRoute><AdminSettlementOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/payments" element={<OperationsAdminRoute><AdminPaymentOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/payments/:paymentReference" element={<OperationsAdminRoute><AdminPaymentOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/fx-rates" element={<OperationsAdminRoute><AdminFxOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/governance" element={<OperationsAdminRoute><AdminGovernancePage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/disputes" element={<OperationsAdminRoute><AdminDisputeOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/disputes/:disputeId" element={<OperationsAdminRoute><AdminDisputeOperationsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/appeals" element={<OperationsAdminRoute><AdminAppealsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/appeals/:appealId" element={<OperationsAdminRoute><AdminAppealsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/system/wallet-backfill" element={<SystemAdminRoute><WalletBackfill /></SystemAdminRoute>} />
         <Route path="/admin/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
 
         {/* USER */}

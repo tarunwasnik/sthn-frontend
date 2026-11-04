@@ -3,6 +3,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { openDispute } from "../features/dispute/api";
+import { useToast } from "../hooks/useToast";
 
 interface Props {
   open: boolean;
@@ -17,6 +18,7 @@ export default function DisputeModal({
   onClose,
   onSubmitted,
 }: Props) {
+  const { showToast } = useToast();
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -35,6 +37,7 @@ export default function DisputeModal({
 
       onSubmitted();
       onClose();
+      showToast("Dispute submitted.", "success");
     } catch (err: unknown) {
       console.error(err);
 
@@ -44,6 +47,7 @@ export default function DisputeModal({
         (typeof responseData?.message === "string" && responseData.message) ||
         "Failed to raise dispute",
       );
+      showToast("Couldn't submit the dispute.", "error");
     } finally {
       setLoading(false);
     }

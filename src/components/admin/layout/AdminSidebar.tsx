@@ -112,6 +112,11 @@ const operationsSections: NavSection[] = [
         icon: ShieldAlert,
       },
       {
+        label: "Appeals",
+        path: "/admin/operations/appeals",
+        icon: ShieldAlert,
+      },
+      {
         label: "Risk Center",
         path: "/admin/operations/risk",
         icon: ShieldAlert,
@@ -148,12 +153,16 @@ const systemSections: NavSection[] = [
   },
 ];
 
-export default function AdminSidebar({ workspace }: AdminSidebarProps) {
+export default function AdminSidebar({
+  workspace,
+  mobile = false,
+  onNavigate,
+}: AdminSidebarProps & { mobile?: boolean; onNavigate?: () => void }) {
   const sections =
     workspace === "operations" ? operationsSections : systemSections;
 
   return (
-    <aside className="sticky top-16 h-[calc(100dvh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-theme-border bg-theme-surface">
+    <aside className={mobile ? "h-full w-full overflow-y-auto bg-theme-surface" : "sticky top-16 hidden h-[calc(100dvh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-theme-border bg-theme-surface lg:block"}>
       <div className="px-5 py-6">
         {sections.map((section) => (
           <div key={section.title} className="mb-8">
@@ -170,6 +179,7 @@ export default function AdminSidebar({ workspace }: AdminSidebarProps) {
                     key={item.path}
                     to={item.path}
                     end
+                    onClick={onNavigate}
                     className={({ isActive }) =>
                       [
                         "group flex items-center gap-3 rounded-[var(--radius-navigation)] px-3 py-3 transition-colors duration-200",

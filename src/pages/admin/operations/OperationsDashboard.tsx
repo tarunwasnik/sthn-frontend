@@ -1,36 +1,29 @@
 // frontend/src/pages/admin/operations/OperationsDashboard.tsx
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import api from "../../../api/axios";
 import AdminLayout from "../../../components/admin/layout/AdminLayout";
 
 export default function OperationsDashboard() {
-  const navigate = useNavigate();
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overview, setOverview] = useState<{ users: { total: number; last7Days: number }; creators: { total: number; approved: number; pending: number }; bookings: { total: number; last7Days: number; today: number } } | null>(null);
 
   useEffect(() => {
-    const bootstrap = async () => {
+    const loadOverview = async () => {
       try {
-        await api.get("/admin/operations/bootstrap");
         const response = await api.get<{ data: typeof overview }>("/v1/admin/dashboard/overview");
         setOverview(response.data.data);
-        setLoading(false);
       } catch {
-        setError("Access denied");
-
-        setTimeout(() => {
-          navigate("/admin/entry", { replace: true });
-        }, 300);
+        setError("Unable to load the Operations overview.");
+      } finally {
+        setLoading(false);
       }
     };
 
-    bootstrap();
-  }, [navigate]);
+    void loadOverview();
+  }, []);
 
   if (loading) {
     return (

@@ -33,6 +33,7 @@ import AdminDetailPanel from "../../components/admin/panel/AdminDetailPanel";
 
 import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState";
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
+import { useToast } from "../../hooks/useToast";
 import AdminConfirmDialog from "../../components/admin/feedback/AdminConfirmDialog";
 import AdminRejectDialog from "../../components/admin/feedback/AdminRejectDialog";
 import ProfileVerificationDetailContent from "../../components/admin/panel/ProfileVerificationDetailContent";
@@ -82,6 +83,7 @@ interface ProfileVerificationQueueProps {
 }
 
 export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVerificationQueueProps) {
+  const { showToast } = useToast();
   const isAdminReviewQueue = queueKind === "ADMIN_REVIEW";
   const queueTitle = isAdminReviewQueue ? "Admin Review Queue" : "AI Verification Queue";
   const queueDescription = isAdminReviewQueue
@@ -157,8 +159,9 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       setConfirmAction(null);
       setConfirmProfile(null);
+      showToast("Profile verification approved.", "success");
     } catch (err: unknown) {
-      alert(getApiErrorMessage(err, "Failed to approve user."));
+      showToast(getApiErrorMessage(err, "Failed to approve user."), "error");
     } finally {
       setProcessingId(null);
     }
@@ -195,8 +198,9 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
       setConfirmAction(null);
       setRejectionReason("");
       setConfirmProfile(null);
+      showToast("Profile verification rejected.", "success");
     } catch (err: unknown) {
-      alert(getApiErrorMessage(err, "Failed to reject user."));
+      showToast(getApiErrorMessage(err, "Failed to reject user."), "error");
     } finally {
       setProcessingId(null);
     }
