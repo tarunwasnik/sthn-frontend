@@ -151,8 +151,8 @@ export default function CreatorProfilePage() {
   if (loading) return <div className="min-h-screen bg-theme-bg p-10 text-theme-muted">Loading...</div>;
   if (!profile) return <div className="min-h-screen bg-theme-bg p-10 text-theme-muted">No profile</div>;
   const preview = (item: ProfileMediaItem) => item.state === "EXISTING" ? item.reference : item.previewUrl;
-  const avatarUrl = avatar ? preview(avatar) : "";
-  const coverUrl = cover ? preview(cover) : "";
+  const avatarUrl = avatar ? preview(avatar) : "/avatars/default.png";
+  const coverUrl = cover ? preview(cover) : "/covers/default.png";
 
   return (
     <div className="min-h-screen bg-theme-bg text-theme-text [&_input:not([type=file])]:border [&_input:not([type=file])]:border-theme-border [&_input:not([type=file])]:bg-theme-inset [&_input:not([type=file])]:text-theme-text [&_textarea]:border [&_textarea]:border-theme-border [&_textarea]:bg-theme-inset [&_textarea]:text-theme-text">

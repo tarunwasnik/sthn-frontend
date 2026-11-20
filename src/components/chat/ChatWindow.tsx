@@ -1067,7 +1067,6 @@ export default function ChatWindow({
   const avatarUrl =
     profile?.avatarUrl ||
     profile?.avatar ||
-    profile?.profilePhotos?.[0] ||
     null;
 
   const serviceTitle = conversation?.service?.title || "Service";

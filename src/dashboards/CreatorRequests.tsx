@@ -6,7 +6,7 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import api from "../api/axios";
 import { decideBookingAPI } from "../api/creatorBooking";
 import { useBookingRequests } from "../hooks/useBookingRequests";
-import { formatBookingLocalDateTime, formatBookingLocalTime, bookingLocalTimeZone } from "../utils/bookingDateTime";
+import { formatBookingLocalDateTime, formatBookingLocalTime, getBookingDisplayTimeZone } from "../utils/bookingDateTime";
 import { getApiErrorMessage } from "../api/errorMessage";
 
 interface Slot {
@@ -164,7 +164,7 @@ export default function CreatorRequests() {
               Manage incoming booking
               requests
             </p>
-            <p className="mt-1 text-xs text-theme-muted">Times are shown in {bookingLocalTimeZone}.</p>
+            <p className="mt-1 text-xs text-theme-muted">Times are shown in {getBookingDisplayTimeZone()}.</p>
           </div>
 
           {/* LOADING */}

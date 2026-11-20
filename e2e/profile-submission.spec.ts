@@ -37,14 +37,49 @@ const fillInitialFields = async (page: Page) => {
   await page.getByPlaceholder("Photography, Music...").fill("testing");
 };
 
+test("onboarding saves a coverless draft but still requires a cover for final submission", async ({ page }) => {
+  test.setTimeout(90_000);
+  const profile = { username: "Draft Fixture", realName: "Draft Fixture", dateOfBirth: "1990-01-01T00:00:00.000Z", mobileCountryCode: "+91", mobileNumber: "9999999999", country: "India", city: "Pune", languages: ["English"], bio: "Draft fixture.", interests: ["testing"], profileStatus: "incomplete", avatar: "https://media.invalid/avatar.jpg", cover: "", profilePhotos: ["https://media.invalid/one.jpg", "https://media.invalid/two.jpg"] };
+  const session = createFaceVerificationSessionFixture({ sessionReference: "FACE_COVERLESS_DRAFT", expectedStart: { avatar: profile.avatar } });
+  const drafts: Record<string, unknown>[] = [];
+  let submissions = 0;
+  const authRoute = await installAuth(page, "coverless-draft", () => profile);
+  await page.route("**/*", async route => {
+    if (await authRoute(route)) return;
+    const request = route.request(); const url = new URL(request.url());
+    if (request.method() === "PUT" && url.pathname === "/api/v1/profile/me/draft") {
+      drafts.push(request.postDataJSON());
+      return route.fulfill({ json: { profile } });
+    }
+    if (request.method() === "POST" && url.pathname === "/api/v1/profile/face-verification/session") return route.fulfill(session.start(request.postDataJSON()));
+    const capture = url.pathname.match(/\/session\/([^/]+)\/captures\/(\d+)$/);
+    if (request.method() === "POST" && capture) return route.fulfill(session.capture({ request, requestedSessionReference: capture[1], index: Number(capture[2]) }));
+    if (request.method() === "POST" && url.pathname === "/api/v1/profile/me") submissions += 1;
+    return route.abort();
+  });
+  await page.goto(`${e2eOrigin}/onboarding`);
+  await expect(page.getByText("Cover (required to submit; optional for drafts)", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Face Verification" }).click();
+  await expect.poll(() => drafts.length).toBe(1);
+  expect(drafts[0]).not.toHaveProperty("cover");
+  expect(drafts[0].avatar).toEqual({ kind: "UNCHANGED", reference: profile.avatar });
+  expect(drafts[0].profilePhotos).toEqual(profile.profilePhotos.map(reference => ({ kind: "UNCHANGED", reference })));
+  await page.getByRole("button", { name: "Open camera" }).click();
+  await expect(page.getByText("Capture successful")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Submit Profile" }).click();
+  await expect(page.getByText("An avatar and cover are required.", { exact: true })).toBeVisible();
+  expect(submissions).toBe(0);
+  session.assertCompleted();
+});
+
 test("initial onboarding submits draft-authoritative media after five persisted-avatar captures", async ({ page }) => {
   test.setTimeout(90_000);
   const draftProfile = {
     username: "initial e2e", realName: "Initial E2E", dateOfBirth: "1990-01-01T00:00:00.000Z", mobileCountryCode: "+91", mobileNumber: "9999999999", country: "India", city: "Pune", languages: ["English"], bio: "Initial submission fixture.", interests: ["testing"], profileStatus: "incomplete",
-    avatar: "https://media.invalid/persisted-avatar.jpg", cover: "https://media.invalid/persisted-cover.jpg", profilePhotos: ["https://media.invalid/persisted-one.jpg", "https://media.invalid/persisted-two.jpg"],
+    avatar: "https://media.invalid/persisted-avatar.jpg", cover: "https://media.invalid/persisted-cover.jpg", profilePhotos: ["https://media.invalid/persisted-one.jpg", "https://media.invalid/persisted-two.jpg", "https://media.invalid/persisted-three.jpg"],
   };
   const session = createFaceVerificationSessionFixture({ sessionReference: "FACE_INITIAL_SUBMIT_E2E", expectedStart: { avatar: draftProfile.avatar } });
-  const admissionReferences = ["initial-avatar-admission", "initial-cover-admission", "initial-photo-one-admission", "initial-photo-two-admission"];
+  const admissionReferences = ["initial-avatar-admission", "initial-cover-admission", "initial-photo-one-admission", "initial-photo-two-admission", "initial-photo-three-admission"];
   const admissionBodies: string[] = []; const drafts: unknown[] = []; const submissions: unknown[] = [];
   let submitted = false;
   const authRoute = await installAuth(page, "initial-submit-e2e", () => submitted ? pending(draftProfile) : { username: "", realName: null, dateOfBirth: null, mobileCountryCode: "+91", mobileNumber: null, country: null, city: null, languages: [], bio: "", interests: [], profileStatus: "incomplete", avatar: "", cover: "", profilePhotos: [] });
@@ -61,7 +96,7 @@ test("initial onboarding submits draft-authoritative media after five persisted-
       const body = request.postDataJSON(); drafts.push(body);
       const expected = {
         avatar: { kind: "ADMISSION", admissionReference: admissionReferences[0] }, cover: { kind: "ADMISSION", admissionReference: admissionReferences[1] },
-        profilePhotos: [{ kind: "ADMISSION", admissionReference: admissionReferences[2] }, { kind: "ADMISSION", admissionReference: admissionReferences[3] }],
+        profilePhotos: [{ kind: "ADMISSION", admissionReference: admissionReferences[2] }, { kind: "ADMISSION", admissionReference: admissionReferences[3] }, { kind: "ADMISSION", admissionReference: admissionReferences[4] }],
       };
       if (JSON.stringify({ avatar: body.avatar, cover: body.cover, profilePhotos: body.profilePhotos }) !== JSON.stringify(expected)) return route.fulfill({ status: 400, json: { message: "Draft claims were not authoritative admissions." } });
       return route.fulfill({ json: { profile: draftProfile } });
@@ -89,6 +124,8 @@ test("initial onboarding submits draft-authoritative media after five persisted-
   await expect.poll(() => admissionBodies).toHaveLength(3);
   await gallery.setInputFiles(image("two.jpg"));
   await expect.poll(() => admissionBodies).toHaveLength(4);
+  await gallery.setInputFiles(image("three.jpg"));
+  await expect.poll(() => admissionBodies).toHaveLength(5);
   expect(admissionBodies[0]).toContain("USER_PROFILE_AVATAR"); expect(admissionBodies[1]).toContain("USER_PROFILE_COVER");
   expect(admissionBodies.slice(2).every(body => body.includes("USER_PROFILE_PHOTO"))).toBe(true);
   await page.getByRole("button", { name: "Face Verification" }).click();

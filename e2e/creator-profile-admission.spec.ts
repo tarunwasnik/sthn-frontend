@@ -3,9 +3,9 @@ import { e2eOrigin } from "./fixtures/origin";
 
 const apiOrigin = "http://127.0.0.1:9";
 const image = { name: "creator.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) };
-const profile = { displayName: "Creator E2E", avatarUrl: "https://media.invalid/avatar.jpg", coverUrl: "https://media.invalid/cover.jpg", media: ["https://media.invalid/one.jpg", "https://media.invalid/two.jpg"], bio: "Creator biography", languages: ["English"], categories: ["Music"], city: "Pune", country: "India" };
+const profile = { displayName: "Creator E2E", avatarUrl: "https://media.invalid/avatar.jpg" as string | null, coverUrl: "https://media.invalid/cover.jpg" as string | null, media: ["https://media.invalid/one.jpg", "https://media.invalid/two.jpg"], bio: "Creator biography", languages: ["English"], categories: ["Music"], city: "Pune", country: "India" };
 
-async function fixture(page: Page, decisions: Array<"PASS" | "BLOCK" | "UNAVAILABLE"> = ["PASS"]) {
+async function fixture(page: Page, decisions: Array<"PASS" | "BLOCK" | "UNAVAILABLE"> = ["PASS"], profileData = profile) {
   const requests: Array<{ method: string; path: string; body: unknown }> = []; let serial = 0;
   await page.route("**/*", async route => {
     const request = route.request(); const url = new URL(request.url());
@@ -15,7 +15,7 @@ async function fixture(page: Page, decisions: Array<"PASS" | "BLOCK" | "UNAVAILA
     requests.push({ method: request.method(), path: url.pathname, body });
     if (request.method() === "GET" && url.pathname === "/api/auth/entry") return route.fulfill({ json: { entryType: "CREATOR", entryRoute: "/creator/profile", userId: "creator-e2e", creatorStatus: "approved" } });
     if (request.method() === "GET" && url.pathname === "/api/auth/me") return route.fulfill({ json: { id: "creator-e2e", role: "creator", status: "active", creatorStatus: "approved" } });
-    if (request.method() === "GET" && url.pathname === "/api/v1/creator/profile") return route.fulfill({ json: profile });
+    if (request.method() === "GET" && url.pathname === "/api/v1/creator/profile") return route.fulfill({ json: profileData });
     if (request.method() === "POST" && url.pathname === "/api/v1/image-moderation/admissions") { serial += 1; const decision = decisions.shift() ?? "PASS"; return route.fulfill({ json: decision === "PASS" ? { decision, attemptReference: `attempt-${serial}`, admissionReference: `imauth_creator_${serial}`, assetReference: `asset-${serial}`, expiresAt: new Date(Date.now() + 3600_000).toISOString(), message: "Approved" } : { decision, attemptReference: `attempt-${serial}`, assetReference: `asset-${serial}`, message: decision === "BLOCK" ? "Blocked" : "Unavailable" } }); }
     if (request.method() === "POST" && url.pathname.includes("/release")) return route.fulfill({ json: { outcome: "PENDING", message: "Queued" } });
     if (request.method() === "PATCH" && url.pathname === "/api/v1/creator/profile") return route.fulfill({ json: { message: "Creator profile updated", profile } });
@@ -35,6 +35,13 @@ test("existing Creator Profile media renders and non-media PATCH preserves media
   expect(body.media).toEqual([{ kind: "UNCHANGED", reference: "https://media.invalid/one.jpg" }, { kind: "UNCHANGED", reference: "https://media.invalid/two.jpg" }]);
   expect(body.avatar).toEqual({ kind: "UNCHANGED", reference: "https://media.invalid/avatar.jpg" }); expect(body.cover).toEqual({ kind: "UNCHANGED", reference: "https://media.invalid/cover.jpg" });
   expect(body).not.toHaveProperty("avatarUrl"); expect(body).not.toHaveProperty("coverUrl");
+});
+
+test("Creator Profile uses dedicated placeholders when avatar or cover is absent, never its gallery", async ({ page }) => {
+  await fixture(page, ["PASS"], { ...profile, avatarUrl: null, coverUrl: null });
+  await page.goto(`${e2eOrigin}/creator/profile`);
+  await expect(page.locator('img[src="/avatars/default.png"]')).toHaveCount(1);
+  await expect(page.locator('img[src="/covers/default.png"]')).toHaveCount(1);
 });
 
 test("Creator Profile admissions use creator surfaces and PATCH only serializes PASS media", async ({ page }) => {

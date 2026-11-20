@@ -5,7 +5,7 @@ import {
   disconnectAuthenticatedSocket,
 } from "../lib/socket";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 import type { ReactNode } from "react";
 
@@ -31,6 +31,7 @@ interface AuthMe {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const logoutInFlight = useRef<Promise<void> | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -94,11 +95,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await bootstrap();
   };
 
-  const logout = () => {
+  const logout = useCallback(async () => {
+    if (logoutInFlight.current) return logoutInFlight.current;
+    const tokenSnapshot = getAccessToken();
+    const revocation = tokenSnapshot
+      ? api.post("/v1/security/sessions/current/logout", undefined, { headers: { Authorization: `Bearer ${tokenSnapshot}` } })
+      : Promise.resolve();
+
+    // Clear this browser immediately even when the network cannot confirm revocation.
+    // The request uses the immutable snapshot, so a later login cannot be affected.
     disconnectAuthenticatedSocket();
     clearAccessToken();
     clearAuthState();
-  };
+
+    const pending = revocation.then(() => undefined).catch(() => undefined).finally(() => {
+      if (logoutInFlight.current === pending) logoutInFlight.current = null;
+    });
+    logoutInFlight.current = pending;
+    return pending;
+  }, [clearAuthState]);
 
   useEffect(() => {
     const token = getAccessToken();

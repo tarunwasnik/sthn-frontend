@@ -1,6 +1,6 @@
 // frontend/src/pages/admin/ProfileVerificationQueue.tsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api/axios";
 import { getApiErrorMessage } from "../../api/errorMessage";
 import { getAdminVerificationDetail } from "../../api/adminProfileVerification.api";
@@ -102,6 +102,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const [verificationDetail, setVerificationDetail] = useState<AdminVerificationDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequestGeneration = useRef(0);
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
@@ -112,13 +113,19 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
   const [reasonError, setReasonError] = useState("");
 
   const openVerificationDetail = async (profile: Profile) => {
+    const generation = ++detailRequestGeneration.current;
     setSelectedProfile(profile);
     setVerificationDetail(null);
     setDetailError(null);
     setDetailLoading(true);
-    try { setVerificationDetail(await getAdminVerificationDetail(profile.verificationRequest.verificationReference)); }
-    catch { setDetailError("Unable to load this verification submission. Please retry."); }
-    finally { setDetailLoading(false); }
+    try {
+      const detail = await getAdminVerificationDetail(profile.verificationRequest.verificationReference);
+      if (detailRequestGeneration.current === generation) setVerificationDetail(detail);
+    } catch {
+      if (detailRequestGeneration.current === generation) setDetailError("Unable to load this verification submission. Please retry.");
+    } finally {
+      if (detailRequestGeneration.current === generation) setDetailLoading(false);
+    }
   };
 
   const fetchProfiles = async () => {
@@ -385,7 +392,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
                     <AdminTableCell>
                       <div className="flex items-center gap-3">
                         <AdminAvatar
-                          src={profile.avatar || profile.profilePhotos[0]}
+                          src={profile.avatar}
                           name={profile.username}
                           size="md"
                         />
@@ -506,7 +513,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
       <AdminDetailPanel
         open={selectedProfile !== null}
-        onClose={() => { setSelectedProfile(null); setVerificationDetail(null); setDetailError(null); }}
+        onClose={() => { detailRequestGeneration.current += 1; setSelectedProfile(null); setVerificationDetail(null); setDetailError(null); }}
         title={selectedProfile?.username ?? "User"}
         subtitle={selectedProfile?.userId.email}
         footer={
@@ -548,7 +555,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
         {detailLoading ? (
           <AdminLoadingState title="Loading verification detail..." description="Retrieving the authoritative current submission." />
         ) : verificationDetail ? (
-          <ProfileVerificationDetailContent detail={verificationDetail} />
+          <ProfileVerificationDetailContent detail={verificationDetail} refreshing={detailLoading} onRefresh={() => selectedProfile && void openVerificationDetail(selectedProfile)} />
         ) : detailError ? (
           <div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-5">
             <p className="font-medium text-theme-danger">{detailError}</p>
@@ -571,7 +578,7 @@ export default function ProfileVerificationQueue({ queueKind = "AI" }: ProfileVe
 
             <div className="flex items-center gap-4">
               <AdminAvatar
-                src={selectedProfile.avatar || selectedProfile.profilePhotos[0]}
+                src={selectedProfile.avatar}
                 name={selectedProfile.username}
                 size="lg"
               />

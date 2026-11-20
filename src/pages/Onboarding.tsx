@@ -318,7 +318,7 @@ const Onboarding = () => {
 
     let profileMedia;
     try {
-      if (!incompleteAvatar || !incompleteCover) throw new ProfileMediaClaimError("Avatar and cover are required.");
+      if (!incompleteAvatar || !incompleteCover) throw new ProfileMediaClaimError("An avatar and cover are required.");
       profileMedia = toProfileMediaRequest({ avatar: incompleteAvatar, cover: incompleteCover, profilePhotos: incompleteGallery });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Finish image moderation before submitting.");
@@ -386,12 +386,12 @@ const Onboarding = () => {
   };
 
   const incompleteOnboardingPayload = () => {
-    if (!incompleteAvatar || !incompleteCover) throw new ProfileMediaClaimError("Avatar and cover are required.");
+    if (!incompleteAvatar) throw new ProfileMediaClaimError("An avatar is required to save a draft.");
     return {
       username, realName, dateOfBirth, mobileCountryCode, mobileNumber, country, city,
       languages: languages.split(",").map((language) => language.trim()).filter(Boolean),
       bio, interests: interests.split(",").map((interest) => interest.trim()).filter(Boolean),
-      ...toProfileMediaRequest({ avatar: incompleteAvatar, cover: incompleteCover, profilePhotos: incompleteGallery }),
+      ...toProfileMediaRequest({ avatar: incompleteAvatar, cover: incompleteCover ?? undefined, profilePhotos: incompleteGallery }),
     };
   };
 
@@ -598,7 +598,7 @@ const Onboarding = () => {
           {/* COVER */}
           <div className="order-[-2]">
             <label className="text-sm text-gray-300 mb-1 block">
-              Cover
+              Cover (required to submit; optional for drafts)
             </label>
             <input
               type="file"

@@ -1,5 +1,6 @@
 export type VerificationRequestStatus = "PENDING" | "PROCESSING" | "ADMIN_REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "EXPIRED";
 export type VerificationJobStatus = "PENDING" | "RUNNING" | "RETRY_WAIT" | "COMPLETED" | "FAILED";
+export type AiVerificationLifecycle = "QUEUED" | "PROCESSING" | "RETRYING" | "COMPLETED" | "FAILED" | "TIMED_OUT" | "ESCALATED" | "MISSING";
 
 export const requestStatusLabel = (status: VerificationRequestStatus) => ({
   PENDING: "Pending", PROCESSING: "Processing", ADMIN_REVIEW_REQUIRED: "Admin review required",
@@ -47,3 +48,14 @@ const conclusionLabels = {
 
 export const conclusionLabel = (conclusion: keyof typeof conclusionLabels | null) =>
   conclusion ? conclusionLabels[conclusion] : null;
+
+export const aiVerificationLifecyclePresentation = (lifecycle: AiVerificationLifecycle) => ({
+  QUEUED: { label: "Queued", description: "AI verification is queued and has not started processing." },
+  PROCESSING: { label: "Processing", description: "AI verification is processing the submitted face captures." },
+  RETRYING: { label: "Retry scheduled", description: "AI verification encountered a temporary problem and is scheduled to retry." },
+  COMPLETED: { label: "Completed", description: "AI verification completed and persisted advisory evidence for Admin review." },
+  FAILED: { label: "Failed", description: "AI verification could not complete. Manual Admin review is required." },
+  TIMED_OUT: { label: "Timed out", description: "AI verification timed out and requires Admin review." },
+  ESCALATED: { label: "Escalated", description: "AI verification requires Admin review; no persisted analysis is available." },
+  MISSING: { label: "Unavailable", description: "AI verification status is currently unavailable." },
+}[lifecycle]);

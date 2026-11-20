@@ -51,13 +51,20 @@ const getErrorMessage = (error: unknown) => {
   return "Unable to load the Creator dashboard right now.";
 };
 
-export function useCreatorDashboard() {
+export function useCreatorDashboard({ enabled = true }: { enabled?: boolean } = {}) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorCode, setErrorCode] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      setData(null);
+      setErrorCode(null);
+      setErrorMessage(null);
+      return;
+    }
     setLoading(true);
     setErrorCode(null);
     setErrorMessage(null);
@@ -83,7 +90,7 @@ export function useCreatorDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => { void reload(); }, [reload]);
 

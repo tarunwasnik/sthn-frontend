@@ -3,6 +3,11 @@ import { e2eOrigin } from "./fixtures/origin";
 
 const apiOrigin = "http://127.0.0.1:9";
 const image = { name: "creator-avatar.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9]) };
+const coverImage = { name: "creator-cover.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0x01, 0xff, 0xd9]) };
+const galleryImages = [
+  { name: "creator-gallery-one.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0x02, 0xff, 0xd9]) },
+  { name: "creator-gallery-two.jpg", mimeType: "image/jpeg", buffer: Buffer.from([0xff, 0xd8, 0x03, 0xff, 0xd9]) },
+];
 const expiry = () => new Date(Date.now() + 60 * 60_000).toISOString();
 
 async function installCreatorApplicationFixture(page: Page) {
@@ -21,6 +26,9 @@ async function installCreatorApplicationFixture(page: Page) {
     requests.push({ method: request.method(), path: url.pathname, body });
     if (request.method() === "GET" && url.pathname === "/api/auth/entry") return route.fulfill({ json: { entryType: "USER", entryRoute: "/creator-application", userId: "creator-e2e", creatorStatus: "none" } });
     if (request.method() === "GET" && url.pathname === "/api/auth/me") return route.fulfill({ json: { id: "creator-e2e", role: "user", status: "active", creatorStatus: "none" } });
+    // The User-upgrade fixture deliberately follows the legacy endpoint after
+    // the direct-Creator draft endpoint says this account is ineligible.
+    if (request.method() === "GET" && url.pathname === "/api/v1/creator-applications/me/draft") return route.fulfill({ status: 403, json: { message: "Direct Creator drafts are not available" } });
     if (request.method() === "GET" && url.pathname === "/api/v1/profile/me") return route.fulfill({ json: { profileStatus: "verified" } });
     if (request.method() === "GET" && url.pathname === "/api/v1/creator-applications/me") return route.fulfill({ json: { application: null } });
     if (request.method() === "POST" && url.pathname === "/api/v1/text-moderation") return route.abort();
@@ -48,13 +56,20 @@ test("creator application submits only admission-backed media and creator applic
   await page.getByPlaceholder("Select Currency").fill("INR");
   await page.getByRole("button", { name: /INR/ }).first().click();
   await page.locator('input[type="file"]').nth(0).setInputFiles(image);
-  await expect(page.getByText("Image approved.")).toBeVisible();
+  await page.locator('input[type="file"]').nth(1).setInputFiles(coverImage);
+  await page.locator('input[type="file"]').nth(2).setInputFiles(galleryImages);
+  await expect.poll(() => requests.filter((entry) => entry.path === "/api/v1/image-moderation/admissions")).toHaveLength(4);
   await page.getByRole("button", { name: "Submit Application" }).click();
   await expect.poll(() => requests.find((entry) => entry.method === "POST" && entry.path === "/api/v1/creator-applications")?.body).toBeTruthy();
   const admissionRequest = requests.find((entry) => entry.path === "/api/v1/image-moderation/admissions");
   expect(String(admissionRequest?.body)).toContain("CREATOR_APPLICATION_AVATAR");
   const submission = requests.find((entry) => entry.method === "POST" && entry.path === "/api/v1/creator-applications")?.body as Record<string, unknown>;
   expect(submission.avatar).toEqual({ kind: "ADMISSION", admissionReference: "creator-admission-1" });
+  expect(submission.cover).toEqual({ kind: "ADMISSION", admissionReference: "creator-admission-2" });
+  expect(submission.media).toEqual([
+    { kind: "ADMISSION", admissionReference: "creator-admission-3" },
+    { kind: "ADMISSION", admissionReference: "creator-admission-4" },
+  ]);
   expect(submission).not.toHaveProperty("avatarUrl");
   expect(submission).not.toHaveProperty("coverUrl");
   expect(submission).not.toHaveProperty("textModerationAdmission");

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/axios";
+import SafetyReportForm from "../components/SafetyReportForm";
 
 interface PublicUserProfile {
   id: string;
@@ -43,7 +44,7 @@ export default function PublicUserProfile() {
   if (loading) return <div className="min-h-screen bg-theme-bg p-10 text-theme-muted">Loading...</div>;
   if (!profile) return <div className="min-h-screen bg-theme-bg p-10 text-theme-muted">Profile not found</div>;
 
-  const avatar = profile.avatar || profile.profilePhotos?.[0];
+  const avatar = profile.avatar;
 
   return (
     <div className="min-h-screen bg-theme-bg p-4 text-theme-text sm:p-8">
@@ -78,6 +79,8 @@ export default function PublicUserProfile() {
           </div>
           </div>
         </div>
+
+        <SafetyReportForm targetId={profile.id} targetName={profile.username} />
 
         {/* ABOUT */}
         <div className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6">

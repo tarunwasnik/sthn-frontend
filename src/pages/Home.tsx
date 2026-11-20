@@ -6,18 +6,18 @@ import { fetchHome } from "../api/public";
 import type { HomeDTO } from "../api/public";
 import CreatorCard from "../components/CreatorCard";
 import ThemeQuickToggle from "../components/theme/ThemeQuickToggle";
+import { useAuth } from "../hooks/useAuth";
+import { getAccessToken } from "../auth/session";
 
 export default function Home() {
   const navigate = useNavigate();
+  const { isAuthenticated, creatorStatus, role } = useAuth();
 
   const [data, setData] =
     useState<HomeDTO | null>(null);
 
   const [loading, setLoading] =
     useState(true);
-
-  const [menuOpen, setMenuOpen] =
-    useState(false);
 
   const [location, setLocation] =
     useState("");
@@ -32,6 +32,21 @@ export default function Home() {
         setLoading(false)
       );
   }, []);
+
+  const beginCreatorJourney = () => {
+    // AuthContext is asynchronously refreshed after sign-out. Require the
+    // current browser session token as well, so a stale render cannot expose
+    // the authenticated Creator-application route to a logged-out visitor.
+    if (!isAuthenticated || !getAccessToken()) {
+      navigate("/register");
+      return;
+    }
+    if (isAuthenticated && (role === "creator" || creatorStatus === "approved")) {
+      navigate("/dashboard/creator");
+      return;
+    }
+    navigate("/creator-application");
+  };
 
   return (
     <div
@@ -69,7 +84,7 @@ export default function Home() {
           flex
           items-center
           justify-between
-          px-4
+          px-3
           md:px-10
           py-4
           md:py-6
@@ -165,9 +180,20 @@ export default function Home() {
             flex
             md:hidden
             items-center
-            gap-3
+            gap-1.5
+            sm:gap-2
           "
         >
+          <ThemeQuickToggle className="inline-flex h-10 w-10 md:hidden" />
+
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="min-h-10 rounded-[var(--radius-control)] px-1.5 text-sm font-medium text-theme-muted transition-colors hover:text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
+          >
+            Login
+          </button>
+
           <button
             type="button"
             onClick={() =>
@@ -176,131 +202,21 @@ export default function Home() {
             className="
               bg-theme-primary
               text-theme-primary-text
-              px-4
-              py-1.5
+              min-h-10
+              px-3
               rounded-[var(--radius-control)]
               text-sm
               font-medium
+              focus-visible:outline
+              focus-visible:outline-2
+              focus-visible:outline-offset-2
+              focus-visible:outline-theme-accent
             "
           >
             Join Now
           </button>
-
-          <button
-            onClick={() =>
-              setMenuOpen(true)
-            }
-            className="
-              w-9
-              h-9
-              flex
-              items-center
-              justify-center
-              rounded-[var(--radius-control)]
-              border
-              border-theme-border
-              bg-theme-surface
-            "
-          >
-            ☰
-          </button>
         </div>
       </nav>
-
-      {/* ================= DRAWER ================= */}
-
-      {menuOpen && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-50
-            flex
-          "
-        >
-          <div
-            className="
-              flex-1
-              bg-black/50
-            "
-            onClick={() =>
-              setMenuOpen(false)
-            }
-          />
-
-          <div
-            className="
-              w-[75%]
-              max-w-sm
-              bg-theme-surface-raised
-              text-theme-text
-              p-6
-              flex
-              flex-col
-              gap-6
-              shadow-xl
-            "
-          >
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-              >
-                ✕
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate("/login")
-              }
-              className="
-                text-left
-                text-theme-muted
-              "
-            >
-              Login
-            </button>
-
-            <button
-              onClick={() =>
-                navigate("/register")
-              }
-              className="
-                bg-theme-primary
-                text-theme-primary-text
-                px-4
-                py-3
-                rounded-[var(--radius-control)]
-                font-medium
-              "
-            >
-              Join Now
-            </button>
-
-            <div
-              className="
-                border-t
-                border-theme-border
-                pt-4
-                space-y-4
-                text-theme-muted
-              "
-            >
-              <div>Explore</div>
-
-              <div>
-                Become a Creator
-              </div>
-
-              <div>Safety</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ================= HERO ================= */}
 
@@ -590,6 +506,12 @@ export default function Home() {
             right now.
           </div>
         )}
+
+        <section className="mt-8 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5 text-center sm:mt-10 sm:p-7">
+          <h3 className="text-lg font-semibold text-theme-text">Have a skill worth sharing?</h3>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-theme-muted">Become a Creator and offer personalized experiences to people looking for your expertise.</p>
+          <button type="button" onClick={beginCreatorJourney} className="mt-5 min-h-11 rounded-[var(--radius-control)] bg-theme-primary px-4 py-2.5 text-sm font-semibold text-theme-primary-text transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Become a Creator</button>
+        </section>
       </section>
 
       {/* ================= FOOTER ================= */}
@@ -689,49 +611,6 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* ================= MOBILE BOTTOM NAV ================= */}
-
-      <div
-        className="
-          fixed
-          bottom-[max(0.75rem,env(safe-area-inset-bottom))]
-          left-1/2
-          -translate-x-1/2
-          w-[95%]
-          max-w-md
-          bg-theme-surface-raised
-          border
-          border-theme-border
-          rounded-[var(--radius-card)]
-          flex
-          justify-around
-          py-3
-          text-xs
-          md:hidden
-          shadow-sm
-        "
-      >
-        <div
-          className="
-            text-theme-accent
-            font-medium
-          "
-        >
-          Explore
-        </div>
-
-        <div className="text-theme-muted">
-          Saved
-        </div>
-
-        <div className="text-theme-muted">
-          Cart
-        </div>
-
-        <div className="text-theme-muted">
-          Profile
-        </div>
-      </div>
     </div>
   );
 }

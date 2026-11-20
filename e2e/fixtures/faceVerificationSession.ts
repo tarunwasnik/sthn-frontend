@@ -3,7 +3,7 @@ import type { FaceVerificationCandidateAvatar } from "../../src/api/faceVerifica
 
 export const fiveFaceChallenges = ["NEUTRAL", "TURN_LEFT", "TURN_RIGHT", "LOOK_UP", "BLINK"] as const;
 
-type SessionStart = Readonly<{ avatar: string } | { candidateAvatar: FaceVerificationCandidateAvatar }>;
+type SessionStart = Readonly<{ avatar: string } | { candidateAvatar: FaceVerificationCandidateAvatar }> | undefined;
 
 type SessionFixtureOptions = Readonly<{
   sessionReference: string;

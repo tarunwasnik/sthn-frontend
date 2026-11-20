@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/axios";
 import { getUserBookingsAPI } from "../api/userBooking";
 import DashboardCard from "../components/common/DashboardCard";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
+import { useStatusRefresh } from "../hooks/useStatusRefresh";
 
 type User = { id: string; email: string; role: string; creatorStatus: "none" | "pending" | "approved" | "rejected" };
 type Profile = { profileStatus: "pending_verification" | "verified" | "rejected"; username?: string; rejectionReason?: string };
@@ -42,21 +43,33 @@ export default function UserDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const statusGeneration = useRef(0);
   const navigate = useNavigate();
   const loadData = useCallback(async () => {
+    const generation = ++statusGeneration.current;
     setLoading(true); setBookingError(null);
     try {
       const [userRes, profileRes, bookingsRes] = await Promise.all([api.get("/auth/me"), api.get("/v1/profile/me"), getUserBookingsAPI()]);
+      if (generation !== statusGeneration.current) return;
       setUser(userRes.data);
       setProfile({ profileStatus: profileRes.data.profileStatus, username: profileRes.data.username, rejectionReason: profileRes.data.rejectionReason });
       setBookings(Array.isArray(bookingsRes.bookings) ? bookingsRes.bookings : []);
     } catch (error) {
+      if (generation !== statusGeneration.current) return;
       console.error("Dashboard load failed", error);
       setUser(null); setProfile(null); setBookings([]);
       setBookingError("Your dashboard is unavailable right now. Please try again.");
-    } finally { setLoading(false); }
+    } finally { if (generation === statusGeneration.current) setLoading(false); }
   }, []);
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => { void loadData(); return () => { statusGeneration.current += 1; }; }, [loadData]);
+  const refreshStatus = useCallback(async () => {
+    const generation = ++statusGeneration.current;
+    const [userRes, profileRes] = await Promise.all([api.get<User>("/auth/me"), api.get<Profile>("/v1/profile/me")]);
+    if (generation !== statusGeneration.current) return;
+    setUser(userRes.data);
+    setProfile({ profileStatus: profileRes.data.profileStatus, username: profileRes.data.username, rejectionReason: profileRes.data.rejectionReason });
+  }, []);
+  useStatusRefresh(refreshStatus, profile?.profileStatus === "pending_verification" || user?.creatorStatus === "pending", Boolean(user && profile && !loading));
 
   if (loading) return <UserDashboardLayout><div className="px-4 text-theme-muted">Loading your dashboard…</div></UserDashboardLayout>;
   if (!user || !profile) return <UserDashboardLayout><div className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-5 text-theme-danger"><p>{bookingError ?? "Failed to load dashboard."}</p><button type="button" onClick={() => void loadData()} className="mt-3 rounded font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Retry</button></div></UserDashboardLayout>;

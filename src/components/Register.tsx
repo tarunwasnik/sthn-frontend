@@ -7,6 +7,9 @@ import type { CredentialResponse } from "@react-oauth/google";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import api from "../api/axios";
+import { PasswordRequirements } from "./auth/PasswordRequirements";
+import { isPasswordReadyForSubmission, validatePasswordForGuidance } from "../features/auth/passwordPolicy";
+import { authRateLimitError } from "../features/auth/rateLimit";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -14,13 +17,26 @@ export default function Register() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryUntil, setRetryUntil] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (loading) return;
+    if (loading || Date.now() < retryUntil) return;
+    const validation = validatePasswordForGuidance(password);
+    if (!isPasswordReadyForSubmission(password)) {
+      setError(validation.error || "Your password does not yet meet all requirements.");
+      return;
+    }
+    if (password !== confirmation) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -40,6 +56,13 @@ export default function Register() {
       navigate("/entry", { replace: true });
 
     } catch (err: unknown) {
+      const rateLimit = authRateLimitError(err);
+      if (rateLimit) {
+        setRetryUntil(rateLimit.until);
+        setError(rateLimit.message);
+        window.setTimeout(() => setRetryUntil(0), Math.max(0, rateLimit.until - Date.now()));
+        return;
+      }
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
       const message =
         (typeof responseData?.message === "string" && responseData.message) ||
@@ -146,22 +169,35 @@ export default function Register() {
             Password
           </label>
 
+          <div className="relative">
           <input
             id="register-password"
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="new-password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="h-11 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 text-sm text-theme-text placeholder:text-theme-muted transition-colors hover:border-theme-border-strong focus:border-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           />
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 text-xs font-medium text-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent" aria-label={showPassword ? "Hide password" : "Show password"}>{showPassword ? "Hide" : "Show"}</button>
+          </div>
+          <PasswordRequirements password={password} />
+        </div>
+
+        <div>
+          <label htmlFor="register-confirm-password" className="mb-1 block text-sm font-medium text-theme-text">Confirm password</label>
+          <div className="relative">
+            <input id="register-confirm-password" type={showConfirmation ? "text" : "password"} autoComplete="new-password" required value={confirmation} onChange={(e) => setConfirmation(e.target.value)} aria-invalid={confirmation.length > 0 && confirmation !== password} className="h-11 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 text-sm text-theme-text placeholder:text-theme-muted transition-colors hover:border-theme-border-strong focus:border-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent" />
+            <button type="button" onClick={() => setShowConfirmation((value) => !value)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 text-xs font-medium text-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent" aria-label={showConfirmation ? "Hide confirmation password" : "Show confirmation password"}>{showConfirmation ? "Hide" : "Show"}</button>
+          </div>
+          {confirmation.length > 0 && confirmation !== password ? <p role="alert" className="mt-1 text-xs text-theme-danger">Passwords do not match.</p> : null}
         </div>
 
         <button
-          disabled={loading}
+          disabled={loading || Date.now() < retryUntil}
           className="h-11 w-full rounded-[var(--radius-control)] bg-theme-primary px-4 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Creating..." : "Register"}
+          {loading ? "Creating..." : Date.now() < retryUntil ? "Please wait…" : "Register"}
         </button>
 
         {/* Divider */}

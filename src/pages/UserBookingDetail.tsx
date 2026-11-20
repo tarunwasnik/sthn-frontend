@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import { getUserBookingAPI } from "../api/userBooking";
-import { bookingLocalTimeZone } from "../utils/bookingDateTime";
+import { getBookingDisplayTimeZone } from "../utils/bookingDateTime";
 import api from "../api/axios";
 import axios from "axios";
 
@@ -20,6 +20,7 @@ import { useBookingReview } from "../features/review/useBookingReview";
 import { useBookingDispute } from "../features/dispute/useBookingDispute";
 import { getMyAppealForDispute, type ParticipantAppeal } from "../features/appeal/api";
 import { useToast } from "../hooks/useToast";
+import SafetyReportForm from "../components/SafetyReportForm";
 
 /* ================= MODAL ================= */
 
@@ -472,7 +473,7 @@ export default function UserBookingDetail() {
                     {booking.slots.length} slots
                   </div>
                 </div>
-                <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {bookingLocalTimeZone}.</p>
+                <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {getBookingDisplayTimeZone()}.</p>
 
                 <div className="space-y-3">
                   {Object.entries(groupedSlots).map(([date, slots]) => (
@@ -571,6 +572,16 @@ export default function UserBookingDetail() {
                   </div>
                 </button>
               </div>
+
+              {booking.creator?._id && (
+                <div className="mt-3">
+                  <SafetyReportForm
+                    targetId={booking.creator._id}
+                    targetName={creatorName}
+                    bookingId={booking._id}
+                  />
+                </div>
+              )}
             </div>
 
             {/* PAYMENT */}

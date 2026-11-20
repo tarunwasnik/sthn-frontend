@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FaceLandmarkerResult, NormalizedLandmark } from "@mediapipe/tasks-vision";
 import axios from "axios";
 import { cancelFaceVerificationSession, isTerminalFaceVerificationCaptureError, startFaceVerificationSession, uploadFaceVerificationCapture } from "../../api/faceVerification";
-import type { FaceVerificationCandidateAvatar, FaceVerificationChallenge, FaceVerificationSessionDto } from "../../api/faceVerification";
+import type { FaceVerificationCandidateAvatar, FaceVerificationCaptureApi, FaceVerificationChallenge, FaceVerificationSessionDto } from "../../api/faceVerification";
 import { initializeFaceVerificationInference, type FaceVerificationInferenceProvider } from "./faceVerificationInference.provider";
 
 type UiState = "INSTRUCTIONS" | "REQUESTING_CAMERA" | "COUNTDOWN" | "CAPTURING" | "UPLOADING" | "SUCCESS" | "ERROR";
@@ -20,7 +20,7 @@ const GUIDANCE = {
   blinkMinimumClosure: 0.38, blinkClosureOffset: 0.25, blinkReopenOffset: 0.12, blinkTransitionMs: 1_200,
 } as const;
 
-interface Props { avatar: string; candidateAvatar?: FaceVerificationCandidateAvatar; onComplete: (session: FaceVerificationSessionDto) => void; onClose: () => void; }
+interface Props { avatar: string; candidateAvatar?: FaceVerificationCandidateAvatar; captureApi?: FaceVerificationCaptureApi; onComplete: (session: FaceVerificationSessionDto) => void; onClose: () => void; }
 const average = (values: number[]) => values.reduce((total, value) => total + value, 0) / values.length;
 const messageForError = (error: unknown) => {
   const body = axios.isAxiosError(error) ? error.response?.data : undefined;
@@ -49,7 +49,7 @@ const poseFromMatrix = (result: FaceLandmarkerResult) => {
   return { yaw: Math.atan2(normalX, normalZ), pitch: Math.atan2(-normalY, horizontal) };
 };
 
-export default function FaceVerificationOverlay({ avatar, candidateAvatar, onComplete, onClose }: Props) {
+export default function FaceVerificationOverlay({ avatar, candidateAvatar, captureApi, onComplete, onClose }: Props) {
   const [state, setState] = useState<UiState>("INSTRUCTIONS"); const [session, setSession] = useState<FaceVerificationSessionDto | null>(null);
   const [countdown, setCountdown] = useState(3); const [guidance, setGuidance] = useState("Center your face in the frame."); const [error, setError] = useState(""); const [redFeedback, setRedFeedback] = useState(false);
   const [terminalSessionFailure, setTerminalSessionFailure] = useState(false);
@@ -75,7 +75,7 @@ export default function FaceVerificationOverlay({ avatar, candidateAvatar, onCom
     setError(message);
     setState("ERROR");
   }, [resetChallengeState, stopCamera]);
-  const cancelAndClose = useCallback(async () => { stopCamera(); const active = latestSessionRef.current; if (active && !active.captureComplete) { try { await cancelFaceVerificationSession(active.sessionReference); } catch { /* local cleanup must still complete */ } } onClose(); }, [onClose, stopCamera]);
+  const cancelAndClose = useCallback(async () => { stopCamera(); const active = latestSessionRef.current; if (active && !active.captureComplete) { try { await (captureApi?.cancel ?? cancelFaceVerificationSession)(active.sessionReference); } catch { /* local cleanup must still complete */ } } onClose(); }, [captureApi, onClose, stopCamera]);
   useEffect(() => () => { stopCamera(); landmarkRef.current?.dispose(); landmarkRef.current = null; }, [stopCamera]);
 
   const capture = useCallback(async () => {
@@ -86,7 +86,10 @@ export default function FaceVerificationOverlay({ avatar, candidateAvatar, onCom
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
     if (!blob) { uploadingRef.current = false; setState("CAPTURING"); setError("Could not capture a camera frame. Please try again."); return; }
     try {
-      const result = await uploadFaceVerificationCapture(active.sessionReference, index, blob); setAuthoritativeSession(result.session); uploadingRef.current = false;
+      const result = captureApi
+        ? await captureApi.upload(active.sessionReference, index, blob)
+        : await uploadFaceVerificationCapture(active.sessionReference, index, blob);
+      setAuthoritativeSession(result.session); uploadingRef.current = false;
       if (result.session.captureComplete || result.session.status === "CAPTURE_COMPLETE") { setState("SUCCESS"); stopCamera(); window.setTimeout(() => { onComplete(result.session); onClose(); }, 1200); return; }
       resetChallengeState(result.session.acceptedCaptureCount); publishGuidance("Follow the next instruction.", false); setState("CAPTURING");
     } catch (captureError) {
@@ -149,7 +152,7 @@ export default function FaceVerificationOverlay({ avatar, candidateAvatar, onCom
           else { holdSinceRef.current = null; problemSinceRef.current ??= now; publishGuidance(wrongDirection ? "Turn your head the other way." : labels[challenge], true); }
         }
       }
-      if (problemSinceRef.current && now - problemSinceRef.current >= GUIDANCE.correctionWindowMs && active) { stopCamera(); void cancelFaceVerificationSession(active.sessionReference); setState("ERROR"); setError("Camera guidance could not be corrected in time. Start a fresh verification when ready."); return; }
+      if (problemSinceRef.current && now - problemSinceRef.current >= GUIDANCE.correctionWindowMs && active) { stopCamera(); void (captureApi?.cancel ?? cancelFaceVerificationSession)(active.sessionReference); setState("ERROR"); setError("Camera guidance could not be corrected in time. Start a fresh verification when ready."); return; }
       animationRef.current = requestAnimationFrame(inspect);
     };
     animationRef.current = requestAnimationFrame(inspect);
@@ -159,7 +162,10 @@ export default function FaceVerificationOverlay({ avatar, candidateAvatar, onCom
     if (!navigator.mediaDevices?.getUserMedia) { setState("ERROR"); setError("This browser does not support camera access."); return; }
     setState("REQUESTING_CAMERA"); setError(""); setTerminalSessionFailure(false); resetBaseline(); resetChallengeState(null); problemSinceRef.current = null; lastFaceSeenAtRef.current = null; lastInferenceAtRef.current = 0;
     try {
-      const started = await startFaceVerificationSession(candidateAvatar ? { candidateAvatar } : { avatar }); setAuthoritativeSession(started);
+      const started = captureApi
+        ? await captureApi.start()
+        : await startFaceVerificationSession(candidateAvatar ? { candidateAvatar } : { avatar });
+      setAuthoritativeSession(started);
       const startsExpired = started.status === "EXPIRED" || new Date(started.expiresAt).getTime() <= Date.now();
       if (startsExpired) { endTerminalSession("Your verification session expired. Start a new one to continue."); return; }
       if (started.captureComplete || started.status === "CAPTURE_COMPLETE") { setState("SUCCESS"); window.setTimeout(() => { onComplete(started); onClose(); }, 1_200); return; }

@@ -1,6 +1,7 @@
 // frontend/src/api/axios.ts
 
 import axios from "axios";
+import { visitorMonitorEnabled } from "../lib/visitorMonitorConfig";
 
 import {
   ACCESS_TOKEN_KEY,
@@ -12,6 +13,9 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL + "/api",
 });
 
+const VISITOR_ID_KEY = "sthn_visitor_monitor_id";
+const visitorId = () => { let value = localStorage.getItem(VISITOR_ID_KEY); if (!value) { value = crypto.randomUUID().replace(/-/g, ""); localStorage.setItem(VISITOR_ID_KEY, value); } return value; };
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -19,6 +23,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (visitorMonitorEnabled) {
+      config.headers = config.headers || {};
+      config.headers["X-Visitor-Id"] = visitorId();
     }
 
     return config;

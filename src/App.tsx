@@ -2,7 +2,9 @@
 
 import { useAuth } from "./hooks/useAuth";
 import { Routes, Route, Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { installVisitorTelemetry } from "./lib/visitorTelemetry";
+import { visitorMonitorEnabled } from "./lib/visitorMonitorConfig";
 
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
@@ -16,6 +18,7 @@ import AdminRoute from "./components/AdminRoute";
 import AdminWorkspaceRoute from "./components/AdminWorkspaceRoute";
 import {
   AuthenticatedRoute,
+  CreatorDashboardRoute,
   CreatorRoute,
   UserRoute,
 } from "./components/RouteGuards";
@@ -42,6 +45,9 @@ import AdminPaymentOperationsPage from "./features/adminPayment/AdminPaymentOper
 import AdminFxOperationsPage from "./features/adminFx/AdminFxOperationsPage";
 import AdminDisputeOperationsPage from "./features/adminDispute/AdminDisputeOperationsPage";
 import AdminAppealsPage from "./features/adminAppeal/AdminAppealsPage";
+import AdminSafetyReportsPage from "./pages/admin/AdminSafetyReportsPage";
+import VisitorMonitorPage from "./pages/admin/operations/VisitorMonitorPage";
+import SafetyReportsPage from "./pages/SafetyReportsPage";
 import ParticipantDisputeDetailPage from "./pages/ParticipantDisputeDetailPage";
 
 /* Dashboards */
@@ -90,6 +96,7 @@ function SystemAdminRoute({ children }: { children: ReactNode }) {
 
 export default function App() {
   const { loading } = useAuth();
+  useEffect(() => visitorMonitorEnabled ? installVisitorTelemetry() : undefined, []);
 
   if (loading) {
     return (
@@ -209,6 +216,8 @@ export default function App() {
         <Route path="/admin/operations/disputes/:disputeId" element={<OperationsAdminRoute><AdminDisputeOperationsPage /></OperationsAdminRoute>} />
         <Route path="/admin/operations/appeals" element={<OperationsAdminRoute><AdminAppealsPage /></OperationsAdminRoute>} />
         <Route path="/admin/operations/appeals/:appealId" element={<OperationsAdminRoute><AdminAppealsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/safety-reports" element={<OperationsAdminRoute><AdminSafetyReportsPage /></OperationsAdminRoute>} />
+        <Route path="/admin/operations/visitor-monitor" element={<OperationsAdminRoute><VisitorMonitorPage /></OperationsAdminRoute>} />
         <Route path="/admin/system/wallet-backfill" element={<SystemAdminRoute><WalletBackfill /></SystemAdminRoute>} />
         <Route path="/admin/notifications" element={<AdminRoute><NotificationsPage /></AdminRoute>} />
 
@@ -223,10 +232,18 @@ export default function App() {
         />
 
         <Route path="/dashboard/user/wallet" element={<UserRoute><UserWallet /></UserRoute>} />
-        <Route path="/dashboard/user/settings" element={<UserRoute><Navigate to="/dashboard/user/settings/account" replace /></UserRoute>} />
+        <Route path="/dashboard/user/settings" element={<UserRoute><AccountSettingsPage actor="user" section="index" /></UserRoute>} />
         <Route path="/dashboard/user/settings/account" element={<UserRoute><AccountSettingsPage actor="user" section="account" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/security" element={<UserRoute><AccountSettingsPage actor="user" section="security" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/notifications" element={<UserRoute><AccountSettingsPage actor="user" section="notifications" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/appearance" element={<UserRoute><AccountSettingsPage actor="user" section="appearance" /></UserRoute>} />
         <Route path="/dashboard/user/settings/creator" element={<UserRoute><AccountSettingsPage actor="user" section="creator" /></UserRoute>} />
-        <Route path="/dashboard/user/settings/disputes" element={<UserRoute><AccountSettingsPage actor="user" section="disputes" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/privacy" element={<UserRoute><AccountSettingsPage actor="user" section="privacy" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/support" element={<UserRoute><AccountSettingsPage actor="user" section="support" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/disputes" element={<UserRoute><Navigate to="/dashboard/user/settings/support" replace /></UserRoute>} />
+        <Route path="/dashboard/user/settings/management" element={<UserRoute><AccountSettingsPage actor="user" section="management" /></UserRoute>} />
+        <Route path="/dashboard/user/safety-reports" element={<UserRoute><SafetyReportsPage actor="user" /></UserRoute>} />
+        <Route path="/dashboard/user/settings/*" element={<UserRoute><Navigate to="/dashboard/user/settings" replace /></UserRoute>} />
         <Route path="/dashboard/user/settings/disputes/:disputeId" element={<UserRoute><ParticipantDisputeDetailPage actor="user" /></UserRoute>} />
         <Route path="/dashboard/user/disputes" element={<UserRoute><Navigate to="/dashboard/user/settings/disputes" replace /></UserRoute>} />
 
@@ -240,7 +257,7 @@ export default function App() {
         <Route path="/creator/profile" element={<CreatorRoute><CreatorProfile /></CreatorRoute>} />
 
         {/* CREATOR */}
-        <Route path="/dashboard/creator" element={<CreatorRoute><CreatorDashboard /></CreatorRoute>} />
+        <Route path="/dashboard/creator" element={<CreatorDashboardRoute><CreatorDashboard /></CreatorDashboardRoute>} />
 
         <Route
           path="/dashboard/creator/bookings"
@@ -252,15 +269,15 @@ export default function App() {
           element={<CreatorRoute><CreatorBookingDetails /></CreatorRoute>}
         />
 
-        <Route path="/dashboard/creator/messages" element={<CreatorRoute><MessagesPage /></CreatorRoute>} />
-        <Route path="/dashboard/creator/notifications" element={<CreatorRoute><NotificationsPage /></CreatorRoute>} />
+        <Route path="/dashboard/creator/messages" element={<CreatorDashboardRoute><MessagesPage /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/notifications" element={<CreatorDashboardRoute><NotificationsPage /></CreatorDashboardRoute>} />
 
         <Route
           path="/dashboard/creator/services"
           element={<CreatorRoute><CreatorServices /></CreatorRoute>}
         />
 
-        <Route path="/dashboard/creator/browse" element={<CreatorRoute><CreatorBrowse /></CreatorRoute>} />
+        <Route path="/dashboard/creator/browse" element={<CreatorDashboardRoute><CreatorBrowse /></CreatorDashboardRoute>} />
 
         <Route
           path="/dashboard/creator/requests"
@@ -275,9 +292,18 @@ export default function App() {
         <Route path="/dashboard/creator/wallet" element={<CreatorRoute><CreatorWallet /></CreatorRoute>} />
         <Route path="/dashboard/creator/payout-destinations" element={<CreatorRoute><CreatorPayoutDestinations /></CreatorRoute>} />
         <Route path="/dashboard/creator/earnings" element={<CreatorRoute><CreatorEarnings /></CreatorRoute>} />
-        <Route path="/dashboard/creator/settings" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/creator" replace /></CreatorRoute>} />
-        <Route path="/dashboard/creator/settings/creator" element={<CreatorRoute><AccountSettingsPage actor="creator" section="creator" /></CreatorRoute>} />
-        <Route path="/dashboard/creator/settings/disputes" element={<CreatorRoute><AccountSettingsPage actor="creator" section="disputes" /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="index" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/account" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="account" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/security" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="security" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/notifications" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="notifications" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/appearance" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="appearance" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/creator" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="creator" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/privacy" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="privacy" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/support" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="support" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/settings/disputes" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/support" replace /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings/management" element={<CreatorDashboardRoute><AccountSettingsPage actor="creator" section="management" /></CreatorDashboardRoute>} />
+        <Route path="/dashboard/creator/safety-reports" element={<CreatorRoute><SafetyReportsPage actor="creator" /></CreatorRoute>} />
+        <Route path="/dashboard/creator/settings/*" element={<CreatorRoute><Navigate to="/dashboard/creator/settings" replace /></CreatorRoute>} />
         <Route path="/dashboard/creator/settings/disputes/:disputeId" element={<CreatorRoute><ParticipantDisputeDetailPage actor="creator" /></CreatorRoute>} />
         <Route path="/dashboard/creator/disputes" element={<CreatorRoute><Navigate to="/dashboard/creator/settings/disputes" replace /></CreatorRoute>} />
 

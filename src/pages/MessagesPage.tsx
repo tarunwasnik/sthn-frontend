@@ -418,7 +418,6 @@ export default function MessagesPage() {
                   const avatarUrl =
                     profile?.avatarUrl ||
                     profile?.avatar ||
-                    profile?.profilePhotos?.[0] ||
                     null;
 
                   const isOnline = onlineUsers.has(c.otherUser._id);
@@ -715,7 +714,6 @@ export default function MessagesPage() {
                       const avatarUrl =
                         profile?.avatarUrl ||
                         profile?.avatar ||
-                        profile?.profilePhotos?.[0] ||
                         null;
 
                       const isOnline = onlineUsers.has(c.otherUser._id);

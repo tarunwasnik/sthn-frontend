@@ -7,6 +7,7 @@ import type { CredentialResponse } from "@react-oauth/google";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import api from "../api/axios";
+import { authRateLimitError } from "../features/auth/rateLimit";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,11 +17,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryUntil, setRetryUntil] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (loading) return;
+    if (loading || Date.now() < retryUntil) return;
 
     setLoading(true);
     setError(null);
@@ -40,6 +42,13 @@ export default function Login() {
       navigate("/entry", { replace: true });
 
     } catch (err: unknown) {
+      const rateLimit = authRateLimitError(err);
+      if (rateLimit) {
+        setRetryUntil(rateLimit.until);
+        setError(rateLimit.message);
+        window.setTimeout(() => setRetryUntil(0), Math.max(0, rateLimit.until - Date.now()));
+        return;
+      }
       const responseData = axios.isAxiosError(err) ? err.response?.data : undefined;
       const message =
         (typeof responseData?.message === "string" && responseData.message) ||
@@ -162,10 +171,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || Date.now() < retryUntil}
             className="h-11 w-full rounded-[var(--radius-control)] bg-theme-primary px-4 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Logging in…" : "Log in"}
+            {loading ? "Logging in…" : Date.now() < retryUntil ? "Please wait…" : "Log in"}
           </button>
 
         </form>

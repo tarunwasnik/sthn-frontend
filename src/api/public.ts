@@ -22,6 +22,7 @@ export type HomeDTO = {
 
 export type CreatorPublicCardDTO = {
   id: string;
+  reportTargetUserId: string;
 
   slug: string;
 
@@ -91,6 +92,7 @@ export type CreatorServiceDTO = {
 
 export type CreatorPublicProfileDTO = {
   id: string;
+  reportTargetUserId: string;
 
   slug: string;
 
@@ -123,6 +125,8 @@ export type CreatorPublicProfileDTO = {
   country: string;
 
   currency: string;
+
+  acceptingNewBookings: boolean;
 
   services: CreatorServiceDTO[];
 };

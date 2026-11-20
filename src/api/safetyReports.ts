@@ -1,0 +1,10 @@
+import api from "./axios";
+export type SafetyReason = "HARASSMENT"|"THREATS"|"SPAM"|"IMPERSONATION"|"INAPPROPRIATE_CONDUCT"|"OTHER";
+export type SafetyStatus = "SUBMITTED"|"UNDER_REVIEW"|"RESOLVED"|"DISMISSED";
+export type SafetyReport = { id:string; reportedUserId:string; reason:SafetyReason; explanation:string; bookingId:string|null; messageId:string|null; status:SafetyStatus; decision:{outcome:"RESOLVED"|"DISMISSED"; rationale:string; decidedAt:string}|null; createdAt:string; updatedAt:string };
+export type AdminSafetyReport = SafetyReport & { reporter:{id:string;role:string;status:string}|null; reported:{id:string;role:string;status:string;governanceState?:string}|null };
+export const submitSafetyReport=(input:{reportedUserId:string;reason:SafetyReason;explanation:string;bookingId?:string;messageId?:string})=>api.post<{report:SafetyReport}>("/v1/safety-reports",input).then(r=>r.data.report);
+export const mySafetyReports=(page=1)=>api.get<{items:SafetyReport[];pagination:{page:number;limit:number;total:number}}>("/v1/safety-reports",{params:{page}}).then(r=>r.data);
+export const adminSafetyReports=(status?:SafetyStatus)=>api.get<{items:AdminSafetyReport[];pagination:{page:number;limit:number;total:number}}>("/v1/admin/safety-reports",{params:status?{status}:{}}).then(r=>r.data);
+export const adminSafetyReport=(id:string)=>api.get<{report:AdminSafetyReport}>(`/v1/admin/safety-reports/${encodeURIComponent(id)}`).then(r=>r.data.report);
+export const decideSafetyReport=(id:string,input:{outcome:"UNDER_REVIEW"|"RESOLVED"|"DISMISSED";rationale?:string})=>api.patch<{report:SafetyReport}>(`/v1/admin/safety-reports/${encodeURIComponent(id)}`,input).then(r=>r.data.report);

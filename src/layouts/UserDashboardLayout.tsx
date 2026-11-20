@@ -23,7 +23,7 @@ type Props = {
 
 type Profile = {
   username?: string;
-  profilePhotos?: string[];
+  avatar?: string;
 };
 
 export default function UserDashboardLayout({ children }: Props) {
@@ -61,7 +61,7 @@ export default function UserDashboardLayout({ children }: Props) {
     };
   }, [showMore]);
 
-  const avatar = profile?.profilePhotos?.[0];
+  const avatar = profile?.avatar ?? null;
 
   const displayName = profile?.username || "User";
 
@@ -279,14 +279,14 @@ export default function UserDashboardLayout({ children }: Props) {
             -translate-x-1/2
             w-[95%]
             max-w-md
-            bg-theme-surface-raised
+            bg-theme-raised
             border
             border-theme-border
             rounded-[var(--radius-card)]
             flex
             justify-around
             items-center
-            min-h-[68px]
+            h-[68px]
             px-2
             py-2
             text-xs
@@ -351,7 +351,7 @@ export default function UserDashboardLayout({ children }: Props) {
             <div className="fixed inset-x-0 bottom-0 z-[1001]">
               <div
                 className="
-                  bg-theme-surface-raised
+                  bg-theme-raised
                   border-t
                   border-theme-border
                   rounded-t-[var(--radius-dialog-mobile)]

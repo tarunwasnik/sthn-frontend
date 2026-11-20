@@ -44,3 +44,7 @@ export function CreatorRoute({ children }: GuardProps) {
   if (role !== "creator") return <Navigate to="/entry" replace />;
   return <>{children}</>;
 }
+
+export function CreatorDashboardRoute({ children }: GuardProps) {
+  return <CreatorRoute>{children}</CreatorRoute>;
+}

@@ -5,6 +5,12 @@ export type FaceVerificationChallenge = "NEUTRAL" | "TURN_LEFT" | "TURN_RIGHT" |
 export type FaceVerificationSessionStatus = "CREATED" | "CAPTURING" | "CAPTURE_COMPLETE" | "CANCELLED" | "EXPIRED" | "INVALIDATED";
 export interface FaceVerificationSessionDto { sessionReference: string; status: FaceVerificationSessionStatus; challenges: FaceVerificationChallenge[]; requiredCaptureCount: number; acceptedCaptureCount: number; expiresAt: string; captureComplete: boolean; }
 export type FaceVerificationCandidateAvatar = Readonly<{ kind: "UNCHANGED"; reference: string } | { kind: "ADMISSION"; admissionReference: string }>;
+export interface FaceVerificationCaptureApi {
+  start: () => Promise<FaceVerificationSessionDto>;
+  get: (sessionReference: string) => Promise<FaceVerificationSessionDto>;
+  upload: (sessionReference: string, challengeIndex: number, capture: Blob) => Promise<{ session: FaceVerificationSessionDto; replayed: boolean }>;
+  cancel?: (sessionReference: string) => Promise<FaceVerificationSessionDto>;
+}
 
 const faceVerificationErrorMessage = (error: unknown) => axios.isAxiosError(error)
   && typeof error.response?.data?.message === "string"
@@ -38,3 +44,20 @@ export const uploadFaceVerificationCapture = async (sessionReference: string, ch
   const form = new FormData(); form.append("file", capture, "face-capture.jpg");
   return (await api.post<{ session: FaceVerificationSessionDto; replayed: boolean }>(`/v1/profile/face-verification/session/${encodeURIComponent(sessionReference)}/captures/${challengeIndex}`, form)).data;
 };
+
+/** Reusable capture transport for the future direct-Creator onboarding screen. */
+export const createFaceVerificationCaptureApi = (basePath: string): FaceVerificationCaptureApi => ({
+  start: async () => (await api.post<{ session: FaceVerificationSessionDto }>(`${basePath}/session`)).data.session,
+  get: async (sessionReference: string) => (await api.get<{ session: FaceVerificationSessionDto }>(`${basePath}/session/${encodeURIComponent(sessionReference)}`)).data.session,
+  upload: async (sessionReference: string, challengeIndex: number, capture: Blob) => {
+    const form = new FormData();
+    form.append("file", capture, "face-capture.jpg");
+    return (await api.post<{ session: FaceVerificationSessionDto; replayed: boolean }>(`${basePath}/session/${encodeURIComponent(sessionReference)}/captures/${challengeIndex}`, form)).data;
+  },
+});
+
+export const creatorFaceVerificationCaptureApi = createFaceVerificationCaptureApi("/v1/creator-applications/me/upgrade-face-verification");
+
+/** Direct-Creator onboarding consumes the existing overlay through this adapter. */
+export const submitCreatorVerification = async () => (await api.post<{ verification: { reference: string; status: string } | null }>("/v1/creator-applications")).data.verification;
+export const getCreatorVerificationStatus = async () => (await api.get<{ status: { applicationStatus: string; verificationRevision: number; lifecycle: "DRAFT" | "SUBMITTED" | "QUEUED" | "PROCESSING" | "RETRYING" | "COMPLETED" | "FAILED" | "AWAITING_ADMIN_REVIEW"; capture: { acceptedCaptureCount: number; requiredCaptureCount: number; status: FaceVerificationSessionStatus; expiresAt: string } | null; request: { status: string; reference: string } | null; job: { status: string; attemptCount: number } | null; inference: { completed: boolean; reference: string } | null; adminReviewRequired: boolean } }>("/v1/creator-applications/me/upgrade-verification-status")).data.status;

@@ -12,7 +12,6 @@ interface ProfileData {
   username?: unknown;
   avatarUrl?: unknown;
   avatar?: unknown;
-  profilePhotos?: unknown;
 }
 
 const identityFromProfile = (
@@ -35,9 +34,7 @@ const identityFromProfile = (
       ? data.avatarUrl
       : typeof data.avatar === "string" && data.avatar
         ? data.avatar
-        : Array.isArray(data.profilePhotos) && typeof data.profilePhotos[0] === "string"
-          ? data.profilePhotos[0]
-          : null;
+        : null;
 
   return { displayName, avatarUrl };
 };
@@ -94,8 +91,8 @@ export function useChatParticipantIdentity(
   return (senderId: string, senderRole: "USER" | "CREATOR") => {
     if (String(senderId) === String(userId)) {
       return senderRole === "CREATOR"
-        ? creatorProfile ?? userProfile ?? unknownParticipant
-        : userProfile ?? creatorProfile ?? unknownParticipant;
+        ? creatorProfile ?? unknownParticipant
+        : userProfile ?? unknownParticipant;
     }
 
     if (String(senderId) === String(conversation?.otherUser?._id)) {

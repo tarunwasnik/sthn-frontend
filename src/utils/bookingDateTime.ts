@@ -1,6 +1,8 @@
+import { getActiveDisplayTimeZone } from "./displayTimeZone";
+
 const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-export const bookingLocalTimeZone = localTimeZone || "your local timezone";
+export const getBookingDisplayTimeZone = () => (getActiveDisplayTimeZone() ?? localTimeZone) || "your local timezone";
 
 export const formatBookingLocalDateTime = (value: string | Date) =>
   new Intl.DateTimeFormat(undefined, {
@@ -10,6 +12,7 @@ export const formatBookingLocalDateTime = (value: string | Date) =>
     hour: "2-digit",
     minute: "2-digit",
     timeZoneName: "short",
+    timeZone: getActiveDisplayTimeZone(),
   }).format(new Date(value));
 
 export const formatBookingLocalTime = (value: string | Date) =>
@@ -17,4 +20,5 @@ export const formatBookingLocalTime = (value: string | Date) =>
     hour: "2-digit",
     minute: "2-digit",
     timeZoneName: "short",
+    timeZone: getActiveDisplayTimeZone(),
   }).format(new Date(value));

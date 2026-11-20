@@ -10,6 +10,7 @@ import StarRating from "../components/StarRating";
 import { useBookingPricingPreview } from "../features/bookingFunding/useBookingPricingPreview";
 import { useBookingCurrencyMetadata } from "../features/bookingFunding/useBookingCurrencyMetadata";
 import { formatBookingMoney } from "../features/bookingFunding/money";
+import SafetyReportForm from "../components/SafetyReportForm";
 
 /* ================= TYPES ================= */
 
@@ -147,11 +148,12 @@ export default function CreatorPublicProfile() {
       !internalSimulatorAvailable && razorpaySandboxAvailable ? "RAZORPAY" : "INTERNAL",
     );
   const { preview: bookingPreview, loading: loadingPreview, error: previewError } = useBookingPricingPreview(selectedService?.id, selectedSlots);
+  const razorpayEligible = razorpaySandboxAvailable && bookingPreview?.currency === "INR";
   const bookingCurrencies = useBookingCurrencyMetadata();
   const bookingIntentRef = useRef<{ key: string; idempotencyKey: string } | null>(null);
-  const activeProvider = !internalSimulatorAvailable && razorpaySandboxAvailable
+  const activeProvider = providerChoice === "RAZORPAY" && razorpayEligible
     ? "RAZORPAY"
-    : providerChoice;
+    : internalSimulatorAvailable ? "INTERNAL" : "RAZORPAY";
 
   const [reviews, setReviews] =
     useState<Review[]>([]);
@@ -393,6 +395,8 @@ export default function CreatorPublicProfile() {
   const galleryImages =
     (data.media || []).slice(0, 20);
 
+  const reportForm = <SafetyReportForm targetId={data.reportTargetUserId} targetName={data.displayName} />;
+
   /* ================= SLOT LOGIC ================= */
 
   const toggleSlot = (
@@ -461,6 +465,11 @@ export default function CreatorPublicProfile() {
   const handleBooking =
     async () => {
 
+      if (!data.acceptingNewBookings) {
+        setBookingSubmissionMessage("This creator is currently unable to receive new booking requests.");
+        return;
+      }
+
       if (
         !selectedService ||
         selectedSlots.length === 0
@@ -473,11 +482,11 @@ export default function CreatorPublicProfile() {
         setLoadingBooking(true);
         setBookingSubmissionMessage(null);
 
-        const selectedProvider = activeProvider === "RAZORPAY" && razorpaySandboxAvailable
+        const selectedProvider = activeProvider === "RAZORPAY" && razorpayEligible
           ? "RAZORPAY"
           : "INTERNAL";
         if ((selectedProvider === "INTERNAL" && !internalSimulatorAvailable) ||
-          (selectedProvider === "RAZORPAY" && !razorpaySandboxAvailable)) {
+          (selectedProvider === "RAZORPAY" && !razorpayEligible)) {
           setBookingSubmissionMessage("Provider payment is unavailable in this environment.");
           return;
         }
@@ -606,6 +615,7 @@ export default function CreatorPublicProfile() {
 
 return (
   <div className="creator-public-profile min-h-screen bg-theme-bg text-theme-text">
+    <div className="mx-auto max-w-6xl px-4 pt-4">{reportForm}</div>
     <style>{`
       .creator-public-profile .bg-white\\/\\[0\\.02\\],
       .creator-public-profile .bg-white\\/\\[0\\.03\\],
@@ -751,9 +761,7 @@ return (
     type="button"
     onClick={() =>
       openPreview(
-        data.coverUrl ||
-        data.media?.[0] ||
-        "/covers/default.png"
+        data.coverUrl || "/covers/default.png"
       )
     }
     className="w-full h-full"
@@ -761,9 +769,7 @@ return (
 
     <img
       src={
-        data.coverUrl ||
-        data.media?.[0] ||
-        "/covers/default.png"
+        data.coverUrl || "/covers/default.png"
       }
       alt={data.displayName}
       className="
@@ -2073,11 +2079,12 @@ return (
 
           {loadingPreview && <p className="text-sm text-white/60">Checking booking price…</p>}
           {previewError && <p className="text-sm text-red-300">{previewError}</p>}
-          {bookingPreview && <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/70"><p className="text-xs font-semibold uppercase tracking-wider text-white/45">Booking payment review</p><div className="space-y-2 border-b border-white/10 pb-3"><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(bookingPreview.serviceAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Customer platform fee</span><span>{formatBookingMoney(bookingPreview.customerFeeAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between text-base font-semibold text-white"><span>Total</span><span>{formatBookingMoney(bookingPreview.grossFundingAmount, bookingPreview.currency, bookingCurrencies)}</span></p></div>{razorpaySandboxAvailable && <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-violet-300/30 bg-violet-500/10 p-3 text-violet-100"><input type="radio" name="booking-payment-provider" checked={providerChoice === "RAZORPAY"} onChange={() => setProviderChoice("RAZORPAY")} /><span><span className="block font-medium">Razorpay test checkout</span><span className="mt-1 block text-xs">Sandbox only. Funding is verified by the backend before the booking is payable.</span></span></label>}<label className="flex cursor-pointer items-start gap-2 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sky-100"><input type="radio" name="booking-payment-provider" checked={providerChoice === "INTERNAL"} disabled={!internalSimulatorAvailable} onChange={() => setProviderChoice("INTERNAL")} /><span><span className="block font-medium">Development payment simulator</span><span className="mt-1 block text-xs">This local simulator is not a real bank or external payment provider.</span></span></label>{!internalSimulatorAvailable && !razorpaySandboxAvailable && <div className="rounded-xl bg-amber-500/10 p-3 text-amber-100"><p className="font-medium">Payment provider unavailable</p><p className="mt-1 text-xs">No development payment provider is available for this environment.</p></div>}<p className="text-xs text-white/45">Price and slot availability are verified again when you submit. Payment status is shown on the booking after it is created.</p></div>}
+          {bookingPreview && <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-sm text-white/70"><p className="text-xs font-semibold uppercase tracking-wider text-white/45">Booking payment review</p><div className="space-y-2 border-b border-white/10 pb-3"><p className="flex justify-between"><span>Service</span><span>{formatBookingMoney(bookingPreview.serviceAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between"><span>Customer platform fee</span><span>{formatBookingMoney(bookingPreview.customerFeeAmount, bookingPreview.currency, bookingCurrencies)}</span></p><p className="flex justify-between text-base font-semibold text-white"><span>Total</span><span>{formatBookingMoney(bookingPreview.grossFundingAmount, bookingPreview.currency, bookingCurrencies)}</span></p></div>{razorpaySandboxAvailable && <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-violet-300/30 bg-violet-500/10 p-3 text-violet-100"><input type="radio" name="booking-payment-provider" checked={activeProvider === "RAZORPAY" && razorpayEligible} disabled={!razorpayEligible} onChange={() => setProviderChoice("RAZORPAY")} /><span><span className="block font-medium">Razorpay test checkout</span><span className="mt-1 block text-xs">{razorpayEligible ? "Sandbox only. Funding is verified by the backend before the booking is payable." : "Razorpay test checkout is available only for INR bookings."}</span></span></label>}<label className="flex cursor-pointer items-start gap-2 rounded-xl border border-sky-300/30 bg-sky-500/10 p-3 text-sky-100"><input type="radio" name="booking-payment-provider" checked={activeProvider === "INTERNAL"} disabled={!internalSimulatorAvailable} onChange={() => setProviderChoice("INTERNAL")} /><span><span className="block font-medium">Development payment simulator</span><span className="mt-1 block text-xs">This local simulator is not a real bank or external payment provider.</span></span></label>{!internalSimulatorAvailable && !razorpayEligible && <div className="rounded-xl bg-amber-500/10 p-3 text-amber-100"><p className="font-medium">Payment provider unavailable</p><p className="mt-1 text-xs">No development payment provider is available for this environment.</p></div>}<p className="text-xs text-white/45">Price and slot availability are verified again when you submit. Payment status is shown on the booking after it is created.</p></div>}
+          {!data.acceptingNewBookings && <p className="text-sm text-amber-200">This creator is currently unable to receive new booking requests.</p>}
           {bookingSubmissionMessage && <p className="text-sm text-amber-200">{bookingSubmissionMessage}</p>}
 
           <button
-            disabled={loadingBooking || loadingPreview || !bookingPreview?.checkoutQuote?.token || (!internalSimulatorAvailable && !razorpaySandboxAvailable)}
+            disabled={!data.acceptingNewBookings || loadingBooking || loadingPreview || !bookingPreview?.checkoutQuote?.token || (!internalSimulatorAvailable && !razorpayEligible)}
             onClick={handleBooking}
             className="
               w-full
@@ -2093,9 +2100,11 @@ return (
             "
           >
 
-            {loadingBooking
+            {!data.acceptingNewBookings
+              ? "Booking requests unavailable"
+              : loadingBooking
               ? "Submitting booking..."
-              : activeProvider === "RAZORPAY" && razorpaySandboxAvailable
+              : activeProvider === "RAZORPAY" && razorpayEligible
                 ? "Continue to Razorpay test checkout"
                 : internalSimulatorAvailable
                   ? "Book with development simulator"

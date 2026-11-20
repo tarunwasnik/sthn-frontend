@@ -38,8 +38,8 @@ export default function DashboardLayout({ children }: Props) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await api.get("/v1/profile/me");
-        setAvatar(res.data?.avatar || null);
+        const res = await api.get("/v1/creator/profile");
+        setAvatar(res.data?.avatarUrl || null);
       } catch {
         setAvatar(null);
       }
@@ -186,7 +186,7 @@ export default function DashboardLayout({ children }: Props) {
             "
           >
             {avatar ? (
-              <img src={avatar} className="w-full h-full object-cover" />
+              <img src={avatar} alt="" className="w-full h-full object-cover" />
             ) : (
               <div
                 className="
@@ -236,14 +236,14 @@ export default function DashboardLayout({ children }: Props) {
           -translate-x-1/2
           w-[95%]
           max-w-md
-          bg-theme-surface-raised
+          bg-theme-raised
           border
           border-theme-border
           rounded-[var(--radius-card)]
           flex
           justify-around
           items-center
-          min-h-[68px]
+          h-[68px]
           px-2
           py-2
           text-xs
@@ -312,7 +312,7 @@ export default function DashboardLayout({ children }: Props) {
             <div className="fixed inset-x-0 bottom-0 z-[1001]">
               <div
                 className="
-                bg-theme-surface-raised
+                bg-theme-raised
                 border-t
                 border-theme-border
                 rounded-t-[var(--radius-dialog-mobile)]

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import CreatorVerificationImages from "../../components/admin/panel/CreatorVerificationImages";
 import { getApiErrorMessage } from "../../api/errorMessage";
 import AdminLayout from "../../components/admin/layout/AdminLayout";
 import AdminPageHeader from "../../components/admin/layout/AdminPageHeader";
@@ -25,6 +26,7 @@ import AdminStatusBadge from "../../components/admin/table/AdminStatusBadge";
 import AdminPagination from "../../components/admin/table/AdminPagination";
 
 import AdminDetailPanel from "../../components/admin/panel/AdminDetailPanel";
+import AdminImagePreview from "../../components/admin/panel/AdminImagePreview";
 
 import AdminLoadingState from "../../components/admin/feedback/AdminLoadingState";
 import AdminEmptyState from "../../components/admin/feedback/AdminEmptyState";
@@ -34,9 +36,11 @@ import { useToast } from "../../hooks/useToast";
 
 interface CreatorApplication {
   _id: string;
+  applicationJourney?: "user_upgrade" | "direct_creator";
 
   displayName: string;
-  primaryCategory: string;
+  primaryCategory?: string;
+  interests?: string[];
 
   country: string;
   city: string;
@@ -63,6 +67,8 @@ interface CreatorApplication {
     email: string;
   };
 }
+interface CreatorVerificationCase { verificationReference: string; requestStatus: string; verificationRevision: number; application: { id: string; status: string }; job: { status: string; attemptCount: number; lastErrorCode: string | null } | null; }
+interface CreatorVerificationDetail { request: { reference: string; status: string; submittedAt: string; policy: { key: string; version: string } | null }; job: { status: string; attemptCount: number; maxRetryCount: number; lastErrorCode: string | null; failedAt: string | null } | null; lifecycle: { lifecycle: string; resultFormat: string }; inference: { pipeline: { kind: string; pipelineVersion: string; runtimeIdentifier: string; runtimeVersion: string }; findings: { crossCapture: { status: string; usableCaptureCount: number; outlierCaptureCount: number }; avatar: { status: string } }; gatedPolicyAnalysis: unknown | null; shadowIdentityAnalysis: unknown | null } | null; session: { reference: string; status: string; challenges: string[]; acceptedCaptureCount: number; requiredCaptureCount: number }; captures: Array<{ challengeIndex: number; challenge: string; viewPath: string }>; }
 type ConfirmAction = "approve" | "reject" | null;
 type ApplicationStatusFilter = "submitted" | "approved" | "rejected";
 
@@ -71,6 +77,11 @@ const PAGE_SIZE = 10;
 export default function CreatorApplicationsQueue() {
   const { showToast } = useToast();
   const [applications, setApplications] = useState<CreatorApplication[]>([]);
+  const [verificationCases, setVerificationCases] = useState<CreatorVerificationCase[]>([]);
+  const [verificationDetail, setVerificationDetail] = useState<CreatorVerificationDetail | null>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [galleryPreview, setGalleryPreview] = useState<{ src: string; title: string } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,11 +111,10 @@ export default function CreatorApplicationsQueue() {
       setLoading(true);
       setError(null);
 
-      const res = await api.get(
-        `/v1/admin/creator-applications?status=${statusFilter}`,
-      );
-
+      const res = await api.get(`/v1/admin/creator-applications?status=${statusFilter}`);
       setApplications(res.data.applications ?? []);
+      const verification = await api.get<{ cases: CreatorVerificationCase[] }>("/v1/admin/creator-verification?status=all");
+      setVerificationCases(verification.data.cases ?? []);
     } catch (err: unknown) {
       setError(
         getApiErrorMessage(err, "Failed to fetch creator applications."),
@@ -113,6 +123,22 @@ export default function CreatorApplicationsQueue() {
       setLoading(false);
     }
   }, [statusFilter]);
+
+  const selectedVerification = useMemo(() => selectedApplication
+    ? verificationCases.find((item) => item.application.id === selectedApplication._id) ?? null
+    : null, [selectedApplication, verificationCases]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setVerificationDetail(null); setCaptureError(null);
+    if (!selectedVerification) return undefined;
+    setVerificationLoading(true);
+    void api.get<{ verification: CreatorVerificationDetail }>(`/v1/admin/creator-verification/${encodeURIComponent(selectedVerification.verificationReference)}`)
+      .then((response) => { if (!cancelled) setVerificationDetail(response.data.verification); })
+      .catch((error: unknown) => { if (!cancelled) setCaptureError(getApiErrorMessage(error, "Verification evidence is unavailable.")); })
+      .finally(() => { if (!cancelled) setVerificationLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedVerification]);
 
   const approveApplication = async () => {
     if (!confirmApplication) return;
@@ -191,7 +217,8 @@ export default function CreatorApplicationsQueue() {
       return (
         application.displayName.toLowerCase().includes(keyword) ||
         application.userId.email.toLowerCase().includes(keyword) ||
-        application.primaryCategory.toLowerCase().includes(keyword) ||
+        (application.primaryCategory ?? "").toLowerCase().includes(keyword) ||
+        (application.interests ?? []).some((interest) => interest.toLowerCase().includes(keyword)) ||
         application.status.toLowerCase().includes(keyword)
       );
     });
@@ -298,7 +325,7 @@ export default function CreatorApplicationsQueue() {
                     setSearch(value);
                     setPage(1);
                   }}
-                  placeholder="Search by display name, email or category..."
+                  placeholder="Search by display name, email, interests or legacy category..."
                 />
 
                 <AdminFilterBar>
@@ -348,7 +375,7 @@ export default function CreatorApplicationsQueue() {
 
                     <AdminTableHeaderCell>Display Name</AdminTableHeaderCell>
 
-                    <AdminTableHeaderCell>Category</AdminTableHeaderCell>
+                    <AdminTableHeaderCell>Interests / legacy category</AdminTableHeaderCell>
 
                     <AdminTableHeaderCell>Country</AdminTableHeaderCell>
 
@@ -374,9 +401,7 @@ export default function CreatorApplicationsQueue() {
                       <AdminTableCell>
                         <div className="flex items-center gap-3">
                           <AdminAvatar
-                            src={
-                              application.avatarUrl ?? application.media?.[0]
-                            }
+                            src={application.avatarUrl ?? undefined}
                             name={application.displayName}
                             size="md"
                           />
@@ -400,7 +425,7 @@ export default function CreatorApplicationsQueue() {
                       </AdminTableCell>
 
                       <AdminTableCell>
-                        {application.primaryCategory}
+                        {(application.interests ?? []).join(", ") || application.primaryCategory || "—"}
                       </AdminTableCell>
 
                       <AdminTableCell>{application.country}</AdminTableCell>
@@ -417,7 +442,7 @@ export default function CreatorApplicationsQueue() {
                       </AdminTableCell>
 
                       <AdminTableCell align="right">
-                      {application.status === "submitted" ? (
+                      {application.status === "submitted" && application.applicationJourney !== "direct_creator" ? (
                         <div
                           className="flex justify-end gap-2"
                           onClick={(e) => e.stopPropagation()}
@@ -453,7 +478,7 @@ export default function CreatorApplicationsQueue() {
                           </AdminButton>
                         </div>
                       ) : (
-                        <span className="text-sm text-slate-500">Decision final</span>
+                        <span className="text-sm text-slate-500">{application.applicationJourney === "direct_creator" ? "Identity decision required" : "Decision final"}</span>
                       )}
                       </AdminTableCell>
                     </AdminTableRow>
@@ -473,11 +498,11 @@ export default function CreatorApplicationsQueue() {
         </div>
         <AdminDetailPanel
           open={selectedApplication !== null}
-          onClose={() => setSelectedApplication(null)}
+          onClose={() => { setGalleryPreview(null); setSelectedApplication(null); }}
           title={selectedApplication?.displayName ?? "Creator Application"}
           subtitle={selectedApplication?.userId.email}
           footer={
-            selectedApplication?.status === "submitted" && (
+            selectedApplication?.status === "submitted" && selectedApplication.applicationJourney !== "direct_creator" && (
               <div className="flex justify-end gap-3">
                 <AdminButton
                   variant="success"
@@ -524,10 +549,7 @@ export default function CreatorApplicationsQueue() {
 
               <div className="flex items-center gap-4">
                 <AdminAvatar
-                  src={
-                    selectedApplication.avatarUrl ??
-                    selectedApplication.media?.[0]
-                  }
+                  src={selectedApplication.avatarUrl ?? undefined}
                   name={selectedApplication.displayName}
                   size="lg"
                 />
@@ -544,17 +566,41 @@ export default function CreatorApplicationsQueue() {
                   <div className="mt-3">
                     <AdminStatusBadge status={selectedApplication.status} />
                   </div>
+                  {selectedVerification && (
+                    <div className="mt-3 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs text-slate-300">
+                      <p className="font-semibold text-slate-100">Identity verification: {verificationDetail?.lifecycle.lifecycle ?? selectedVerification.requestStatus}</p>
+                      {verificationDetail?.job && <p className="mt-1 text-slate-400">Worker: {verificationDetail.job.status} ({verificationDetail.job.attemptCount}/{verificationDetail.job.maxRetryCount})</p>}
+                      <p className="mt-1 text-slate-400">Advisory only · revision {selectedVerification.verificationRevision} · {selectedVerification.verificationReference}</p>
+                    </div>
+                  )}
+                  {!selectedVerification && selectedApplication.applicationJourney !== "direct_creator" && selectedApplication.status === "submitted" && <p className="mt-3 text-xs text-amber-300">No current Creator face-verification evidence was found. Approval is blocked until valid evidence is available.</p>}
+                  {selectedApplication.applicationJourney === "direct_creator" && (
+                    <p className="mt-3 text-xs text-amber-300">Direct Creator approval is blocked until an authoritative identity-verification decision is introduced. AI findings are advisory only.</p>
+                  )}
                 </div>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
+                {selectedVerification && (
+                  <div className="md:col-span-2 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Creator identity verification — advisory only</p>
+                    {verificationLoading && <p className="mt-2 text-sm text-slate-400">Loading protected verification detail…</p>}
+                    {captureError && <p className="mt-2 text-sm text-theme-danger">{captureError}</p>}
+                    {verificationDetail && <div className="mt-3 space-y-4 text-sm text-slate-300">
+                      <div className="grid gap-3 sm:grid-cols-2"><p>Reference: <span className="text-slate-100">{verificationDetail.request.reference}</span></p><p>Lifecycle: <span className="text-slate-100">{verificationDetail.lifecycle.lifecycle}</span></p><p>Request: {verificationDetail.request.status}</p><p>Job: {verificationDetail.job?.status ?? "Unavailable"} {verificationDetail.job ? `(${verificationDetail.job.attemptCount}/${verificationDetail.job.maxRetryCount})` : ""}</p></div>
+                      {verificationDetail.job?.lastErrorCode && <p className="text-amber-300">Latest processing error: {verificationDetail.job.lastErrorCode}</p>}
+                      {verificationDetail.inference ? <div className="rounded-lg border border-slate-700 p-3"><p className="font-medium text-slate-100">Inference findings</p><p className="mt-1">Live captures: {verificationDetail.inference.findings.crossCapture.status} ({verificationDetail.inference.findings.crossCapture.usableCaptureCount} usable); avatar: {verificationDetail.inference.findings.avatar.status}</p><p className="mt-1 text-xs text-slate-400">{verificationDetail.inference.pipeline.kind} · {verificationDetail.inference.pipeline.pipelineVersion} · {verificationDetail.inference.pipeline.runtimeIdentifier} {verificationDetail.inference.pipeline.runtimeVersion} · policy {verificationDetail.request.policy?.key ?? "legacy"} {verificationDetail.request.policy?.version ?? ""}</p></div> : <p className="text-slate-400">No persisted inference result yet.</p>}
+                      <CreatorVerificationImages avatar={selectedApplication.avatarUrl} cover={selectedApplication.coverUrl} captures={verificationDetail.captures} />
+                    </div>}
+                  </div>
+                )}
                 <div>
                   <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Primary Category
+                    Interests
                   </p>
 
                   <p className="text-sm text-slate-200">
-                    {selectedApplication.primaryCategory}
+                    {(selectedApplication.interests ?? []).join(", ") || "Not provided"}
                   </p>
                 </div>
 
@@ -674,14 +720,11 @@ export default function CreatorApplicationsQueue() {
                   </p>
                   {selectedApplication.media &&
                   selectedApplication.media.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div aria-label="Media Gallery" className="grid max-w-2xl grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                       {selectedApplication.media.map((image, index) => (
-                        <img
-                          key={`${image}-${index}`}
-                          src={image}
-                          alt={`${selectedApplication.displayName}-${index}`}
-                          className="aspect-square rounded-xl border border-slate-800 object-cover"
-                        />
+                        <button key={`${image}-${index}`} type="button" aria-label={`View gallery image ${index + 1}`} onClick={() => setGalleryPreview({ src: image, title: `Gallery image ${index + 1}` })} className="aspect-square w-full overflow-hidden rounded-[var(--radius-card)] border border-theme-border bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">
+                          <img src={image} alt={`${selectedApplication.displayName}-${index}`} className="h-full w-full object-cover" />
+                        </button>
                       ))}
                     </div>
                   ) : (
@@ -692,6 +735,8 @@ export default function CreatorApplicationsQueue() {
             </div>
           )}
         </AdminDetailPanel>
+
+        <AdminImagePreview image={galleryPreview} onClose={() => setGalleryPreview(null)} />
 
         <AdminConfirmDialog
           open={confirmAction === "approve" && confirmApplication !== null}

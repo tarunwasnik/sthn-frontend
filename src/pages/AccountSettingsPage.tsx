@@ -1,192 +1,141 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { Bell, ChevronLeft, CircleHelp, CircleUserRound, LockKeyhole, LogOut, Palette, Shield, Sparkles, type LucideIcon } from "lucide-react";
 
 import api from "../api/axios";
+import { useAccountPreferences } from "../hooks/useAccountPreferences";
 import { useAuth } from "../hooks/useAuth";
+import { useNotifications } from "../hooks/useNotifications";
+import { useToast } from "../hooks/useToast";
 import DashboardLayout from "../layouts/DashboardLayout";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import { DisputeTrackingContent } from "./DisputesPage";
 import { useTheme } from "../theme/useTheme";
 import type { ThemePreference } from "../theme/theme";
+import { TIMEZONES } from "../constants/timezones";
+import { PasswordRequirements } from "../components/auth/PasswordRequirements";
+import { isPasswordReadyForSubmission, validatePasswordForGuidance } from "../features/auth/passwordPolicy";
+import { authRateLimitError } from "../features/auth/rateLimit";
+import { useStatusRefresh } from "../hooks/useStatusRefresh";
 
 type SettingsActor = "user" | "creator";
-type SettingsSection = "account" | "creator" | "disputes";
-
-type ProfileResponse = { profileStatus?: string };
-type CreatorApplication = {
-  status?: "draft" | "submitted" | "approved" | "rejected";
-  rejectionReason?: string;
-};
-type CreatorProfile = {
-  status: string;
-  displayName: string;
-  slug: string;
-  primaryCategory: string;
-  categories?: string[];
-  country: string;
-  city: string;
-  currency: string;
-  languages?: string[];
-};
-
+type SettingsSection = "index" | "account" | "security" | "notifications" | "appearance" | "creator" | "privacy" | "support" | "management";
 type Props = { actor: SettingsActor; section: SettingsSection };
+type ProfileResponse = { username?: string; profileStatus?: string; country?: string | null; city?: string | null; languages?: string[]; verification?: { stage?: string } };
+type AuthMe = { email?: string; authProvider?: "local" | "google"; status?: string };
+type CreatorApplication = { status?: "draft" | "submitted" | "approved" | "rejected"; rejectionReason?: string };
+type CreatorProfile = { status: string; displayName: string; slug: string };
+let creatorApplicationRead: { userId: string | null; promise: Promise<{ application: CreatorApplication | null }> } | null = null;
+const readCreatorApplication = (userId: string | null) => {
+  if (creatorApplicationRead?.userId === userId) return creatorApplicationRead.promise;
+  const promise = api.get<{ application: CreatorApplication | null }>("/v1/creator-applications/me")
+    .then((response) => response.data)
+    .finally(() => { if (creatorApplicationRead?.promise === promise) creatorApplicationRead = null; });
+  creatorApplicationRead = { userId, promise };
+  return promise;
+};
+type Category = { id: Exclude<SettingsSection, "index">; label: string; description: string; icon: LucideIcon };
 
-function CustomerAccountSection() {
-  const [profile, setProfile] = useState<{ username?: string; profileStatus?: string; verification?: { stage?: string; submittedAt?: string | null } } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { let cancelled = false; void (async () => { try { const response = await api.get<{ username?: string; profileStatus?: string; verification?: { stage?: string; submittedAt?: string | null } }>("/v1/profile/me"); if (!cancelled) setProfile(response.data); } catch { if (!cancelled) setError("Account information is unavailable right now."); } finally { if (!cancelled) setLoading(false); } })(); return () => { cancelled = true; }; }, []);
-  if (loading) return <p className="text-sm text-theme-muted">Loading account information...</p>;
-  if (error) return <p className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{error}</p>;
-  return <section className="space-y-5"><div><h2 className="text-xl font-semibold text-theme-text">Account</h2><p className="mt-1 text-sm text-theme-muted">Profile and verification information from your authenticated account.</p></div><dl className="grid gap-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5 text-sm sm:grid-cols-2"><div><dt className="text-theme-muted">Username</dt><dd className="mt-1 text-theme-text">{profile?.username || "Not set"}</dd></div><div><dt className="text-theme-muted">Profile status</dt><dd className="mt-1 text-theme-text">{profile?.profileStatus || "incomplete"}</dd></div><div><dt className="text-theme-muted">Verification</dt><dd className="mt-1 text-theme-text">{profile?.verification?.stage || "NOT_SUBMITTED"}</dd></div></dl><a href="/profile" className="inline-block rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset">Open Profile Editor</a><p className="text-xs text-theme-muted">Password changes, session management, and account deletion are not currently supported by an authenticated backend contract.</p></section>;
+const categories: Category[] = [
+  { id: "account", label: "Your account", description: "Profile, verification and region", icon: CircleUserRound },
+  { id: "security", label: "Password & security", description: "Your current sign-in method", icon: LockKeyhole },
+  { id: "notifications", label: "Notifications", description: "Inbox and unread updates", icon: Bell },
+  { id: "appearance", label: "Appearance", description: "Light, dark or system", icon: Palette },
+  { id: "creator", label: "Creator account", description: "Application or Creator workspace", icon: Sparkles },
+  { id: "privacy", label: "Privacy & safety", description: "New booking controls and blocked customers", icon: Shield },
+  { id: "support", label: "Help & support", description: "Disputes and related records", icon: CircleHelp },
+  { id: "management", label: "Account management", description: "Sign out of this device", icon: LogOut },
+];
+
+function StatusBadge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "success" | "warning" }) {
+  const styles = tone === "success" ? "bg-theme-success-tint text-theme-success" : tone === "warning" ? "bg-theme-warning-tint text-theme-warning" : "bg-theme-inset text-theme-muted";
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles}`}>{children}</span>;
 }
 
-function CreatorSettingsSection() {
-  const { creatorStatus } = useAuth();
-  const navigate = useNavigate();
-  const [profileStatus, setProfileStatus] = useState<string | null>(null);
-  const [application, setApplication] = useState<CreatorApplication | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [eligibilityError, setEligibilityError] = useState<string | null>(null);
-  const [checkingEligibility, setCheckingEligibility] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [profileResponse, applicationResponse] = await Promise.all([
-          api.get<ProfileResponse>("/v1/profile/me"),
-          api.get<{ application: CreatorApplication | null }>("/v1/creator-applications/me"),
-        ]);
-        if (!cancelled) {
-          setProfileStatus(profileResponse.data.profileStatus?.toLowerCase() ?? null);
-          setApplication(applicationResponse.data.application ?? null);
-        }
-      } catch {
-        if (!cancelled) setError("Creator application status is unavailable right now.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, []);
-
-  if (loading) return <p className="text-sm text-theme-muted">Loading creator application status...</p>;
-  if (error) return <p className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{error}</p>;
-
-  const applicationStatus = application?.status ?? creatorStatus ?? "none";
-  if (applicationStatus === "approved" || creatorStatus === "approved") {
-    return <section className="rounded-[var(--radius-card)] border border-theme-success bg-theme-success-tint p-5"><h2 className="font-semibold text-theme-success">Creator account active</h2><p className="mt-2 text-sm text-theme-text">Your Creator account is approved. Manage your services, availability, and bookings from the Creator workspace.</p><Link to="/dashboard/creator" className="mt-4 inline-block text-sm font-medium text-theme-success underline">Open Creator Dashboard</Link></section>;
-  }
-  if (profileStatus !== "verified") {
-    return <section className="rounded-[var(--radius-card)] border border-theme-warning bg-theme-warning-tint p-5"><h2 className="font-semibold text-theme-warning">Profile verification required</h2><p className="mt-2 text-sm text-theme-text">Your profile must be verified before you can apply as a Creator.</p><Link to="/profile" className="mt-4 inline-block text-sm font-medium text-theme-accent underline">View profile</Link></section>;
-  }
-  if (applicationStatus === "submitted") {
-    return <section className="rounded-[var(--radius-card)] border border-theme-warning bg-theme-warning-tint p-5"><h2 className="font-semibold text-theme-warning">Creator application pending</h2><p className="mt-2 text-sm text-theme-text">Your application is under review. No further submission is available while it is pending.</p></section>;
-  }
-  if (applicationStatus === "rejected") {
-    return <section className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-5"><h2 className="font-semibold text-theme-danger">Creator application needs updates</h2>{application?.rejectionReason && <p className="mt-2 text-sm text-theme-text">{application.rejectionReason}</p>}<p className="mt-2 text-sm text-theme-text">Review the feedback, update your application, and resubmit it through the existing application flow.</p><Link to="/creator-application" className="mt-4 inline-block text-sm font-medium text-theme-accent underline">Update application</Link></section>;
-  }
-  const beginApplication = async () => {
-    setCheckingEligibility(true);
-    setEligibilityError(null);
-    try {
-      const response = await api.get<{ eligible: boolean; message?: string }>("/v1/bookings/creator-journey-eligibility");
-      if (!response.data.eligible) {
-        setEligibilityError(response.data.message ?? "You must resolve your active bookings before applying as a Creator.");
-        return;
-      }
-      navigate("/creator-application");
-    } catch (requestError) {
-      const message = axios.isAxiosError(requestError) && typeof requestError.response?.data?.message === "string"
-        ? requestError.response.data.message
-        : "Unable to check Creator application eligibility. Please try again.";
-      setEligibilityError(message);
-    } finally {
-      setCheckingEligibility(false);
-    }
-  };
-  return <section className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5"><h2 className="font-semibold text-theme-text">Become a Creator</h2><p className="mt-2 text-sm text-theme-muted">Your verified profile is eligible for the existing Creator application flow.</p>{eligibilityError && <p className="mt-3 rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-3 text-sm text-theme-danger">{eligibilityError}</p>}<button type="button" disabled={checkingEligibility} onClick={() => void beginApplication()} className="mt-4 rounded-[var(--radius-control)] bg-theme-primary px-4 py-2 text-sm font-medium text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">{checkingEligibility ? "Checking eligibility..." : "Begin Creator Application"}</button></section>;
+function SettingRow({ label, description, value, action }: { label: string; description?: string; value?: ReactNode; action?: ReactNode }) {
+  return <div className="flex flex-col gap-3 border-b border-theme-border py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h3 className="text-sm font-semibold text-theme-text">{label}</h3>{description ? <p className="mt-1 text-sm text-theme-muted">{description}</p> : null}</div><div className="shrink-0 text-sm text-theme-text">{action ?? value}</div></div>;
 }
 
-function CreatorAccountSection() {
-  const [profile, setProfile] = useState<CreatorProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function SectionHeader({ title, description }: { title: string; description: string }) { return <header><h2 className="text-xl font-semibold text-theme-text">{title}</h2><p className="mt-1 text-sm leading-6 text-theme-muted">{description}</p></header>; }
+function TextLink({ to, children }: { to: string; children: ReactNode }) { return <Link to={to} className="inline-flex rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">{children}</Link>; }
+function ErrorState({ message, retry }: { message: string; retry: () => void }) { return <div role="alert" className="rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{message} <button type="button" onClick={retry} className="ml-2 font-semibold underline">Retry</button></div>; }
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const response = await api.get<CreatorProfile>("/v1/creator/profile");
-        if (!cancelled) setProfile(response.data);
-      } catch {
-        if (!cancelled) setError("Creator account details are unavailable right now.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, []);
+function PasswordField({ id, label, value, onChange, autoComplete = "new-password" }: { id: string; label: string; value: string; onChange: (value: string) => void; autoComplete?: "current-password" | "new-password" }) {
+  const [shown, setShown] = useState(false);
+  return <div><label htmlFor={id} className="block text-sm font-medium text-theme-text">{label}</label><div className="relative mt-1"><input id={id} required type={shown ? "text" : "password"} autoComplete={autoComplete} value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 pr-16 text-sm text-theme-text"/><button type="button" onClick={() => setShown((current) => !current)} aria-label={shown ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`} className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 text-xs font-medium text-theme-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">{shown ? "Hide" : "Show"}</button></div></div>;
+}
 
-  if (loading) return <p className="text-sm text-theme-muted">Loading Creator account details...</p>;
-  if (error || !profile) return <p className="rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{error ?? "Creator account details are unavailable right now."}</p>;
+function AccountSection() {
+  const { showToast } = useToast(); const { preferences, loading: preferenceLoading, updatePreferences } = useAccountPreferences(); const [profile, setProfile] = useState<ProfileResponse | null>(null); const [account, setAccount] = useState<AuthMe | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [savingTimeZone, setSavingTimeZone] = useState(false);
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const load = async () => { setLoading(true); setError(null); setProfile(null); setAccount(null); try { const [profileResponse, accountResponse] = await Promise.all([api.get<ProfileResponse>("/v1/profile/me"), api.get<AuthMe>("/auth/me")]); setProfile(profileResponse.data); setAccount(accountResponse.data); } catch { setError("Account information is unavailable right now."); } finally { setLoading(false); } };
+  useEffect(() => { void load(); }, []);
+  if (loading || preferenceLoading) return <p className="py-8 text-sm text-theme-muted">Loading account information...</p>;
+  if (error) return <ErrorState message={error} retry={() => void load()} />;
+  const region = [profile?.city, profile?.country].filter(Boolean).join(", ") || "Not set";
+  const selectTimeZone = async (event: ChangeEvent<HTMLSelectElement>) => { if (!preferences || savingTimeZone) return; const displayTimeZone = event.target.value === "browser" ? null : event.target.value; setSavingTimeZone(true); try { await updatePreferences({ displayTimeZone }); showToast("Display time zone saved.", "success"); } catch { showToast("Couldn't save display time zone.", "error"); } finally { setSavingTimeZone(false); } };
+  return <section className="space-y-5"><SectionHeader title="Your account" description="Profile information and verification from your authenticated account." /><div><SettingRow label="Profile information" description="Update your name, bio, photos, languages and region." value={<TextLink to="/profile">Edit profile</TextLink>} /><SettingRow label="Username" value={profile?.username || "Not set"} /><SettingRow label="Email" description="Your sign-in email address." value={account?.email || "Unavailable"} /><SettingRow label="Verification" description="Profile verification is required before applying as a Creator." value={<StatusBadge tone={profile?.verification?.stage === "VERIFIED" ? "success" : "warning"}>{profile?.verification?.stage || "NOT SUBMITTED"}</StatusBadge>} /><SettingRow label="Profile status" value={<StatusBadge>{profile?.profileStatus || "incomplete"}</StatusBadge>} /><SettingRow label="Region and languages" description={profile?.languages?.length ? profile.languages.join(", ") : "No languages selected"} value={region} /><SettingRow label="Display time zone" description="Changes how dates and times are displayed. It never changes booking or availability time zones." action={<select aria-label="Display time zone" disabled={savingTimeZone} value={preferences?.displayTimeZone ?? "browser"} onChange={(event) => void selectTimeZone(event)} className="max-w-full rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 py-2 text-sm text-theme-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent disabled:cursor-wait disabled:opacity-60"><option value="browser">Browser default ({browserTimeZone})</option>{TIMEZONES.map((timeZone) => <option key={timeZone.value} value={timeZone.value}>{timeZone.label}</option>)}</select>} /></div></section>;
+}
 
-  const categories = profile.categories?.length ? profile.categories.join(", ") : profile.primaryCategory;
-  const languages = profile.languages?.length ? profile.languages.join(", ") : "Not specified";
-  return <section className="space-y-5"><div><h2 className="text-xl font-semibold text-theme-text">Creator Account</h2><p className="mt-1 text-sm text-theme-muted">Your approved Creator profile and workspace shortcuts.</p></div><div className="rounded-[var(--radius-card)] border border-theme-success bg-theme-success-tint p-4"><p className="text-sm font-semibold text-theme-success">Approved Creator · {profile.status}</p><p className="mt-1 text-sm text-theme-text">Your account is ready to offer services and manage bookings.</p></div><dl className="grid gap-4 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5 text-sm sm:grid-cols-2"><div><dt className="text-theme-muted">Display name</dt><dd className="mt-1 text-theme-text">{profile.displayName}</dd></div><div><dt className="text-theme-muted">Public slug</dt><dd className="mt-1 text-theme-text">{profile.slug}</dd></div><div><dt className="text-theme-muted">Category</dt><dd className="mt-1 text-theme-text">{categories}</dd></div><div><dt className="text-theme-muted">Location</dt><dd className="mt-1 text-theme-text">{profile.city}, {profile.country}</dd></div><div><dt className="text-theme-muted">Creator currency</dt><dd className="mt-1 text-theme-text">{profile.currency}</dd></div><div><dt className="text-theme-muted">Languages</dt><dd className="mt-1 text-theme-text">{languages}</dd></div></dl><div className="flex flex-wrap gap-3"><Link to="/creator/profile" className="rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset">Edit Creator Profile</Link><Link to="/dashboard/creator/services" className="rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset">Manage Services</Link><Link to="/dashboard/creator/availability" className="rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-4 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset">Manage Availability</Link></div></section>;
+function SecuritySection() {
+  const { showToast } = useToast(); const [account, setAccount] = useState<AuthMe | null>(null); const [sessions, setSessions] = useState<Array<{ id: string; current: boolean; createdAt: string; lastSeenAt: string; expiresAt: string }>>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [currentPassword, setCurrentPassword] = useState(""); const [newPassword, setNewPassword] = useState(""); const [confirmation, setConfirmation] = useState(""); const [formError, setFormError] = useState<string | null>(null); const [saving, setSaving] = useState(false); const [retryUntil, setRetryUntil] = useState(0);
+  const load = async () => { setLoading(true); setError(null); setAccount(null); try { const [me, sessionResult] = await Promise.all([api.get<AuthMe>("/auth/me"), api.get<{ sessions: Array<{ id: string; current: boolean; createdAt: string; lastSeenAt: string; expiresAt: string }> }>("/v1/security/sessions")]); setAccount(me.data); setSessions(sessionResult.data.sessions); } catch { setError("Security information is unavailable right now."); } finally { setLoading(false); } };
+  useEffect(() => { void load(); }, []);
+  if (loading) return <p className="py-8 text-sm text-theme-muted">Loading sign-in information...</p>;
+  if (error) return <ErrorState message={error} retry={() => void load()} />;
+  const method = account?.authProvider === "google" ? "Google" : account?.authProvider === "local" ? "Email and password" : "Unavailable";
+  const change = async (event: FormEvent) => { event.preventDefault(); if (Date.now() < retryUntil) return; const validation = validatePasswordForGuidance(newPassword); if (!isPasswordReadyForSubmission(newPassword)) { setFormError(validation.error || "Your new password does not yet meet all requirements."); return; } if (newPassword !== confirmation) { setFormError("Passwords do not match."); return; } setSaving(true); setFormError(null); try { await api.patch("/v1/security/password", { currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); setConfirmation(""); showToast("Password changed. Other sessions were signed out.", "success"); await load(); } catch (caught: unknown) { const rateLimit = authRateLimitError(caught); const message = rateLimit?.message || (typeof (caught as { response?: { data?: { message?: unknown } } })?.response?.data?.message === "string" ? (caught as { response: { data: { message: string } } }).response.data.message : "Couldn't change password. Check your current password and the new password requirements."); if (rateLimit) { setRetryUntil(rateLimit.until); window.setTimeout(() => setRetryUntil(0), Math.max(0, rateLimit.until - Date.now())); } setFormError(message); showToast(message, "error"); } finally { setSaving(false); } };
+  const revoke = async (id: string) => { try { await api.delete(`/v1/security/sessions/${encodeURIComponent(id)}`); showToast("Session revoked.", "success"); await load(); } catch { showToast("Couldn't revoke session.", "error"); } };
+  const revokeOthers = async () => { try { await api.delete("/v1/security/sessions/others"); showToast("Other sessions revoked.", "success"); await load(); } catch { showToast("Couldn't revoke other sessions.", "error"); } };
+  return <section className="space-y-5"><SectionHeader title="Password & security" description="Manage the sign-in method and active sessions for this account." /><div><SettingRow label="Sign-in method" value={method} /><SettingRow label="Account status" description="Account restrictions are managed through STHN governance processes." value={<StatusBadge>{account?.status || "Unavailable"}</StatusBadge>} /></div>{account?.authProvider === "local" ? <form onSubmit={(event) => void change(event)} className="border-t border-theme-border pt-5"><h3 className="text-sm font-semibold text-theme-text">Change password</h3><div className="mt-3 grid gap-3 sm:grid-cols-2"><PasswordField id="current-password" label="Current password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password"/><PasswordField id="new-password" label="New password" value={newPassword} onChange={setNewPassword}/><PasswordField id="confirm-new-password" label="Confirm new password" value={confirmation} onChange={setConfirmation}/></div><PasswordRequirements password={newPassword}/>{confirmation.length > 0 && confirmation !== newPassword ? <p role="alert" className="mt-2 text-xs text-theme-danger">Passwords do not match.</p> : null}{formError ? <p role="alert" className="mt-2 text-sm text-theme-danger">{formError}</p> : null}<button disabled={saving || Date.now() < retryUntil} className="mt-3 rounded-[var(--radius-control)] bg-theme-primary px-3 py-2 text-sm font-semibold text-theme-primary-text disabled:opacity-60">{saving ? "Changing..." : Date.now() < retryUntil ? "Please wait…" : "Change password"}</button></form> : <p className="border-t border-theme-border pt-5 text-sm text-theme-muted">Password changes are managed through your Google account.</p>}<section className="border-t border-theme-border pt-5"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-theme-text">Active sessions</h3><p className="mt-1 text-sm text-theme-muted">Sessions expire after seven days.</p></div>{sessions.some((session) => !session.current) ? <button type="button" onClick={() => void revokeOthers()} className="text-sm font-semibold text-theme-accent underline">Revoke others</button> : null}</div><div className="mt-3">{sessions.map((session) => <SettingRow key={session.id} label={session.current ? "Current session" : "Active session"} description={`Signed in ${new Date(session.createdAt).toLocaleString()}`} action={session.current ? <StatusBadge tone="success">Current</StatusBadge> : <button type="button" onClick={() => void revoke(session.id)} className="text-sm font-semibold text-theme-accent underline">Revoke</button>} />)}</div></section></section>;
+}
+
+function NotificationsSection({ actor }: { actor: SettingsActor }) {
+  const { unreadCount } = useNotifications();
+  return <section className="space-y-5"><SectionHeader title="Notifications" description="Review in-app updates for bookings, verification, applications and disputes." /><div><SettingRow label="Notification inbox" description={unreadCount ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.` : "You're all caught up."} value={<TextLink to={`/dashboard/${actor}/notifications`}>Open notifications</TextLink>} /></div><p className="text-sm text-theme-muted">Notification preferences will appear here only when they can be saved and applied to delivery rules.</p></section>;
 }
 
 function AppearanceSection() {
-  const { preference, setPreference } = useTheme();
-  const options: Array<{ value: ThemePreference; label: string; description: string }> = [
-    { value: "light", label: "Light", description: "Use the light interface." },
-    { value: "dark", label: "Dark", description: "Use the dark interface." },
-    { value: "system", label: "System", description: "Follow your device appearance." },
-  ];
-
-  return (
-    <section aria-labelledby="appearance-heading" className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4 sm:p-5">
-      <div>
-        <h2 id="appearance-heading" className="text-lg font-semibold text-theme-text">Appearance</h2>
-        <p className="mt-1 text-sm text-theme-muted">Choose how STHN appears on this device.</p>
-      </div>
-      <fieldset className="mt-4 grid gap-3 sm:grid-cols-3">
-        <legend className="sr-only">Theme preference</legend>
-        {options.map((option) => {
-          const selected = preference === option.value;
-          return (
-            <label key={option.value} className="block cursor-pointer">
-              <input
-                type="radio"
-                name="theme-preference"
-                value={option.value}
-                checked={selected}
-                onChange={() => setPreference(option.value)}
-                className="peer sr-only"
-              />
-              <span className={`flex min-h-24 flex-col rounded-[var(--radius-control)] border p-3 text-left transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-theme-accent ${selected ? "border-theme-accent bg-theme-accent-tint text-theme-accent" : "border-theme-border bg-theme-inset text-theme-text hover:border-theme-border-strong"}`}>
-                <span className="text-sm font-medium">{option.label}</span>
-                <span className={`mt-1 text-xs leading-5 ${selected ? "text-theme-accent" : "text-theme-muted"}`}>{option.description}</span>
-                {selected ? <span className="mt-2 text-xs font-medium">Selected</span> : null}
-              </span>
-            </label>
-          );
-        })}
-      </fieldset>
-    </section>
-  );
+  const { preference, setPreference } = useTheme(); const options: Array<{ value: ThemePreference; label: string; description: string }> = [{ value: "light", label: "Light", description: "Use the light interface." }, { value: "dark", label: "Dark", description: "Use the dark interface." }, { value: "system", label: "System", description: "Follow your device appearance." }];
+  return <section className="space-y-5"><SectionHeader title="Appearance" description="Choose how STHN appears on this device." /><fieldset className="divide-y divide-theme-border border-y border-theme-border"><legend className="sr-only">Theme preference</legend>{options.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-3 py-4"><input type="radio" name="theme-preference" value={option.value} checked={preference === option.value} onChange={() => setPreference(option.value)} className="mt-1 h-4 w-4 accent-[var(--color-theme-accent)]" /><span><span className="block text-sm font-semibold text-theme-text">{option.label}{preference === option.value ? <span className="ml-2 text-xs font-medium text-theme-accent">Selected</span> : null}</span><span className="mt-1 block text-sm text-theme-muted">{option.description}</span></span></label>)}</fieldset></section>;
 }
 
+function CreatorSection({ actor }: { actor: SettingsActor }) {
+  const { creatorStatus, userId } = useAuth(); const navigate = useNavigate(); const [profile, setProfile] = useState<CreatorProfile | null>(null); const [application, setApplication] = useState<CreatorApplication | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
+  useEffect(() => { let cancelled = false; void (async () => { setLoading(true); setError(null); try { if (actor === "creator") { const response = await api.get<CreatorProfile>("/v1/creator/profile"); if (!cancelled) setProfile(response.data); } else { const response = await readCreatorApplication(userId); if (!cancelled) setApplication(response.application); } } catch { if (!cancelled) setError("Creator account information is unavailable right now."); } finally { if (!cancelled) setLoading(false); } })(); return () => { cancelled = true; }; }, [actor, userId]);
+  useStatusRefresh(async () => {
+    const response = await readCreatorApplication(userId);
+    setApplication(response.application);
+  }, application?.status === "submitted", actor === "user" && !loading && !error);
+  if (loading) return <p className="py-8 text-sm text-theme-muted">Loading Creator account information...</p>;
+  if (error) return <div role="alert" className="rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint p-4 text-sm text-theme-danger">{error}</div>;
+  if (actor === "creator" && profile) return <section className="space-y-5"><SectionHeader title="Creator account" description="Manage your approved Creator profile and workspace." /><div><SettingRow label="Creator status" value={<StatusBadge tone="success">{profile.status}</StatusBadge>} /><SettingRow label="Creator profile" description={`${profile.displayName} · ${profile.slug}`} value={<TextLink to="/creator/profile">Edit profile</TextLink>} /><SettingRow label="Services" description="Create and manage the services you offer." value={<TextLink to="/dashboard/creator/services">Manage services</TextLink>} /><SettingRow label="Availability" description="Set the times customers can book." value={<TextLink to="/dashboard/creator/availability">Manage availability</TextLink>} /><SettingRow label="Bookings" description="Review and manage Creator bookings." value={<TextLink to="/dashboard/creator/bookings">Open bookings</TextLink>} /></div></section>;
+  const status = application?.status ?? creatorStatus ?? "none";
+  const action = status === "rejected" || status === "draft" || status === "none" ? <TextLink to="/creator-application">{status === "rejected" ? "Update application" : "Open application"}</TextLink> : status === "approved" ? <TextLink to="/dashboard/creator">Open Creator dashboard</TextLink> : <button type="button" onClick={() => navigate("/creator-application")} className="text-sm font-semibold text-theme-accent underline">View status</button>;
+  return <section className="space-y-5"><SectionHeader title="Creator account" description="Apply to offer services using your existing verified account." /><div><SettingRow label="Application status" description={status === "submitted" ? "Your application is under review." : status === "approved" ? "Your Creator account is approved." : application?.rejectionReason || "Complete profile verification before applying."} value={<StatusBadge tone={status === "approved" ? "success" : status === "submitted" ? "warning" : "neutral"}>{status}</StatusBadge>} /><SettingRow label="Creator application" description="Applications use your existing account identity and profile verification." action={action} /></div></section>;
+}
+
+function PrivacySection({ actor }: { actor: SettingsActor }) {
+  const { showToast } = useToast();
+  const [state, setState] = useState<{ acceptingNewBookings: boolean; blockedCustomers: Array<{ id: string; username: string; avatarUrl: string | null; blockedAt: string }> } | null>(null);
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
+  const load = useCallback(async () => { setLoading(true); try { const response = await api.get<typeof state>("/v1/creator/booking-safety"); setState(response.data); } catch { showToast("Privacy and safety controls are unavailable right now.", "error"); } finally { setLoading(false); } }, [showToast]);
+  useEffect(() => { if (actor === "creator") void load(); }, [actor, load]);
+  if (actor !== "creator") return <section className="space-y-5"><SectionHeader title="Privacy & safety" description="Report inappropriate account behavior and track reports you have submitted." /><div><SettingRow label="My safety reports" description="Review the status of reports you submitted. Investigation details remain private." value={<TextLink to="/dashboard/user/safety-reports">Open reports</TextLink>} /></div><p className="text-sm text-theme-muted">To report an account, use the relevant booking or public-profile context when available.</p></section>;
+  if (loading) return <p className="py-8 text-sm text-theme-muted">Loading privacy and safety controls...</p>;
+  const toggleBookings = async () => { if (!state || saving) return; const acceptingNewBookings = !state.acceptingNewBookings; setSaving(true); try { await api.patch("/v1/creator/booking-safety", { acceptingNewBookings }); setState({ ...state, acceptingNewBookings }); showToast(acceptingNewBookings ? "New booking requests resumed." : "New booking requests paused.", "success"); } catch { showToast("Couldn't update new booking availability.", "error"); } finally { setSaving(false); } };
+  const unblock = async (customerId: string) => { try { await api.delete(`/v1/creator/blocked-customers/${encodeURIComponent(customerId)}`); setState((current) => current ? { ...current, blockedCustomers: current.blockedCustomers.filter((customer) => customer.id !== customerId) } : current); showToast("Customer unblocked.", "success"); } catch { showToast("Couldn't unblock customer.", "error"); } };
+  return <section className="space-y-5"><SectionHeader title="Privacy & safety" description="Control future booking requests. Existing bookings, conversations, disputes and payments are unchanged." /><div><SettingRow label="Accept new booking requests" description={state?.acceptingNewBookings ? "Customers can send new requests for your services." : "Your public profile, services, reviews and availability remain visible, but new requests are paused."} action={<button type="button" role="switch" aria-checked={state?.acceptingNewBookings ?? false} disabled={saving} onClick={() => void toggleBookings()} className={`rounded-full px-3 py-2 text-sm font-semibold disabled:opacity-60 ${state?.acceptingNewBookings ? "bg-theme-success-tint text-theme-success" : "bg-theme-inset text-theme-muted"}`}>{state?.acceptingNewBookings ? "Accepting" : "Paused"}</button>} /><SettingRow label="My safety reports" description="Review the status of reports you submitted. Investigation details remain private." value={<TextLink to="/dashboard/creator/safety-reports">Open reports</TextLink>} /></div><section className="border-t border-theme-border pt-5"><h3 className="text-sm font-semibold text-theme-text">Blocked customers</h3><p className="mt-1 text-sm text-theme-muted">Blocking stops only future booking requests. Block a customer from one of their existing booking details.</p><div className="mt-3">{state?.blockedCustomers.length ? state.blockedCustomers.map((customer) => <SettingRow key={customer.id} label={customer.username} description={`Blocked ${new Date(customer.blockedAt).toLocaleDateString()}`} action={<button type="button" onClick={() => void unblock(customer.id)} className="text-sm font-semibold text-theme-accent underline">Unblock</button>} />) : <p className="text-sm text-theme-muted">No customers are blocked.</p>}</div></section></section>;
+}
+
+function SupportSection({ actor }: { actor: SettingsActor }) { return <section className="space-y-5"><SectionHeader title="Help & support" description="Track disputes affecting your bookings. Appeal actions remain available in the relevant booking and dispute context." /><DisputeTrackingContent actor={actor} embedded /></section>; }
+function ManagementSection() { const { logout } = useAuth(); const navigate = useNavigate(); return <section className="space-y-5"><SectionHeader title="Account management" description="Manage the current device session." /><div><SettingRow label="Sign out" description="Sign out of STHN on this device." action={<button type="button" onClick={() => { void logout(); navigate("/", { replace: true }); }} className="rounded-[var(--radius-control)] border border-theme-border bg-theme-surface px-3 py-2 text-sm font-medium text-theme-text transition-colors hover:border-theme-border-strong hover:bg-theme-inset focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent">Sign out</button>} /></div><p className="text-sm text-theme-muted">Account deactivation, deletion and data requests require lifecycle and retention policies before they can be offered here.</p></section>; }
+
+function CategoryList({ actor, mobile = false }: { actor: SettingsActor; mobile?: boolean }) { const basePath = `/dashboard/${actor}/settings`; return <nav aria-label="Settings categories" className="space-y-1">{categories.map(({ id, label, description, icon: Icon }) => <NavLink key={id} to={`${basePath}/${id}`} className={({ isActive }) => `group flex items-center gap-3 rounded-[var(--radius-control)] px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent ${isActive ? "bg-theme-accent-tint text-theme-accent" : "text-theme-muted hover:bg-theme-inset hover:text-theme-text"}`}><Icon size={18} aria-hidden="true" /><span className="min-w-0"><span className="block text-sm font-medium">{label}</span>{mobile ? <span className="mt-0.5 block text-xs text-theme-muted">{description}</span> : null}</span></NavLink>)}</nav>; }
+
 export default function AccountSettingsPage({ actor, section }: Props) {
-  const Layout = actor === "user" ? UserDashboardLayout : DashboardLayout;
+  const Layout = actor === "user" ? UserDashboardLayout : DashboardLayout; const activeSection = section === "index" ? "account" : section; const title = categories.find((category) => category.id === activeSection)?.label ?? "Settings";
+  const content = activeSection === "account" ? <AccountSection /> : activeSection === "security" ? <SecuritySection /> : activeSection === "notifications" ? <NotificationsSection actor={actor} /> : activeSection === "appearance" ? <AppearanceSection /> : activeSection === "creator" ? <CreatorSection actor={actor} /> : activeSection === "privacy" ? <PrivacySection actor={actor} /> : activeSection === "support" ? <SupportSection actor={actor} /> : <ManagementSection />;
   const basePath = `/dashboard/${actor}/settings`;
-  const content = section === "account" && actor === "user" ? <CustomerAccountSection /> : section === "creator" ? (actor === "user" ? <CreatorSettingsSection /> : <CreatorAccountSection />) : <DisputeTrackingContent actor={actor} embedded />;
-  return <Layout><section className="mx-auto max-w-6xl space-y-6"><div><h1 className="text-2xl font-semibold text-theme-text">Settings</h1><p className="mt-1 text-sm text-theme-muted">Manage your account and participant support activity.</p></div><div className="flex flex-col gap-5 md:flex-row"><aside className="shrink-0 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-3 md:w-56"><p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-theme-muted">Settings menu</p><nav className="flex gap-2 overflow-x-auto md:flex-col">{actor === "user" && <NavLink to={`${basePath}/account`} className={({ isActive }) => `whitespace-nowrap rounded-[var(--radius-control)] px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-theme-accent-tint text-theme-accent" : "text-theme-muted hover:bg-theme-inset hover:text-theme-text"}`}>Account</NavLink>}<NavLink to={`${basePath}/creator`} className={({ isActive }) => `whitespace-nowrap rounded-[var(--radius-control)] px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-theme-accent-tint text-theme-accent" : "text-theme-muted hover:bg-theme-inset hover:text-theme-text"}`}>{actor === "user" ? "Creator" : "Creator Account"}</NavLink><NavLink to={`${basePath}/disputes`} className={({ isActive }) => `whitespace-nowrap rounded-[var(--radius-control)] px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-theme-accent-tint text-theme-accent" : "text-theme-muted hover:bg-theme-inset hover:text-theme-text"}`}>Disputes</NavLink></nav></aside><div className="min-w-0 flex-1 space-y-6 rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-5 md:p-6"><AppearanceSection />{content}</div></div></section></Layout>;
+  return <Layout><section className="mx-auto max-w-6xl"><header className="mb-6"><h1 className="text-2xl font-semibold text-theme-text">Settings</h1><p className="mt-1 text-sm text-theme-muted">Manage your account, workspace and support activity.</p></header><div className="md:hidden">{section === "index" ? <section aria-labelledby="settings-categories-heading"><h2 id="settings-categories-heading" className="mb-3 text-sm font-semibold uppercase tracking-wide text-theme-muted">Settings</h2><CategoryList actor={actor} mobile /></section> : <><Link to={basePath} className="mb-5 inline-flex items-center gap-1 text-sm font-semibold text-theme-accent hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"><ChevronLeft size={16} aria-hidden="true" />All settings</Link><div className="min-w-0">{content}</div></>}</div><div className="hidden gap-10 md:grid md:grid-cols-[13.5rem_minmax(0,1fr)]"><aside className="max-h-[calc(100vh-8rem)] overflow-y-auto pr-2"><p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-theme-muted">Settings</p><CategoryList actor={actor} /></aside><main aria-label={title} className="min-w-0">{content}</main></div></section></Layout>;
 }

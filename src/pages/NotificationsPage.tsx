@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 import { useNotifications } from "../hooks/useNotifications";
 import { useAuth } from "../hooks/useAuth";
+import type { NotificationRecord } from "../api/notifications";
 import UserDashboardLayout from "../layouts/UserDashboardLayout";
 import DashboardLayout from "../layouts/DashboardLayout";
 import AdminLayout from "../components/admin/layout/AdminLayout";

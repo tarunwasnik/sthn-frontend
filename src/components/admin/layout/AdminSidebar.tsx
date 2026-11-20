@@ -15,6 +15,7 @@ import {
   UserRound,
   Users,
   Wallet,
+  MonitorSmartphone,
 } from "lucide-react";
 
 type Workspace = "operations" | "system";
@@ -84,6 +85,7 @@ const operationsSections: NavSection[] = [
       },
       { label: "Platform Revenue", path: "/admin/operations/platform-revenue", icon: Wallet },
       { label: "Governance & Actions", path: "/admin/operations/governance", icon: Hammer },
+      { label: "Visitor Monitor", path: "/admin/operations/visitor-monitor", icon: MonitorSmartphone },
       { label: "Control Plane", path: "/admin/operations/control-plane", icon: SlidersHorizontal },
     ],
   },
@@ -116,6 +118,7 @@ const operationsSections: NavSection[] = [
         path: "/admin/operations/appeals",
         icon: ShieldAlert,
       },
+      { label: "Safety Reports", path: "/admin/operations/safety-reports", icon: ShieldAlert },
       {
         label: "Risk Center",
         path: "/admin/operations/risk",

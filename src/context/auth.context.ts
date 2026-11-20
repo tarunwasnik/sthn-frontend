@@ -5,6 +5,7 @@ export type Role = "user" | "creator" | "admin" | null;
 export type CreatorStatus =
   | "none"
   | "draft"
+  | "pending"
   | "submitted"
   | "approved"
   | "rejected"
@@ -29,7 +30,7 @@ export interface AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   bootstrap: () => Promise<AuthEntry | null>;
 }
 

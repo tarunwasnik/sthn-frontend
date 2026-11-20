@@ -22,8 +22,9 @@ import { providerFundingLabel } from "../features/bookingFunding/providerFunding
 import { useBookingReview } from "../features/review/useBookingReview";
 import { useBookingDispute } from "../features/dispute/useBookingDispute";
 import { getMyAppealForDispute, type ParticipantAppeal } from "../features/appeal/api";
-import { bookingLocalTimeZone, formatBookingLocalDateTime, formatBookingLocalTime } from "../utils/bookingDateTime";
+import { formatBookingLocalDateTime, formatBookingLocalTime, getBookingDisplayTimeZone } from "../utils/bookingDateTime";
 import { useToast } from "../hooks/useToast";
+import SafetyReportForm from "../components/SafetyReportForm";
 
 /* ================= MODAL ================= */
 
@@ -168,6 +169,7 @@ export default function CreatorBookingDetails() {
   const [appeal, setAppeal] = useState<ParticipantAppeal | null>(null);
   const [appealLoading, setAppealLoading] = useState(false);
   const [appealError, setAppealError] = useState<string | null>(null);
+  const [blockingCustomer, setBlockingCustomer] = useState(false);
 
   /* ================= FETCH ================= */
 
@@ -273,6 +275,14 @@ export default function CreatorBookingDetails() {
     } finally {
       setProcessing(false);
     }
+  };
+
+  const blockCustomer = async () => {
+    if (!booking?.user?._id || blockingCustomer) return;
+    setBlockingCustomer(true);
+    try { await api.post(`/v1/creator/blocked-customers/${encodeURIComponent(booking.user._id)}`); showToast("Customer blocked from future booking requests.", "success"); }
+    catch (error) { const message = axios.isAxiosError(error) && typeof error.response?.data?.message === "string" ? error.response.data.message : "Couldn't block this customer."; showToast(message, "error"); }
+    finally { setBlockingCustomer(false); }
   };
 
   /* ================= CANCEL ================= */
@@ -587,7 +597,7 @@ return (
                   {booking.slots.length} slots
                 </div>
               </div>
-              <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {bookingLocalTimeZone}.</p>
+              <p className="-mt-2 mb-4 text-[10px] text-theme-muted">Times shown in {getBookingDisplayTimeZone()}.</p>
 
               <div className="space-y-3">
 
@@ -720,6 +730,16 @@ return (
         <div className="text-theme-muted transition-colors group-hover:text-theme-text">
           →
         </div>
+      </button>
+      <SafetyReportForm targetId={booking.user._id} targetName={booking.user.displayName} bookingId={booking._id} />
+
+      <button
+        type="button"
+        onClick={() => void blockCustomer()}
+        disabled={blockingCustomer}
+        className="mt-2 w-full rounded-[var(--radius-control)] border border-theme-danger bg-theme-danger-tint px-3 py-2 text-[11px] font-semibold text-theme-danger transition-opacity hover:opacity-80 disabled:opacity-60"
+      >
+        {blockingCustomer ? "Blocking customer..." : "Block from future booking requests"}
       </button>
     </div>
   </div>

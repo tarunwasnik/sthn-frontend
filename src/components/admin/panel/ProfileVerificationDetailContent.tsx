@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getAdminVerificationCapture } from "../../../api/adminProfileVerification.api";
 import type { AdminVerificationDetail } from "../../../api/adminProfileVerification.api";
-import { automationLabel, conclusionLabel, decisionLabel, faceMatchExplanation, requestStatusLabel } from "../../../utils/adminProfileVerificationPresentation";
+import { aiVerificationLifecyclePresentation, automationLabel, conclusionLabel, decisionLabel, faceMatchExplanation, requestStatusLabel } from "../../../utils/adminProfileVerificationPresentation";
+import AdminButton from "../common/AdminButton";
 import AdminStatusBadge from "../table/AdminStatusBadge";
 import AdminImagePreview from "./AdminImagePreview";
 
@@ -23,21 +24,31 @@ const Field = ({
 );
 export default function ProfileVerificationDetailContent({
   detail,
+  onRefresh,
+  refreshing = false,
 }: {
   detail: AdminVerificationDetail;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   return (
     <VerificationDetailContent
       key={detail.verificationRequest.verificationReference}
       detail={detail}
+      onRefresh={onRefresh}
+      refreshing={refreshing}
     />
   );
 }
 
 function VerificationDetailContent({
   detail,
+  onRefresh,
+  refreshing,
 }: {
   detail: AdminVerificationDetail;
+  onRefresh?: () => void;
+  refreshing: boolean;
 }) {
   const [captures, setCaptures] = useState<
     Record<number, { url?: string; failed?: boolean }>
@@ -111,6 +122,8 @@ function VerificationDetailContent({
   const automation = automationLabel({ requestStatus: request.status, job: detail.job });
   const decision = decisionLabel({ status: request.status, decisionAuthority: request.decisionAuthority });
   const analysisExplanation = faceMatchExplanation({ ...analysis, reasonCode: analysis.reasonCode ?? request.adminReviewReasonCode, reason: analysis.reason ?? request.adminReviewReason });
+  const lifecycle = aiVerificationLifecyclePresentation(detail.aiVerification.lifecycle);
+  const gated = detail.gatedVerification;
   return (
     <div className="space-y-7">
       <section className="rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-4">
@@ -305,14 +318,17 @@ function VerificationDetailContent({
         </div>
       </section>
       <section className="rounded-[var(--radius-card)] border border-theme-accent bg-theme-inset p-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-accent">
-          AI Verification
-        </h3>
-        {analysis.status === "NOT_CONFIGURED" ? (
-          <p className="mt-3 text-sm text-theme-text">
-            Automated verification has not produced a face-match result for this attempt.
-          </p>
-        ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-theme-accent">AI Verification</h3>
+          {onRefresh && <AdminButton variant="secondary" loading={refreshing} onClick={onRefresh}>Refresh status</AdminButton>}
+        </div>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label="Processing status" value={lifecycle.label} />
+          <Field label="Analysis format" value={detail.aiVerification.resultFormat === "NONE" ? null : detail.aiVerification.resultFormat === "GATED" ? "Gated policy" : "Legacy shadow analysis"} />
+          {detail.job && <Field label="Job attempts" value={`${detail.job.attemptCount} / ${detail.job.maxRetryCount}`} />}
+          <div className="sm:col-span-2 text-sm text-theme-text">{lifecycle.description}</div>
+        </div>
+        {detail.aiVerification.resultFormat === "LEGACY" && (
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
             <Field label="Status" value={analysis.status} />
             <Field label="Conclusion" value={conclusionLabel(analysis.conclusion)} />
@@ -347,6 +363,16 @@ function VerificationDetailContent({
               <Field label="AI decision threshold" value={request.aiDecisionSnapshot.threshold.toFixed(4)} />
               <Field label="AI decision time" value={date(request.aiDecisionSnapshot.decidedAt)} />
             </>}
+          </div>
+        )}
+        {detail.aiVerification.resultFormat === "GATED" && gated && (
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Policy" value={`${gated.policy.key} ${gated.policy.version}`} />
+            <Field label="Live-capture consistency" value={gated.gate1.outcome.replace(/_/g, " ")} />
+            <Field label="Usable captures" value={`${gated.gate1.usableCaptureCount} / ${faceSession.requiredCaptureCount}`} />
+            {gated.gate2 && <><Field label="Required media" value={gated.gate2.outcome.replace(/_/g, " ")} /><Field label="Avatar admission" value={gated.gate2.avatarAdmission?.replace(/_/g, " ") ?? null} /></>}
+            {gated.gate3 && <><Field label="Identity evidence" value={conclusionLabel(gated.gate3.conclusion)} /><Field label="Identity evidence reason" value={gated.gate3.reasonCode?.replace(/_/g, " ") ?? null} /></>}
+            <Field label="Decision" value={decision} />
           </div>
         )}
       </section>

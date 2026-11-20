@@ -3,15 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useToast } from "../hooks/useToast";
+import { useStatusRefresh } from "../hooks/useStatusRefresh";
 import api from "../api/axios";
 import { useNavigate } from "react-router-dom";
 import { currencies } from "../constants/currencies";
 import { imageAdmissionErrorMessage, releaseUserProfileTemporaryImage, submitUserProfileImageAdmission } from "../api/imageModeration";
 import { createProfileMediaSelection, disposeProfileMediaPreview, isCurrentProfileMediaOperation, markProfileMediaModerating, profileMediaStatusClassName, resolveProfileMediaAdmission, temporaryProfileMediaRelease, toProfileMediaClaim, type ProfileMediaItem } from "../features/profileMedia/profileMedia";
+import FaceVerificationOverlay from "../components/faceVerification/FaceVerificationOverlay";
+import { creatorFaceVerificationCaptureApi, getCreatorVerificationStatus, submitCreatorVerification, type FaceVerificationSessionDto } from "../api/faceVerification";
 
 interface CreatorApplicationData {
+  draftVersion?: number;
+  applicationJourney?: "direct_creator" | "user_upgrade";
   displayName: string;
-  primaryCategory: string;
+  primaryCategory?: string;
+  interests?: string[];
   country: string;
   city: string;
   currency: string;
@@ -25,17 +31,18 @@ interface CreatorApplicationData {
   rejectionReason?: string;
 }
 
+type CreatorVerificationStatus = Awaited<ReturnType<typeof getCreatorVerificationStatus>>;
+
 export default function CreatorApplication() {
   const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
     displayName: "",
-    primaryCategory: "",
+    interests: "",
     country: "",
     city: "",
     currency: "",
-    services: "",
     publicBio: "",
     languages: "",
   });
@@ -48,14 +55,21 @@ export default function CreatorApplication() {
   const [currencySearch, setCurrencySearch] = useState("");
 
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [draftMode, setDraftMode] = useState(false);
+  const [applicationJourney, setApplicationJourney] = useState<"direct_creator" | "user_upgrade" | null>(null);
+  const [identity, setIdentity] = useState({ realName: "", dateOfBirth: "", mobileCountryCode: "", mobileNumber: "" });
 
   const [application, setApplication] = useState<CreatorApplicationData | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<CreatorVerificationStatus | null>(null);
+  const [faceVerificationOpen, setFaceVerificationOpen] = useState(false);
+  const [captureComplete, setCaptureComplete] = useState(false);
 
   const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
 
+  const formRef = useRef<HTMLFormElement>(null);
   const mediaRef = useRef({ avatar, cover, media });
   useEffect(() => { mediaRef.current = { avatar, cover, media }; }, [avatar, cover, media]);
   useEffect(() => () => {
@@ -76,6 +90,7 @@ export default function CreatorApplication() {
   };
 
   const isVerified = profileStatus === "verified";
+  const isDirectCreator = applicationJourney === "direct_creator";
 
   const isResubmission = application?.status === "rejected";
 
@@ -86,12 +101,9 @@ export default function CreatorApplication() {
       try {
         setPageLoading(true);
 
-        const profileRes = await api.get("/v1/profile/me");
-
+        const [profileRes, applicationRes] = await Promise.all([api.get("/v1/profile/me"), api.get("/v1/creator-applications/me")]);
+        setDraftMode(true);
         setProfileStatus(profileRes.data?.profileStatus || null);
-
-        const applicationRes = await api.get("/v1/creator-applications/me");
-
         setApplication(applicationRes.data.application);
       } catch (err) {
         console.error("Failed to load creator application data", err);
@@ -105,6 +117,26 @@ export default function CreatorApplication() {
     fetchData();
   }, []);
 
+  useStatusRefresh(async () => {
+    const response = await api.get<{ application: CreatorApplicationData | null }>("/v1/creator-applications/me");
+    setApplication(response.data.application);
+    if (response.data.application?.status === "submitted") await refreshVerificationStatus();
+  }, application?.status === "submitted", !pageLoading && application?.status === "submitted");
+
+  const refreshVerificationStatus = async () => {
+    try {
+      setVerificationStatus(await getCreatorVerificationStatus());
+    } catch (statusError) {
+      if (axios.isAxiosError(statusError) && statusError.response?.status === 503) return;
+      throw statusError;
+    }
+  };
+
+  useEffect(() => {
+    if (!draftMode || !application) return;
+    void refreshVerificationStatus().catch(() => undefined);
+  }, [draftMode, application?.draftVersion]);
+
   /* ================= PREFILL APPLICATION ================= */
 
   useEffect(() => {
@@ -114,14 +146,10 @@ export default function CreatorApplication() {
 
     setForm({
       displayName: application.displayName ?? "",
-      primaryCategory: application.primaryCategory ?? "",
+      interests: (application.interests ?? []).join(", "),
       country: application.country ?? "",
       city: application.city ?? "",
       currency: application.currency ?? "",
-
-      services: Array.isArray(application.services)
-        ? application.services.join(", ")
-        : "",
 
       publicBio: application.publicBio ?? "",
 
@@ -203,6 +231,11 @@ export default function CreatorApplication() {
 
   const handleMediaUpload = async (files: FileList) => {
     const selectedFiles = Array.from(files);
+    const remainingSlots = 6 - mediaRef.current.media.length;
+    if (selectedFiles.length > remainingSlots) {
+      setError(`Creator applications can include at most 6 gallery images. Remove images or select no more than ${remainingSlots}.`);
+      return;
+    }
 
     const uploads = selectedFiles.map(async (file) => {
       const selected = createProfileMediaSelection(file, "CREATOR_APPLICATION_MEDIA"); setMedia((previous) => [...previous, selected]);
@@ -214,10 +247,12 @@ export default function CreatorApplication() {
   };
 
   const removeMedia = (index: number) => {
+    setCaptureComplete(false); setVerificationStatus(null);
     setMedia((previous) => { const removed = previous[index]; if (removed) { release(removed); disposeProfileMediaPreview(removed); } return previous.filter((_, mediaIndex) => mediaIndex !== index); });
   };
 
   const removeSlot = (slot: "avatar" | "cover") => {
+    setCaptureComplete(false); setVerificationStatus(null);
     const item = slot === "avatar" ? mediaRef.current.avatar : mediaRef.current.cover;
     if (item) {
       release(item);
@@ -227,65 +262,99 @@ export default function CreatorApplication() {
     else setCover(null);
   };
 
-  /* ================= SUBMIT ================= */
+  /* ================= DRAFT / VERIFICATION ================= */
+
+  const creatorPayload = (requireComplete: boolean) => {
+    if (isUploading) throw new Error("Please wait until all images finish uploading.");
+    const avatarClaim = avatar ? toProfileMediaClaim(avatar) : undefined;
+    const coverClaim = cover ? toProfileMediaClaim(cover) : undefined;
+    const mediaClaims = media.map((item) => toProfileMediaClaim(item));
+    const payload = {
+      ...form,
+      ...(avatarClaim ? { avatar: avatarClaim } : {}),
+      ...(coverClaim ? { cover: coverClaim } : {}),
+      media: mediaClaims,
+      interests: form.interests.split(",").map((interest) => interest.trim()).filter(Boolean),
+      languages: form.languages.split(",").map((language) => language.trim()).filter(Boolean),
+    };
+    if (!requireComplete) return payload;
+    if (!payload.displayName.trim() || !payload.country.trim() || !payload.city.trim() || !payload.currency.trim() || !payload.publicBio.trim() || payload.languages.length < 1 || !avatar || !cover || media.length < 2 || media.length > 6) {
+      throw new Error("Complete the required Creator details, avatar, cover, and two to six approved gallery images before face verification.");
+    }
+    if (isDirectCreator && (!identity.realName.trim() || !identity.dateOfBirth || !identity.mobileCountryCode.trim() || !identity.mobileNumber.trim())) {
+      throw new Error("Complete your private identity details before face verification.");
+    }
+    return payload;
+  };
+
+  const saveCreatorDraft = async (requireComplete: boolean) => {
+    const payload = creatorPayload(requireComplete);
+    const draftPayload = Object.fromEntries(Object.entries({ ...payload, ...identity, draftVersion: application?.draftVersion ?? 0 }).filter(([, value]) => value !== "" && value !== undefined));
+    const response = await api.put<{ applicationJourney: "direct_creator" | "user_upgrade"; draft: CreatorApplicationData; identity: { realName: string | null; dateOfBirth: string | null; mobileCountryCode: string | null; mobileNumber: string | null } | null }>("/v1/creator-applications/me/upgrade-draft", draftPayload);
+    setApplication(response.data.draft);
+    setApplicationJourney(response.data.applicationJourney);
+    setIdentity({ realName: response.data.identity?.realName ?? "", dateOfBirth: response.data.identity?.dateOfBirth ? response.data.identity.dateOfBirth.slice(0, 10) : "", mobileCountryCode: response.data.identity?.mobileCountryCode ?? "", mobileNumber: response.data.identity?.mobileNumber ?? "" });
+    await refreshVerificationStatus();
+    return response.data.draft;
+  };
+
+  const messageForCreatorError = (caught: unknown, fallback: string) => {
+    if (axios.isAxiosError(caught) && typeof caught.response?.data?.message === "string") return caught.response.data.message;
+    return caught instanceof Error ? caught.message : fallback;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    if (isUploading) {
-      setError("Please wait until all images finish uploading.");
-
-      return;
-    }
-
-    if (!isVerified) {
-      setError(
-        "Your user profile must be verified before applying as a creator.",
-      );
-
-      return;
-    }
-
-    let avatarClaim;
-    let coverClaim;
-    let mediaClaims;
-    try {
-      avatarClaim = avatar ? toProfileMediaClaim(avatar) : undefined;
-      coverClaim = cover ? toProfileMediaClaim(cover) : undefined;
-      mediaClaims = media.map((item) => toProfileMediaClaim(item));
-    } catch (claimError) {
-      setError(claimError instanceof Error ? claimError.message : "Image moderation must approve every selected image before it can be saved.");
-      return;
-    }
-
     setLoading(true);
     setError("");
-
     try {
-      await api.post("/v1/creator-applications", {
-        ...form,
+      if (draftMode) {
+        await saveCreatorDraft(false);
+        // A draft save advances the server-side draft/version contract. Any
+        // completed capture therefore has to be repeated against that version.
+        setCaptureComplete(false);
+        setVerificationStatus(null);
+        showToast("Creator application draft saved.", "success");
+        return;
+      }
+      if (!isVerified) throw new Error("Your user profile must be verified before applying as a creator.");
+      await api.post("/v1/creator-applications", creatorPayload(true));
 
-        ...(avatarClaim ? { avatar: avatarClaim } : {}),
-        ...(coverClaim ? { cover: coverClaim } : {}),
-        media: mediaClaims,
-
-        services: form.services
-          .split(",")
-          .map((service) => service.trim())
-          .filter(Boolean),
-        languages: form.languages
-          .split(",")
-          .map((language) => language.trim())
-          .filter(Boolean),
-      });
-
-      showToast("Creator application submitted.", "success");
+      showToast("Creator application submitted successfully.", "success");
       navigate("/dashboard/user");
     } catch (err: unknown) {
-      setError(
-        (axios.isAxiosError(err) && typeof err.response?.data?.message === "string" && err.response.data.message) ||
-          "Failed to submit creator application.",
-      );
+      setError(messageForCreatorError(err, "Failed to save creator application."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const beginCreatorVerification = async () => {
+    if (loading) return;
+    if (!formRef.current?.reportValidity()) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveCreatorDraft(true);
+      setCaptureComplete(false);
+      setFaceVerificationOpen(true);
+    } catch (caught) {
+      setError(messageForCreatorError(caught, "Unable to save your Creator application before face verification."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitVerification = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await submitCreatorVerification();
+      showToast("Creator application submitted successfully.", "success");
+      navigate("/dashboard/user");
+    } catch (submitError) {
+      if (axios.isAxiosError(submitError) && submitError.response?.status === 409) { setCaptureComplete(false); setVerificationStatus(null); }
+      setError((axios.isAxiosError(submitError) && typeof submitError.response?.data?.message === "string" && submitError.response.data.message) || "Creator verification could not be submitted.");
     } finally {
       setLoading(false);
     }
@@ -307,8 +376,10 @@ export default function CreatorApplication() {
         <div className="w-full max-w-lg rounded-[var(--radius-card)] border border-theme-border bg-theme-surface p-6 text-center">
           <h2 className="text-2xl font-bold">Application under review</h2>
           <p className="mt-3 text-sm leading-relaxed text-theme-muted">
-            Your Creator application has been submitted and is awaiting an administrator decision. You cannot submit another application while this review is active.
+            Your Creator application has been submitted and is being verified. You do not need to take action unless we ask you to correct something.
           </p>
+          {verificationStatus && <p className="mt-3 text-sm text-theme-muted">Verification status: {verificationStatus.lifecycle}{verificationStatus.job ? ` (${verificationStatus.job.status.toLowerCase()})` : ""}.</p>}
+          {!verificationStatus && <p className="mt-3 text-sm text-theme-muted">Creator face-verification status is unavailable. If this application was submitted before face verification was introduced, contact support before approval.</p>}
           <button
             type="button"
             onClick={() => navigate("/dashboard/user")}
@@ -352,14 +423,14 @@ export default function CreatorApplication() {
 
         <p className="mb-6 text-sm text-theme-muted">
           {isResubmission
-            ? "Update your application according to the administrator's feedback. Saving your changes will automatically resubmit it for review."
-            : "Submit your creator application for review."}
+            ? "Update your application according to the administrator's feedback, then complete face verification before resubmitting."
+            : draftMode ? "Complete your details, then select Face Verification to capture five live photos before submitting." : "Submit your creator application for review."}
         </p>
 
         {isResubmission && application?.rejectionReason && (
           <div className="mb-6 rounded-[var(--radius-card)] border border-theme-danger bg-theme-danger-tint p-4">
             <p className="mb-2 text-sm font-semibold text-theme-danger">
-              Administrator Feedback
+              Rejection reason and required correction
             </p>
 
             <p className="text-sm leading-relaxed text-theme-text">
@@ -374,25 +445,25 @@ export default function CreatorApplication() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} onChangeCapture={() => { if (captureComplete || verificationStatus?.capture?.status === "CAPTURE_COMPLETE") { setCaptureComplete(false); setVerificationStatus(null); } }} noValidate={draftMode} className="space-y-4">
+          {isDirectCreator && <><input name="realName" required value={identity.realName} placeholder="Legal name (private)" onChange={(event) => setIdentity((current) => ({ ...current, realName: event.target.value }))} className="input" /><input name="dateOfBirth" required type="date" value={identity.dateOfBirth} onChange={(event) => setIdentity((current) => ({ ...current, dateOfBirth: event.target.value }))} className="input" /><div className="grid grid-cols-3 gap-2"><input required value={identity.mobileCountryCode} placeholder="+91" onChange={(event) => setIdentity((current) => ({ ...current, mobileCountryCode: event.target.value }))} className="input" /><input required value={identity.mobileNumber} placeholder="Phone number" onChange={(event) => setIdentity((current) => ({ ...current, mobileNumber: event.target.value }))} className="input col-span-2" /></div></>}
           <input
             name="displayName"
+            required={!draftMode}
             value={form.displayName}
             placeholder="Display Name"
             onChange={handleChange}
             className="input"
           />
 
-          <input
-            name="primaryCategory"
-            value={form.primaryCategory}
-            placeholder="Primary Category"
-            onChange={handleChange}
-            className="input"
-          />
+          <label className="block text-sm text-theme-text">Interests
+            <span className="mb-2 block text-xs text-theme-muted">What do you enjoy? Separate interests with commas. These are not service categories.</span>
+            <input name="interests" value={form.interests} placeholder="Music, travel, art" onChange={handleChange} className="input" />
+          </label>
 
           <input
             name="country"
+            required
             value={form.country}
             placeholder="Country"
             onChange={handleChange}
@@ -401,6 +472,7 @@ export default function CreatorApplication() {
 
           <input
             name="city"
+            required
             value={form.city}
             placeholder="City"
             onChange={handleChange}
@@ -412,6 +484,7 @@ export default function CreatorApplication() {
           <div className="relative">
             <input
               value={currencySearch}
+            required
               onChange={(e) => {
                 setCurrencySearch(e.target.value);
 
@@ -442,6 +515,7 @@ export default function CreatorApplication() {
                       key={currency.code}
                       type="button"
                       onClick={() => {
+                        setCaptureComplete(false); setVerificationStatus(null);
                         setForm((previous) => ({
                           ...previous,
                           currency: currency.code,
@@ -468,15 +542,8 @@ export default function CreatorApplication() {
           </div>
 
           <input
-            name="services"
-            value={form.services}
-            placeholder="Services"
-            onChange={handleChange}
-            className="input"
-          />
-
-          <input
             name="languages"
+            required
             value={form.languages}
             placeholder="Languages"
             onChange={handleChange}
@@ -485,6 +552,7 @@ export default function CreatorApplication() {
 
           <textarea
             name="publicBio"
+            required
             value={form.publicBio}
             placeholder="Public Bio"
             onChange={handleChange}
@@ -494,7 +562,7 @@ export default function CreatorApplication() {
           {/* ================= AVATAR ================= */}
 
           <div>
-            <p className="text-sm mb-1">Avatar</p>
+            <p className="text-sm mb-1">Avatar (required)</p>
 
             <input
               type="file"
@@ -531,7 +599,7 @@ export default function CreatorApplication() {
           {/* ================= COVER ================= */}
 
           <div>
-            <p className="text-sm mb-1">Cover</p>
+            <p className="text-sm mb-1">Cover (required)</p>
 
             <input
               type="file"
@@ -568,12 +636,13 @@ export default function CreatorApplication() {
           {/* ================= MEDIA ================= */}
 
           <div>
-            <p className="text-sm mb-1">Media</p>
+            <p className="text-sm mb-1">Media (2–6 required)</p>
 
             <input
               type="file"
               accept="image/*"
               multiple
+              disabled={media.length >= 6}
               onChange={(e) => {
                 if (e.target.files) {
                   handleMediaUpload(e.target.files);
@@ -606,20 +675,26 @@ export default function CreatorApplication() {
           {/* ================= SUBMIT ================= */}
 
           <button
-            type="submit"
-            disabled={loading || !isVerified || isUploading}
+            type={draftMode ? "button" : "submit"}
+            onClick={draftMode ? () => void (captureComplete || verificationStatus?.capture?.status === "CAPTURE_COMPLETE" ? submitVerification() : beginCreatorVerification()) : undefined}
+            disabled={loading || isUploading}
             className="w-full rounded-[var(--radius-control)] bg-theme-primary py-3 font-semibold text-theme-primary-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-theme-accent"
           >
             {isUploading
               ? `Uploading images... (${activeUploads})`
               : loading
-                ? "Submitting..."
-                : isResubmission
-                  ? "Resubmit Application"
-                  : "Submit Application"}
+                ? draftMode ? "Saving draft..." : "Submitting..."
+                : draftMode ? (captureComplete || verificationStatus?.capture?.status === "CAPTURE_COMPLETE" ? "Submit Creator Application" : "Face Verification") : "Submit Application"}
           </button>
         </form>
       </div>
+
+      {faceVerificationOpen && application?.avatarUrl && <FaceVerificationOverlay
+        avatar={application.avatarUrl}
+        captureApi={creatorFaceVerificationCaptureApi}
+        onComplete={(session: FaceVerificationSessionDto) => { setFaceVerificationOpen(false); setCaptureComplete(session.status === "CAPTURE_COMPLETE"); setVerificationStatus((current) => current ? { ...current, capture: { acceptedCaptureCount: session.acceptedCaptureCount, requiredCaptureCount: session.requiredCaptureCount, status: session.status, expiresAt: session.expiresAt } } : current); void refreshVerificationStatus().catch(() => undefined); showToast("Five live face captures completed. Submit your Creator application when ready.", "success"); }}
+        onClose={() => setFaceVerificationOpen(false)}
+      />}
 
       <style>
         {`
